@@ -1,0 +1,31 @@
+{
+  "name": "hireevo-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "tokens:build": "pnpm --filter @hireevo/tokens build",
+    "tokens:contrast": "pnpm --filter @hireevo/tokens contrast",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.4",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "turbo": "2.10.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0"
+  }
+}

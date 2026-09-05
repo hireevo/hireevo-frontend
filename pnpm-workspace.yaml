@@ -1,0 +1,18 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Postinstall scripts run arbitrary code from the registry. Each one is an
+# explicit decision, not a default.
+allowBuilds:
+  '@tailwindcss/oxide': true # native binary for the Tailwind v4 engine
+  sharp: true # native image pipeline used by next/image
+  unrs-resolver: true # native resolver used by the ESLint import plugin
+  '@scarf/scarf': false # analytics beacon only
+
+# Refuse packages published in the last few days unless explicitly excluded.
+# Most registry compromises are caught and unpublished within hours.
+minimumReleaseAge: 4320 # minutes (3 days)
+# Reviewed and accepted despite being newer than the cutoff. Add an entry only
+# after checking the package's changelog and publisher.
+minimumReleaseAgeExclude: []
