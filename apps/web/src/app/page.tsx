@@ -3,7 +3,10 @@ import { Button } from '@hireevo/ui-web';
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 px-6 py-16">
+    <main
+      id="main-content"
+      className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 px-6 py-16"
+    >
       <p className="text-sm font-medium tracking-wide text-content-accent uppercase">HireEvo</p>
       <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
         The web app scaffold is up.

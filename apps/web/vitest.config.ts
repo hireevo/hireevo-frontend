@@ -10,7 +10,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // The primitives are tested in `packages/ui-web` and the routes by
+    // Playwright, so this project is empty until app-level logic appears.
+    passWithNoTests: true,
   },
 });
