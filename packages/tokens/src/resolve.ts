@@ -1,7 +1,7 @@
 import tokens from './tokens.json' with { type: 'json' };
 
 /**
- * A token value may reference another token by path, e.g. `{color.green.800}`.
+ * A token value may reference another token by path, e.g. `{color.brand.700}`.
  * References exist so a semantic name records *which* primitive it points at —
  * that link is what makes a palette change reviewable instead of a find-replace.
  */
