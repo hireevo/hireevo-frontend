@@ -24,6 +24,15 @@ test('the document response carries the security headers', async ({ request }) =
   }
 });
 
+test('the production policy carries none of the development loosening', async ({ request }) => {
+  const csp = (await request.get('/')).headers()['content-security-policy'] ?? '';
+  // `unsafe-eval` and a bare websocket scheme are allowed while React's dev
+  // build needs them. If either survives into a production build, the policy
+  // has quietly stopped being the one that was reviewed.
+  expect(csp).not.toContain('unsafe-eval');
+  expect(csp).not.toMatch(/\bwss?:/);
+});
+
 test('the server does not announce what it is', async ({ request }) => {
   const headers = (await request.get('/')).headers();
   expect(headers['x-powered-by']).toBeUndefined();

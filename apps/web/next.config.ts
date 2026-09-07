@@ -23,17 +23,29 @@ const apiOrigin = new URL(env.NEXT_PUBLIC_API_URL).origin;
  * means adding the nonce middleware and accepting dynamic rendering, and is
  * tracked as its own change.
  */
+const isProduction = process.env.NODE_ENV === 'production';
+
+// React's development build calls `eval()` to rebuild a callstack that crossed
+// an environment boundary, and the dev server talks to the browser over a
+// websocket. Neither exists in a production bundle, so both are allowed only
+// while NODE_ENV is not production — and a test below asserts that the shipped
+// policy really does omit them.
+const developmentOnly = {
+  script: isProduction ? '' : " 'unsafe-eval'",
+  connect: isProduction ? '' : ' ws: wss:',
+};
+
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${developmentOnly.script}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin}`,
+  `connect-src 'self' ${apiOrigin}${developmentOnly.connect}`,
   "manifest-src 'self'",
   'upgrade-insecure-requests',
 ].join('; ');
