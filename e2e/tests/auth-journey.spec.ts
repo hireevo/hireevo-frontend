@@ -10,7 +10,8 @@ import { expect, test, type Page } from '@playwright/test';
  * skipped rather than quietly passing.
  *
  * Bring the stack up from `hireevo-backend`: `pnpm db:up`, `pnpm db:migrate`,
- * then `pnpm dev`. Per ADR-001 this eventually runs against the pinned backend
+ * then `pnpm dev`. The API's `CORS_ORIGINS` has to include the port this suite
+ * serves on, which is its own rather than the dev server's. Per ADR-001 this eventually runs against the pinned backend
  * image named in `.api-version` rather than whatever is on the machine.
  *
  * Registration is rate limited to ten per hour per address, deliberately, so a
