@@ -20,12 +20,18 @@ export default async function ConfirmEmailPage({
 
   return (
     <>
-      <h1 className="text-[1.625rem] leading-[1.24] font-bold tracking-tight text-content-accent">
-        Confirm your email
-      </h1>
-      <p className="mt-5 text-base leading-[1.7] text-content">
-        Enter the verification code we sent — 6 digits — to {address}. Please enter it below
-      </p>
+      {/* This frame centres a 441px block in the column and left-aligns the
+          copy inside it, rather than running the text to the column's edges. */}
+      <div className="mx-auto w-full max-w-[441px]">
+        <div className="max-w-[369px]">
+          <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
+            Confirm your email
+          </h1>
+          <p className="mt-[19px] text-lg leading-[1.5] text-content">
+            Enter the verification code we sent — 6 digits — to {address}. Please enter it below
+          </p>
+        </div>
+      </div>
       <ConfirmEmailForm />
     </>
   );

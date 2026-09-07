@@ -10,14 +10,17 @@ export const metadata: Metadata = {
 export default function RecoverPage() {
   return (
     <>
-      {/* The design file reads "Recover you Account" and labels the button
-          "Countinue". Both are typos and are corrected here. */}
-      <h1 className="text-[1.625rem] leading-[1.24] font-bold tracking-tight text-content-accent">
-        Recover your Account
-      </h1>
-      <p className="mt-3 text-base text-content-subtle">
-        Enter your email address to recover your account
-      </p>
+      {/* This frame starts its content at y=192 rather than the y=139 the
+          shared shell provides, and the file reads "Recover you Account" with
+          "Countinue" on the button. Both are typos and are corrected here. */}
+      <div className="mt-[53px] max-w-[419px]">
+        <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
+          Recover your Account
+        </h1>
+        <p className="mt-3 text-lg leading-[1.5] text-content">
+          Enter your email address to recover your account
+        </p>
+      </div>
       <RecoverForm />
     </>
   );

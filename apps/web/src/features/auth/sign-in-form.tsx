@@ -22,8 +22,8 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-8 flex flex-col">
-      <div className="flex flex-col gap-9">
+    <form onSubmit={handleSubmit} noValidate className="mt-[30px] flex flex-col">
+      <div className="flex flex-col gap-[25px]">
         <TextField
           label="E-mail"
           name="email"
@@ -45,7 +45,10 @@ export function SignInForm() {
 
       <div className="mt-[25px] flex items-center justify-between gap-4">
         <Checkbox name="remember">Remember me</Checkbox>
-        <Link href="/recover" className="text-base text-content-link underline underline-offset-2">
+        <Link
+          href="/recover"
+          className="text-base font-medium text-content-link underline underline-offset-2"
+        >
           Forgot Password?
         </Link>
       </div>
@@ -56,7 +59,7 @@ export function SignInForm() {
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-12">
+      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-[49px]">
         Sign in
       </Button>
     </form>
