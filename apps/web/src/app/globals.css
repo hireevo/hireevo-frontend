@@ -6,6 +6,12 @@
 @import '@hireevo/tokens/tokens.css';
 @import '@hireevo/tokens/tailwind.css';
 
+/* Tailwind's automatic source detection stops at `node_modules`, and a workspace
+   package reaches this app through a symlink inside it. Without this line every
+   class used only in `@hireevo/ui-web` is silently dropped — no error, just a
+   control with no height and square corners. */
+@source '../../../../packages/ui-web/src';
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

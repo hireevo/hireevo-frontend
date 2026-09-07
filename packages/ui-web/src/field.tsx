@@ -40,10 +40,14 @@ export function Field({ label, hideLabel, error, hint, children, className }: Fi
     <div className={cn('flex flex-col', className)}>
       <label
         htmlFor={id}
-        // The 10px inset is the design's: labels sit slightly proud of the
-        // input's own text padding rather than flush with its border.
+        // The 10px inset on both axes is the design's: the label sits in a
+        // 10px-padded box, so it is proud of the input's own text padding and
+        // carries the block's top spacing rather than being flush with it.
         className={cn(
-          'pl-2.5 text-sm leading-5 text-content-subtle',
+          // 16px Medium in the design. Its label grey (#718096) is 3.8:1 on
+          // the page and cannot carry body text, so the colour is one step
+          // darker while the size, weight and tracking are the file's.
+          'pt-2.5 pl-2.5 text-base leading-5 font-medium tracking-[-0.154px] text-content-subtle',
           hideLabel === true && 'sr-only',
           // 20px of label plus 14px of gap is the design's 34px from the top of
           // the label to the top of the control.

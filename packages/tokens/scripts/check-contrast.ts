@@ -32,6 +32,8 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['focus', 'surface', 'large'],
   ['focus', 'surface-subtle', 'large'],
   ['accent', 'surface', 'large'],
+  ['accent-soft', 'surface', 'large'],
+  ['accent-soft', 'surface-subtle', 'large'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);

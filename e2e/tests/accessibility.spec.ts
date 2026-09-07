@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 // The Step 1.2 gate: axe plus a keyboard-only pass over the showcase. Every
 // route added to the app belongs in this list.
-const ROUTES = ['/', '/design-system'];
+const ROUTES = ['/', '/design-system', '/sign-up', '/sign-in', '/recover', '/confirm-email'];
 
 for (const path of ROUTES) {
   test(`${path} has no automatically detectable accessibility violations`, async ({ page }) => {

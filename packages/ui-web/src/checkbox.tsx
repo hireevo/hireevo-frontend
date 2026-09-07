@@ -16,7 +16,7 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' |
  */
 export function Checkbox({ children, className, ...input }: CheckboxProps) {
   return (
-    <label className={cn('inline-flex cursor-pointer items-center gap-2 text-sm', className)}>
+    <label className={cn('inline-flex cursor-pointer items-center gap-2 text-base', className)}>
       <span className="relative flex size-4 shrink-0 items-center justify-center">
         <input
           {...input}

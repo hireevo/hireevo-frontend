@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { env } from '@/env';
 import './globals.css';
 
 // The variable name is deliberately not `--font-sans`: `--he-font-family-sans`
 // already resolves to it, and Tailwind's own `--font-sans` points at that. Two
 // of the three sharing a name would make the chain resolve to itself.
-const sans = Inter({
+// Plus Jakarta Sans is the family the design file uses, at five weights: the
+// forms sit on Regular and Medium, the headings on SemiBold, Bold and ExtraBold.
+const sans = Plus_Jakarta_Sans({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-hireevo-sans',
   display: 'swap',
 });

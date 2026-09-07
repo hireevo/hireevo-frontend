@@ -32,7 +32,7 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-5 flex flex-col">
-      <div className="flex flex-col gap-[25px]">
+      <div className="flex flex-col gap-[15px]">
         {/* 244 / 270 with a 16px gutter, straight from the design's 530px column. */}
         <div className="grid grid-cols-[244fr_270fr] gap-4">
           <TextField
@@ -99,9 +99,12 @@ export function SignUpForm() {
         />
       </div>
 
-      <div className="mt-[25px] flex items-center justify-between gap-4">
+      <div className="mt-[15px] flex items-center justify-between gap-4">
         <Checkbox name="remember">Remember me</Checkbox>
-        <Link href="/recover" className="text-base text-content-link underline underline-offset-2">
+        <Link
+          href="/recover"
+          className="text-base font-medium text-content-link underline underline-offset-2"
+        >
           Forgot Password?
         </Link>
       </div>

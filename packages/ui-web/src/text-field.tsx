@@ -4,7 +4,7 @@ import { Field, type FieldOwnProps } from './field.tsx';
 
 /** The shared shell: border, height and radius are the same for every control. */
 export const inputShell = [
-  'flex h-14 w-full items-center rounded-md border bg-transparent',
+  'flex h-[54px] w-full items-center rounded-lg border bg-transparent',
   'transition-colors focus-within:border-border-accent',
 ];
 

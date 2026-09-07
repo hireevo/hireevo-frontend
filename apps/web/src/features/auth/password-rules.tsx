@@ -16,12 +16,17 @@ export function PasswordRules({ value }: { value: string }) {
       {PASSWORD_RULES.map((rule) => {
         const met = rule.test(value);
         return (
-          <li key={rule.id} className="flex items-center gap-2.5 text-sm leading-5">
+          <li key={rule.id} className="flex items-center gap-2.5 text-base leading-5">
+            {/* One fill at two opacities, as the design draws it. The label
+                stays the same colour either way, so the state is never carried
+                by colour alone — the text below is what says which it is. */}
             <AiFillCheckCircle
               aria-hidden="true"
-              className={met ? 'size-4 shrink-0 text-accent' : 'size-4 shrink-0 text-border'}
+              className={
+                met ? 'size-4 shrink-0 text-accent-soft' : 'size-4 shrink-0 text-accent-soft/20'
+              }
             />
-            <span className={met ? 'text-content' : 'text-content-subtle'}>
+            <span className="text-content">
               {rule.label}
               <span className="sr-only">{met ? ' — met' : ' — not met yet'}</span>
             </span>

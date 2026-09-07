@@ -1,17 +1,20 @@
 # Auth screen artwork
 
-Three assets on the sign-in / sign-up showcase panel are artwork rather than
-layout, so they are exported from the Figma file instead of being reproduced in
-CSS. Export them from `HireEvo_ Dashboard V.01`
-(`F7Shp0bGkgW7mu8FZipja1`) at 2x and drop them in beside this file:
+Exported from `HireEvo_ Dashboard V.01` (`F7Shp0bGkgW7mu8FZipja1`), sign-up frame
+`146:2330`. These are artwork rather than layout, so they are the file's own
+vectors instead of being reproduced in CSS.
 
-| File                  | Figma node             | Size (1x) | Notes                                           |
-| --------------------- | ---------------------- | --------- | ----------------------------------------------- |
-| `workspace.png`       | `132:1667` — `Girl 1`  | 574 x 861 | The photograph. Needs a transparent background. |
-| `brand-motif.svg`     | `132:1659` — `Layer 3` | 417 x 367 | The stepped mark cut into the top-right corner. |
-| `brand-motif-alt.svg` | `132:1550` — `Layer 2` | 262 x 432 | The same mark, bottom-left.                     |
+| File              | Figma node               | Size (1x)  | What it is                                                     |
+| ----------------- | ------------------------ | ---------- | -------------------------------------------------------------- |
+| `panel.svg`       | `146:2332` — `Subtract`  | 766 x 1024 | The panel itself. The stepped marks are notches cut out of it. |
+| `panel-glow.svg`  | `146:2336` — `Ellipse 1` | 803 x 793  | The lightened sweep, rotated 26.84°.                           |
+| `panel-motif.svg` | `146:2344` — `Layer 3`   | 417 x 367  | The same stepped mark again, mirrored, at 10% opacity.         |
+| `workspace.png`   | `146:2352` — `Girl 1`    | 574 x 861  | The photograph. Transparent background.                        |
+| `carousel.svg`    | `146:2340` — `skip`      | 54 x 8     | The three-dot carousel indicator.                              |
 
-`brand-motif*.svg` are decorative and carry an empty `alt`, so the panel still
-renders correctly while they are missing — it simply loses the corner detail.
+`panel.svg` is why `Showcase` puts the page colour behind it rather than the
+brand navy: what shows through the notches is the page, not a separate white
+shape. An earlier reading of this frame treated the notches as two overlay
+files, which is why `brand-motif.svg` and `brand-motif-alt.svg` no longer exist.
 
-The wordmark in `../brand/` is exported the same way; see the README there.
+The wordmark is in `../brand/`; see the README there.
