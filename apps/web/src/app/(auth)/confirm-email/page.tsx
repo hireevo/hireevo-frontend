@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ConfirmEmailForm } from '@/features/auth/confirm-email-form.tsx';
+import { DevMailboxNote } from '@/features/auth/dev-mailbox-note.tsx';
 
 export const metadata: Metadata = {
   title: 'Confirm your email',
@@ -32,6 +33,7 @@ export default async function ConfirmEmailPage({
             {address === '' ? 'your email address' : address}. Please enter it below
           </p>
         </div>
+        <DevMailboxNote />
       </div>
       <ConfirmEmailForm email={address} />
     </>

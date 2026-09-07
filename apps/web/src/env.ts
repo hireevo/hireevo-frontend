@@ -21,6 +21,16 @@ const schema = z.object({
    * visible bug — which is why it is required instead of inferred.
    */
   NEXT_PUBLIC_SITE_URL: z.url(),
+  /**
+   * The local mail catcher's web inbox, when there is one.
+   *
+   * Development sends every message to a container on the machine rather than
+   * to a real address, which is the only sane default — otherwise every test
+   * sign-up mails a real person. The cost is that "check your email" is
+   * misleading advice locally, so the screens that say it link here instead.
+   * Unset in production, where the sentence is simply true.
+   */
+  NEXT_PUBLIC_DEV_MAILBOX_URL: z.url().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -30,6 +40,7 @@ const schema = z.object({
 const parsed = schema.safeParse({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL,
   NODE_ENV: process.env.NODE_ENV,
 });
 

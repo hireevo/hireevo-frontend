@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { DevMailboxNote } from '@/features/auth/dev-mailbox-note.tsx';
 import { RecoverForm } from '@/features/auth/recover-form.tsx';
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RecoverPage() {
         <p className="mt-3 text-lg leading-[1.5] text-content">
           Enter your email address to recover your account
         </p>
+        <DevMailboxNote />
       </div>
       <RecoverForm />
     </>
