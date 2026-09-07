@@ -19,6 +19,23 @@ for (const path of ROUTES) {
   });
 }
 
+test.describe('with the operating system set to dark', () => {
+  test.use({ colorScheme: 'dark' });
+
+  // Nothing in the design file is drawn dark. Until something is, a machine set
+  // to dark must still get the palette the screens were designed and reviewed
+  // in — anything else is a version nobody has looked at.
+  for (const path of ROUTES) {
+    test(`${path} still renders the light palette`, async ({ page }) => {
+      await page.goto(path);
+      const surface = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--he-surface').trim(),
+      );
+      expect(surface).toBe('#fff');
+    });
+  }
+});
+
 test('the skip link is the first thing a keyboard reaches, and it works', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');

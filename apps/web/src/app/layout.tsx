@@ -42,10 +42,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1d2221' },
-  ],
+  // One value, and it is the light surface: the app does not follow the
+  // operating system's colour scheme, so offering the browser a dark one would
+  // tint its chrome to match a palette the page never renders. See the note in
+  // packages/tokens/scripts/build-css.ts.
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
