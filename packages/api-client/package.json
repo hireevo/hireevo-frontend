@@ -1,0 +1,24 @@
+{
+  "name": "@hireevo/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ./openapi.json -o ./src/schema.d.ts",
+    "check:drift": "node scripts/check-drift.mjs",
+    "test": "node scripts/check-drift.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3"
+  }
+}

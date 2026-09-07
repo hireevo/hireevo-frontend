@@ -1,8 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import type { ZodType } from 'zod';
 import type { AuthResult } from './api.ts';
+import { useSession } from './session.tsx';
 
 export type FieldErrors = Record<string, string>;
 
@@ -29,6 +31,8 @@ export function useAuthForm<Values>(
   schema: ZodType<Values>,
   submit: (values: Values) => Promise<AuthResult>,
 ) {
+  const router = useRouter();
+  const { adopt } = useSession();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -54,14 +58,31 @@ export function useAuthForm<Values>(
       setFormError(null);
       setPending(true);
       const result = await submit(parsed.data);
-      setPending(false);
 
       if (!result.ok) {
+        setPending(false);
         setFieldErrors(result.fieldErrors ?? {});
         setFormError(result.message);
+        return;
       }
+
+      // A session that came back with the response is adopted before the
+      // navigation, so the destination renders signed in rather than flashing
+      // its anonymous state first.
+      if (result.session !== undefined) {
+        adopt(result.session.accessToken, result.session.user);
+      }
+
+      if (result.redirectTo !== undefined) {
+        // Pending stays true across the navigation: releasing the button here
+        // would let a second submit land while the next screen is still loading.
+        router.push(result.redirectTo);
+        return;
+      }
+
+      setPending(false);
     },
-    [schema, submit],
+    [adopt, router, schema, submit],
   );
 
   return { fieldErrors, formError, pending, run, clearField };

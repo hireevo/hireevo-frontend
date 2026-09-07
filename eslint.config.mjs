@@ -12,7 +12,7 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/node_modules/**',
       // Regenerated from the pinned OpenAPI spec; findings belong upstream.
-      'packages/api-client/generated/**',
+      'packages/api-client/src/schema.d.ts',
     ],
   },
   js.configs.recommended,

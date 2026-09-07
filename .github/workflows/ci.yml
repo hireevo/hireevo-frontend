@@ -33,6 +33,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: The generated API client still matches the pinned spec
+        # Ahead of the other checks: a hand-edited client makes everything after
+        # it compile against a shape the API does not return, and the failure
+        # would show up somewhere far from its cause.
+        run: pnpm --filter @hireevo/api-client check:drift
+
       - name: Formatting
         run: pnpm format:check
 

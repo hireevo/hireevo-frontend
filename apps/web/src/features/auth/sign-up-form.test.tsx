@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type * as ApiModule from './api.ts';
+import type { signUp } from './api.ts';
 import { SignUpForm } from './sign-up-form.tsx';
 
 // The form links to /recover. `next/link` needs an App Router context that a
@@ -9,6 +11,30 @@ vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
   ),
+}));
+
+// Same reasoning for the router: this file is about what the form does with a
+// submission, and a successful one navigates. The push is recorded rather than
+// performed so the assertion can be about where it would have gone.
+const push = vi.fn<(href: string) => void>();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: push }) }));
+
+// The session is a real provider that spends the refresh cookie on mount, which
+// means a network call. The form only needs somewhere to hand a session it was
+// given, so it gets a stub.
+vi.mock('./session.tsx', () => ({
+  useSession: () => ({ status: 'anonymous', user: null, adopt: vi.fn(), signOut: vi.fn() }),
+}));
+
+// The form talks to the API in two places: the username field asks whether a
+// handle is free when it loses focus, and submitting registers. Both are stubbed
+// — these cases are about what the form does with an answer, not about getting
+// one, and left real every case here would make a request.
+const signUpMock = vi.fn<typeof signUp>(() => Promise.resolve({ ok: true }));
+vi.mock('./api.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof ApiModule>()),
+  isUsernameAvailable: vi.fn(() => Promise.resolve(true)),
+  signUp: (...args: Parameters<typeof signUp>) => signUpMock(...args),
 }));
 
 const fill = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -72,7 +98,13 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('surfaces a whole-form failure once validation passes', async () => {
+  it('puts a rejected field’s message on that field, not only in the banner', async () => {
+    signUpMock.mockResolvedValueOnce({
+      ok: false,
+      message: 'That username is already taken',
+      fieldErrors: { username: 'That username is already taken' },
+    });
+
     const user = userEvent.setup();
     render(<SignUpForm />);
 
@@ -81,8 +113,42 @@ describe('SignUpForm', () => {
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
     await user.click(screen.getByRole('button', { name: 'Create Account' }));
 
-    // The accounts API is not wired up yet, so the seam reports that rather
-    // than the screen pretending the account was created.
-    expect(await screen.findByRole('alert')).toHaveTextContent('Accounts are not connected yet');
+    // On the field it can be fixed: a banner alone leaves the user to work out
+    // which of six inputs the complaint is about.
+    await expect
+      .poll(() => screen.getByLabelText('User Name').getAttribute('aria-invalid'))
+      .toBe('true');
+    expect(screen.getByLabelText('User Name')).toHaveAccessibleDescription(/already taken/i);
+  });
+
+  it('surfaces a failure that belongs to no single field', async () => {
+    signUpMock.mockResolvedValueOnce({
+      ok: false,
+      message: 'Too many attempts. Wait a few minutes and try again.',
+    });
+
+    const user = userEvent.setup();
+    render(<SignUpForm />);
+
+    await fill(user);
+    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i);
+  });
+
+  it('sends the person on to confirmation once the account is accepted', async () => {
+    signUpMock.mockResolvedValueOnce({ ok: true, redirectTo: '/confirm-email?email=a%40b.com' });
+
+    const user = userEvent.setup();
+    render(<SignUpForm />);
+
+    await fill(user);
+    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/confirm-email?email=a%40b.com');
   });
 });

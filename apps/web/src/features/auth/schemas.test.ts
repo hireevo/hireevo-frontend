@@ -81,12 +81,21 @@ describe('recoverSchema', () => {
 });
 
 describe('confirmEmailSchema', () => {
+  const EMAIL = 'ayesha@example.com';
+
   it.each([
     ['418302', true],
     ['4183', false],
     ['4183021', false],
     ['41830a', false],
   ])('treats %s as %s', (code, expected) => {
-    expect(confirmEmailSchema.safeParse({ code }).success).toBe(expected);
+    expect(confirmEmailSchema.safeParse({ email: EMAIL, code }).success).toBe(expected);
+  });
+
+  it('requires the address the code belongs to', () => {
+    // A code is only meaningful against an owner: six digits on their own would
+    // be checkable against every pending account at once, which is what makes
+    // the address part of the request rather than a convenience.
+    expect(confirmEmailSchema.safeParse({ code: '418302' }).success).toBe(false);
   });
 });

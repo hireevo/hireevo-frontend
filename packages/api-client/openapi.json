@@ -1,0 +1,835 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All checked dependencies are reachable\n\nThe Health Check is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok", "degraded"], "example": "ok" },
+                    "info": {
+                      "type": "object",
+                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {},
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Health Check is not successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["error", "shutting_down"],
+                      "example": "error"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect",
+                          "responseTime": 3005
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": { "status": "up", "responseTime": 12 },
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect",
+                          "responseTime": 3005
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "responseTime": {
+                            "type": "number",
+                            "description": "Time the health indicator took to respond, in ms"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": ["health"]
+      }
+    },
+    "/api/v1/auth/username-available": {
+      "get": {
+        "description": "Public because a username is a public identifier — confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
+        "operationId": "RegistrationController_usernameAvailable_v1",
+        "parameters": [
+          { "name": "username", "required": true, "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UsernameAvailabilityResponse" }
+              }
+            }
+          }
+        },
+        "summary": "Check whether a username is free",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. A taken username answers 409, because a username is a public identifier.",
+        "operationId": "RegistrationController_register_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          }
+        },
+        "summary": "Create an account",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "description": "Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding link for the address is invalidated first.",
+        "operationId": "RegistrationController_resendVerification_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResendVerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          }
+        },
+        "summary": "Send a fresh confirmation link",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "description": "Does not sign the person in. Once confirmed they sign in with their email address and password, which keeps a forwarded code from becoming a session. Limited per address as well as per IP: the code belongs to an account, so the guessing budget has to be spent per account too.",
+        "operationId": "RegistrationController_verifyEmail_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/VerifyEmailRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VerifyEmailResponse" }
+              }
+            }
+          }
+        },
+        "summary": "Confirm an email address using the emailed token",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "SessionController_login_v1",
+        "parameters": [
+          {
+            "name": "X-Device-Model",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Client-generated device id",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-Client-Platform",
+            "in": "header",
+            "description": "web (default), ios or android. Browsers receive the refresh token as an httpOnly cookie and no token in the body; native clients receive it in the body.",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        },
+        "summary": "Exchange credentials for an access and refresh token",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Reads the token from the httpOnly cookie for browsers, or from the body for native clients. Presenting a token that has already been rotated revokes every session in its family, because a replay cannot be told apart from a theft.",
+        "operationId": "SessionController_refresh_v1",
+        "parameters": [
+          {
+            "name": "X-Client-Platform",
+            "in": "header",
+            "description": "web (default), ios or android. Browsers receive the refresh token as an httpOnly cookie and no token in the body; native clients receive it in the body.",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        },
+        "summary": "Rotate a refresh token",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "SessionController_logout_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Revoked" } }
+            }
+          }
+        },
+        "summary": "Revoke the current session and its rotation family",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "SessionController_listSessions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionListResponse" }
+              }
+            }
+          }
+        },
+        "summary": "List the caller’s active sessions",
+        "tags": ["auth"]
+      },
+      "delete": {
+        "operationId": "SessionController_revokeOtherSessions_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Sign out everywhere else, keeping this session",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/sessions/{id}": {
+      "delete": {
+        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user’s session id would be enough to sign them out.",
+        "operationId": "SessionController_revokeSession_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Session id",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "summary": "Revoke one of the caller’s sessions",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "description": "Answers 202 for every address, known or not. A reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.",
+        "operationId": "PasswordController_forgot_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RequestPasswordReset" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          }
+        },
+        "summary": "Start password recovery",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "description": "Ends every existing session. Someone resetting a password is often doing it because they believe the account is compromised; leaving the attacker signed in would defeat the exercise.",
+        "operationId": "PasswordController_reset_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResetPasswordRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PasswordResetCompleted" }
+              }
+            }
+          }
+        },
+        "summary": "Complete a password reset",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/password/change": {
+      "post": {
+        "description": "Requires the current password. Ends every session on every device, including this one, and returns a fresh token pair so the caller stays signed in where they are.",
+        "operationId": "PasswordController_change_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChangePasswordRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        },
+        "summary": "Change the password of the signed-in user",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless — this list draws the interface, it does not decide access.",
+        "operationId": "AccountController_me_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthenticatedUser" } }
+            }
+          }
+        },
+        "summary": "The signed-in user, their roles and their permissions",
+        "tags": ["auth"]
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "operationId": "JwksController_jwks",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Public keys for verifying access tokens",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/profiles": {
+      "post": {
+        "description": "One profile per account. A second attempt answers 409.",
+        "operationId": "ProfilesController_create_v1",
+        "parameters": [],
+        "responses": { "201": { "description": "" } },
+        "summary": "Create the caller’s profile draft",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me": {
+      "get": {
+        "description": "The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it.",
+        "operationId": "ProfilesController_getOwn_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "The caller’s own profile, including contact details",
+        "tags": ["profiles"]
+      },
+      "patch": {
+        "description": "Every request states the version it was editing. A mismatch answers 409 with the current version so the client can offer a reload or a merge — a later edit is never silently overwritten.",
+        "operationId": "ProfilesController_update_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "Saved; the response carries the new version" } },
+        "summary": "Autosave the profile draft",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me/visibility": {
+      "put": {
+        "description": "Location granularity narrows rather than relabels: choosing country drops the city entirely rather than hiding its label.",
+        "operationId": "ProfilesController_updateVisibility_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Set what the profile shows publicly",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me/publish": {
+      "post": {
+        "description": "Applies a stricter schema than autosave. Failures come back as a list of fields, because the person is looking at a form and needs to know which parts to fix.",
+        "operationId": "ProfilesController_publish_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Publish the profile",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me/unpublish": {
+      "post": {
+        "operationId": "ProfilesController_unpublish_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Withdraw the profile from public view",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me/revisions": {
+      "get": {
+        "operationId": "ProfilesController_listRevisions_v1",
+        "parameters": [],
+        "responses": { "200": { "description": "" } },
+        "summary": "Version history of the caller’s profile",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/{slug}": {
+      "get": {
+        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed — identically. A 403 would confirm the profile is real and merely hidden.",
+        "operationId": "ProfilesController_getPublic_v1",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "description": "Opaque public profile slug",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "200": { "description": "" } },
+        "summary": "A published public profile",
+        "tags": ["profiles"]
+      }
+    }
+  },
+  "info": {
+    "title": "HireEvo API",
+    "description": "HireEvo platform API. Additive-only within a major version.",
+    "version": "v1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": { "scheme": "bearer", "bearerFormat": "JWT", "type": "http" }
+    },
+    "schemas": {
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_FAILED",
+            "description": "Stable machine-readable code"
+          },
+          "message": { "type": "string", "example": "Request validation failed" },
+          "details": { "type": "object", "additionalProperties": true },
+          "requestId": { "type": "string", "example": "01JAV6M0T6M4T6QK1K7C0X5R2Z" }
+        },
+        "required": ["code", "message", "requestId"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": { "error": { "$ref": "#/components/schemas/ErrorBody" } },
+        "required": ["error"]
+      },
+      "AuthenticatedUser": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string" },
+          "firstName": { "type": ["string", "null"] },
+          "lastName": { "type": ["string", "null"] },
+          "username": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "emailVerified": { "type": "boolean" },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "permissions": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "username",
+          "status",
+          "emailVerified",
+          "roles",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "RequestPasswordReset": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "email": { "type": "string", "maxLength": 254 } },
+        "required": ["email"]
+      },
+      "Accepted": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "accepted": { "type": "boolean", "const": true } },
+        "required": ["accepted"],
+        "additionalProperties": false
+      },
+      "ResetPasswordRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256,
+            "allOf": [
+              { "type": "string", "pattern": "[A-Z]" },
+              { "type": "string", "pattern": "[a-z]" },
+              { "type": "string", "pattern": "\\d" }
+            ]
+          }
+        },
+        "required": ["token", "password"]
+      },
+      "PasswordResetCompleted": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "reset": { "type": "boolean", "const": true } },
+        "required": ["reset"],
+        "additionalProperties": false
+      },
+      "ChangePasswordRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "currentPassword": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256,
+            "allOf": [
+              { "type": "string", "pattern": "[A-Z]" },
+              { "type": "string", "pattern": "[a-z]" },
+              { "type": "string", "pattern": "\\d" }
+            ]
+          }
+        },
+        "required": ["currentPassword", "newPassword"]
+      },
+      "AuthTokensResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string" },
+          "expiresIn": { "type": "number" },
+          "refreshToken": { "type": "string" },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "email": { "type": "string" },
+              "firstName": { "type": ["string", "null"] },
+              "lastName": { "type": ["string", "null"] },
+              "username": { "type": ["string", "null"] },
+              "status": { "type": "string" },
+              "emailVerified": { "type": "boolean" },
+              "roles": { "type": "array", "items": { "type": "string" } },
+              "permissions": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": [
+              "id",
+              "email",
+              "firstName",
+              "lastName",
+              "username",
+              "status",
+              "emailVerified",
+              "roles",
+              "permissions"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["accessToken", "expiresIn", "user"],
+        "additionalProperties": false
+      },
+      "UsernameAvailabilityResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "username": { "type": "string" }, "available": { "type": "boolean" } },
+        "required": ["username", "available"],
+        "additionalProperties": false
+      },
+      "RegisterRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "firstName": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "lastName": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "email": { "type": "string", "maxLength": 254 },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256,
+            "allOf": [
+              { "type": "string", "pattern": "[A-Z]" },
+              { "type": "string", "pattern": "[a-z]" },
+              { "type": "string", "pattern": "\\d" }
+            ]
+          },
+          "confirmPassword": { "type": "string", "minLength": 1 }
+        },
+        "required": ["firstName", "lastName", "username", "email", "password", "confirmPassword"]
+      },
+      "ResendVerificationRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "email": { "type": "string", "maxLength": 254 } },
+        "required": ["email"]
+      },
+      "VerifyEmailRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "maxLength": 254 },
+          "code": { "type": "string", "pattern": "^\\d{6}$" }
+        },
+        "required": ["email", "code"]
+      },
+      "VerifyEmailResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "verified": { "type": "boolean", "const": true } },
+        "required": ["verified"],
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "maxLength": 254 },
+          "password": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "required": ["email", "password"]
+      },
+      "RefreshRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "refreshToken": { "type": "string", "minLength": 1, "maxLength": 512 } }
+      },
+      "Revoked": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": { "revoked": { "type": "boolean", "const": true } },
+        "required": ["revoked"],
+        "additionalProperties": false
+      },
+      "SessionListResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "current": { "type": "boolean" },
+            "userAgent": { "type": ["string", "null"] },
+            "devicePlatform": { "type": ["string", "null"] },
+            "deviceModel": { "type": ["string", "null"] },
+            "issuedAt": { "type": "string" },
+            "expiresAt": { "type": "string" }
+          },
+          "required": [
+            "id",
+            "current",
+            "userAgent",
+            "devicePlatform",
+            "deviceModel",
+            "issuedAt",
+            "expiresAt"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

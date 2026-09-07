@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button, Checkbox, PasswordField, TextField } from '@hireevo/ui-web';
-import { signUp } from './api.ts';
+import { isUsernameAvailable, signUp } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordRules } from './password-rules.tsx';
 import { signUpSchema } from './schemas.ts';
@@ -15,6 +15,24 @@ export function SignUpForm() {
   // The only controlled field: the rules list below it has to re-read the value
   // on every keystroke, which is the whole point of showing the list.
   const [password, setPassword] = useState('');
+  const [usernameTaken, setUsernameTaken] = useState<string | null>(null);
+
+  /**
+   * The design shows "User name is already taken" under the field, so the
+   * answer has to arrive before submit.
+   *
+   * Checked on blur rather than on every keystroke: the endpoint is public and
+   * rate limited precisely because an instant answer is also a way to harvest
+   * the handles in use, and a request per character would spend that budget on
+   * prefixes nobody typed on purpose. A failed check stays silent — claiming a
+   * name is taken because the network dropped is worse than saying nothing.
+   */
+  async function checkUsername(username: string) {
+    setUsernameTaken(null);
+    if (username.trim().length < 3) return;
+    const available = await isUsernameAvailable(username.trim());
+    if (available === false) setUsernameTaken('User name is already taken');
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,8 +86,12 @@ export function SignUpForm() {
             name="username"
             autoComplete="username"
             placeholder="john45461"
-            error={fieldErrors.username}
-            onChange={() => clearField('username')}
+            error={fieldErrors.username ?? usernameTaken ?? undefined}
+            onChange={() => {
+              clearField('username');
+              setUsernameTaken(null);
+            }}
+            onBlur={(event) => void checkUsername(event.target.value)}
           />
         </div>
 

@@ -18,8 +18,15 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    // 360px is the narrowest layout the design system is checked at.
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    {
+      // 360px is the narrowest layout the design system is checked at.
+      name: 'mobile',
+      use: { ...devices['Pixel 7'] },
+      // The account journey is a flow, not a layout: running it a second time
+      // at a second width proves nothing and doubles how many accounts a run
+      // registers, which the API rate limits at ten per hour per address.
+      testIgnore: /auth-journey\.spec\.ts/,
+    },
   ],
   webServer: {
     // The production build, not the dev server: security headers, static

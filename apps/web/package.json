@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@hireevo/api-client": "workspace:*",
     "@hireevo/tokens": "workspace:*",
     "@hireevo/ui-web": "workspace:*",
     "next": "16.3.4",

@@ -51,10 +51,26 @@ export const signUpSchema = z
 export const recoverSchema = z.object({ email, remember: z.boolean() });
 
 export const confirmEmailSchema = z.object({
+  // The address travels with the code because a code is only meaningful against
+  // an owner — six digits on their own would be checkable against every pending
+  // account at once.
+  email: z.email({ message: 'Enter a valid email address.' }),
   code: z.string().regex(/^\d{6}$/, { message: 'Enter all six digits.' }),
 });
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, { message: 'This link is missing its token.' }),
+    password,
+    confirmPassword: z.string(),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: 'Both passwords must match.',
+    path: ['confirmPassword'],
+  });
 
 export type SignInValues = z.infer<typeof signInSchema>;
 export type SignUpValues = z.infer<typeof signUpSchema>;
 export type RecoverValues = z.infer<typeof recoverSchema>;
 export type ConfirmEmailValues = z.infer<typeof confirmEmailSchema>;
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;

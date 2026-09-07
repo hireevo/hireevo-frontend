@@ -21,7 +21,9 @@
     "tokens:contrast": "pnpm --filter @hireevo/tokens contrast",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "api:generate": "pnpm --filter @hireevo/api-client generate",
+    "api:drift": "pnpm --filter @hireevo/api-client check:drift"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
@@ -37,7 +39,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,mts,cts}": [
-      "eslint --fix --max-warnings=0",
+      "eslint --fix --max-warnings=0 --no-warn-ignored",
       "prettier --write"
     ],
     "*.{js,jsx,mjs,cjs,json,css,md,yml,yaml}": [

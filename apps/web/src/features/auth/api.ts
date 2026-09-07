@@ -1,4 +1,13 @@
-import type { ConfirmEmailValues, RecoverValues, SignInValues, SignUpValues } from './schemas.ts';
+import type { Route } from 'next';
+import { toApiError, toFieldIssues, type AuthenticatedUser } from '@hireevo/api-client';
+import { api } from '@/lib/api.ts';
+import type {
+  ConfirmEmailValues,
+  RecoverValues,
+  ResetPasswordValues,
+  SignInValues,
+  SignUpValues,
+} from './schemas.ts';
 
 /**
  * Field-level messages are keyed by the form field they belong to, so a
@@ -6,38 +15,140 @@ import type { ConfirmEmailValues, RecoverValues, SignInValues, SignUpValues } fr
  * rather than in a banner the user has to map back onto a field themselves.
  */
 export type AuthResult =
-  { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+  | { ok: true; redirectTo?: Route; session?: { accessToken: string; user: AuthenticatedUser } }
+  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+/** Shown when the request never reached the API, or came back unrecognisable. */
+const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
 
 /**
- * The single seam between these screens and the accounts API.
+ * Turns a failed call into something a form can render.
  *
- * The API lives in `hireevo-backend` and reaches this repository as a generated
- * client built from its published contract — that package does not exist yet,
- * so every call below reports the same thing rather than pretending to succeed.
- * Replacing these four bodies with client calls is the whole of the wiring
- * work; nothing in the screens themselves needs to change.
+ * The API reports which field failed and why, so those messages are placed on
+ * their fields; anything left over becomes the form-level message. A rate limit
+ * is called out by name because "try again" is useless advice if the reason is
+ * that you have already tried too often.
  */
-const NOT_CONNECTED: AuthResult = {
-  ok: false,
-  message: 'Accounts are not connected yet. This screen is not wired to the API.',
-};
+function toResult(error: unknown, fieldMap: Record<string, string> = {}): AuthResult {
+  const envelope = toApiError(error);
+  if (envelope === null) return { ok: false, message: UNREACHABLE };
 
-export function signIn(_values: SignInValues): Promise<AuthResult> {
-  return Promise.resolve(NOT_CONNECTED);
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of toFieldIssues(error)) {
+    const field = fieldMap[issue.path] ?? issue.path;
+    fieldErrors[field] ??= issue.message;
+  }
+
+  const message =
+    envelope.code === 'RATE_LIMITED'
+      ? 'Too many attempts. Wait a few minutes and try again.'
+      : envelope.message;
+
+  return Object.keys(fieldErrors).length > 0
+    ? { ok: false, message, fieldErrors }
+    : { ok: false, message };
 }
 
-export function signUp(_values: SignUpValues): Promise<AuthResult> {
-  return Promise.resolve(NOT_CONNECTED);
+export async function signIn(values: SignInValues): Promise<AuthResult> {
+  const { data, error } = await api.POST('/api/v1/auth/login', {
+    body: { email: values.email, password: values.password },
+  });
+
+  if (error !== undefined || data === undefined) {
+    // The API answers the same way for an unknown address and a wrong password,
+    // so the message goes on the form rather than on either field: pointing at
+    // one of them would claim knowledge the response deliberately withholds.
+    return toResult(error);
+  }
+
+  return {
+    ok: true,
+    redirectTo: '/account',
+    session: { accessToken: data.accessToken, user: data.user },
+  };
 }
 
-export function requestRecovery(_values: RecoverValues): Promise<AuthResult> {
-  return Promise.resolve(NOT_CONNECTED);
+export async function signUp(values: SignUpValues): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/register', {
+    body: {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      username: values.username,
+      email: values.email,
+      password: values.password,
+      confirmPassword: values.confirmPassword,
+    },
+  });
+
+  if (error !== undefined) return toResult(error);
+
+  // Registration answers 202 whether or not the address was already taken, so
+  // the next screen is the same either way — the person learns what happened
+  // from the mail they do or do not receive.
+  // `typedRoutes` checks the pathname, which is a literal here; the query
+  // string it cannot know about is what needs the assertion.
+  return {
+    ok: true,
+    redirectTo: `/confirm-email?email=${encodeURIComponent(values.email)}` as Route,
+  };
 }
 
-export function confirmEmail(_values: ConfirmEmailValues): Promise<AuthResult> {
-  return Promise.resolve(NOT_CONNECTED);
+export async function requestRecovery(values: RecoverValues): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/password/forgot', {
+    body: { email: values.email },
+  });
+
+  // Answered the same way for every address, known or not, so the screen
+  // confirms in place instead of navigating somewhere that implies an account
+  // exists.
+  if (error !== undefined) return toResult(error);
+  return { ok: true };
 }
 
-export function resendCode(): Promise<AuthResult> {
-  return Promise.resolve(NOT_CONNECTED);
+export async function confirmEmail(
+  values: ConfirmEmailValues & { email: string },
+): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/verify-email', {
+    body: { email: values.email, code: values.code },
+  });
+
+  if (error !== undefined) return toResult(error, { code: 'code', email: 'code' });
+
+  // Confirming does not sign anyone in: a forwarded code must not become a
+  // session, so the next step is a deliberate sign-in.
+  return { ok: true, redirectTo: '/sign-in?confirmed=1' as Route };
+}
+
+export async function resendCode(email: string): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/resend-verification', { body: { email } });
+  if (error !== undefined) return toResult(error);
+  return { ok: true };
+}
+
+export async function resetPassword(values: ResetPasswordValues): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/password/reset', {
+    body: { token: values.token, password: values.password },
+  });
+
+  if (error !== undefined) return toResult(error, { token: 'password' });
+
+  // Resetting ends every session, including any the attacker holds, so there is
+  // nothing to adopt here — the next step is a deliberate sign-in.
+  return { ok: true, redirectTo: '/sign-in?reset=1' as Route };
+}
+
+/**
+ * Whether a handle is free, for the live check under the username field.
+ *
+ * Returns `null` when the question could not be answered — a rate limit, a
+ * dropped connection — so the field stays silent rather than claiming a name is
+ * taken because the check failed.
+ */
+export async function isUsernameAvailable(username: string): Promise<boolean | null> {
+  const { data, error } = await api.GET('/api/v1/auth/username-available', {
+    params: { query: { username } },
+  });
+
+  if (error !== undefined || data === undefined) return null;
+  return data.available;
 }

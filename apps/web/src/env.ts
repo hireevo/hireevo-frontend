@@ -7,7 +7,13 @@ import { z } from 'zod';
  * half works — the same rule the API follows.
  */
 const schema = z.object({
-  /** The HireEvo API, including its version prefix. */
+  /**
+   * The API's origin — no path.
+   *
+   * The version prefix belongs to the published contract, not to configuration:
+   * every path in the generated client already carries `/api/v1`, so putting it
+   * here too would produce `/api/v1/api/v1/...`.
+   */
   NEXT_PUBLIC_API_URL: z.url(),
   /**
    * The app's own public origin. Canonical URLs, the sitemap and Open Graph

@@ -1,0 +1,11 @@
+# The backend contract this frontend is built against.
+#
+# `packages/api-client/openapi.json` is the spec published at this commit, and
+# `src/schema.d.ts` is generated from it. Moving the pin is one pull request:
+# copy the new spec in, regenerate, and let the end-to-end suite run against the
+# matching backend.
+#
+# spec  the version string the document carries
+# sha   the hireevo-backend commit the document was published from
+spec=v1
+sha=1a2b724

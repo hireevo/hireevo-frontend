@@ -10,7 +10,7 @@ import { useAuthForm } from './use-auth-form.ts';
 
 const RESEND_SECONDS = 60;
 
-export function ConfirmEmailForm() {
+export function ConfirmEmailForm({ email }: { email: string }) {
   const { fieldErrors, formError, pending, run, clearField } = useAuthForm(
     confirmEmailSchema,
     confirmEmail,
@@ -27,15 +27,15 @@ export function ConfirmEmailForm() {
 
   const handleResend = useCallback(() => {
     setResending(true);
-    void resendCode().finally(() => {
+    void resendCode(email).finally(() => {
       setResending(false);
       setSeconds(RESEND_SECONDS);
     });
-  }, []);
+  }, [email]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void run({ code });
+    void run({ email, code });
   }
 
   const codeError = fieldErrors.code;

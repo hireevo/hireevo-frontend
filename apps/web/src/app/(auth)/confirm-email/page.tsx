@@ -16,7 +16,7 @@ export default async function ConfirmEmailPage({
   // It comes from the query string rather than from state, so a refresh — or
   // opening the link on the phone the mail arrived on — still shows it.
   const email = (await searchParams).email;
-  const address = typeof email === 'string' && email !== '' ? email : 'your email address';
+  const address = typeof email === 'string' && email !== '' ? email : '';
 
   return (
     <>
@@ -28,11 +28,12 @@ export default async function ConfirmEmailPage({
             Confirm your email
           </h1>
           <p className="mt-[19px] text-lg leading-[1.5] text-content">
-            Enter the verification code we sent — 6 digits — to {address}. Please enter it below
+            Enter the verification code we sent — 6 digits — to{' '}
+            {address === '' ? 'your email address' : address}. Please enter it below
           </p>
         </div>
       </div>
-      <ConfirmEmailForm />
+      <ConfirmEmailForm email={address} />
     </>
   );
 }
