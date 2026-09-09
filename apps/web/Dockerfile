@@ -8,7 +8,7 @@
 # variables, not a choice — a "configure at runtime" image would need those
 # values read on the server and passed down instead.
 
-FROM node:24.20.0-alpine AS base
+FROM node:26.8.1-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable pnpm
