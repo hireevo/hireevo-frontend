@@ -116,7 +116,7 @@ export async function confirmEmail(
 
   // Confirming does not sign anyone in: a forwarded code must not become a
   // session, so the next step is a deliberate sign-in.
-  return { ok: true, redirectTo: '/sign-in?confirmed=1' as Route };
+  return { ok: true, redirectTo: '/sign-in?confirmed=1' };
 }
 
 export async function resendCode(email: string): Promise<AuthResult> {
@@ -134,7 +134,7 @@ export async function resetPassword(values: ResetPasswordValues): Promise<AuthRe
 
   // Resetting ends every session, including any the attacker holds, so there is
   // nothing to adopt here — the next step is a deliberate sign-in.
-  return { ok: true, redirectTo: '/sign-in?reset=1' as Route };
+  return { ok: true, redirectTo: '/sign-in?reset=1' };
 }
 
 /**
