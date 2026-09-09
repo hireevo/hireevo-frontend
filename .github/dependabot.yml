@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # One pull request per group rather than fifteen. Anything with a known CVE
+    # still arrives on its own, immediately, because security updates are not
+    # grouped by Dependabot.
+    groups:
+      next:
+        patterns: ['next', '@next/*', 'eslint-config-next']
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      tooling:
+        patterns: ['eslint*', 'prettier', 'typescript*', '@typescript-eslint/*', 'turbo']
+      testing:
+        patterns: ['vitest', '@vitest/*', '@playwright/*', '@testing-library/*', 'jsdom']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker
+    directory: /apps/web
+    schedule:
+      interval: monthly

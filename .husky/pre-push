@@ -1,0 +1,4 @@
+# The cheap half of CI, so a red pipeline is not the first sign that something
+# does not compile. Skip with `git push --no-verify` when pushing work in
+# progress on purpose.
+pnpm typecheck

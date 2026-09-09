@@ -1,0 +1,23 @@
+{
+  "name": "@hireevo/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.json": "./src/tokens.json",
+    "./tailwind.css": "./dist/tailwind.css"
+  },
+  "scripts": {
+    "build": "node scripts/build-css.ts",
+    "contrast": "node scripts/check-contrast.ts",
+    "test": "node scripts/check-contrast.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src scripts"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
+  }
+}

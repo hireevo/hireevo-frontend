@@ -1,0 +1,3 @@
+# Formats and lints only what is staged. Types and tests are left to CI: a hook
+# slow enough to be worth skipping is a hook that gets skipped.
+pnpm exec lint-staged
