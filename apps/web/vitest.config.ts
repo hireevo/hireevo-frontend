@@ -10,9 +10,19 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // The environment schema is validated at import time and throws when a
+    // variable is missing. Vitest does not read `.env.local`, so anything that
+    // reaches `src/env.ts` — which now includes the API client — would fail to
+    // import rather than fail a test. These are the shapes, not real values.
+    env: {
+      NEXT_PUBLIC_API_URL: 'http://localhost:3000',
+      NEXT_PUBLIC_SITE_URL: 'http://localhost:3100',
+    },
+    setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
-    // The primitives are tested in `packages/ui-web` and the routes by
-    // Playwright, so this project is empty until app-level logic appears.
+    // The primitives are tested in `packages/ui-web` and the routes end to end
+    // by Playwright; what lives here is the app's own logic — schemas, form
+    // state and the screens assembled from the primitives.
     passWithNoTests: true,
   },
 });

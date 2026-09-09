@@ -24,6 +24,9 @@ const button = cva(
         sm: 'h-8 rounded-md px-3 text-sm',
         md: 'h-10 rounded-md px-4 text-base',
         lg: 'h-12 rounded-lg px-6 text-lg',
+        // The primary call to action on the auth screens: 60px tall, a 20px
+        // radius and 20px semibold type, all read off the design file.
+        xl: 'h-15 rounded-2xl px-6 text-xl font-semibold',
       },
       fullWidth: {
         true: 'w-full',

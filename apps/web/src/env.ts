@@ -7,7 +7,13 @@ import { z } from 'zod';
  * half works — the same rule the API follows.
  */
 const schema = z.object({
-  /** The HireEvo API, including its version prefix. */
+  /**
+   * The API's origin — no path.
+   *
+   * The version prefix belongs to the published contract, not to configuration:
+   * every path in the generated client already carries `/api/v1`, so putting it
+   * here too would produce `/api/v1/api/v1/...`.
+   */
   NEXT_PUBLIC_API_URL: z.url(),
   /**
    * The app's own public origin. Canonical URLs, the sitemap and Open Graph
@@ -15,6 +21,16 @@ const schema = z.object({
    * visible bug — which is why it is required instead of inferred.
    */
   NEXT_PUBLIC_SITE_URL: z.url(),
+  /**
+   * The local mail catcher's web inbox, when there is one.
+   *
+   * Development sends every message to a container on the machine rather than
+   * to a real address, which is the only sane default — otherwise every test
+   * sign-up mails a real person. The cost is that "check your email" is
+   * misleading advice locally, so the screens that say it link here instead.
+   * Unset in production, where the sentence is simply true.
+   */
+  NEXT_PUBLIC_DEV_MAILBOX_URL: z.url().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -24,6 +40,7 @@ const schema = z.object({
 const parsed = schema.safeParse({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL,
   NODE_ENV: process.env.NODE_ENV,
 });
 

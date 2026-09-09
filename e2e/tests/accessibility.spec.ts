@@ -3,7 +3,15 @@ import { expect, test } from '@playwright/test';
 
 // The Step 1.2 gate: axe plus a keyboard-only pass over the showcase. Every
 // route added to the app belongs in this list.
-const ROUTES = ['/', '/design-system'];
+const ROUTES = [
+  '/',
+  '/design-system',
+  '/sign-up',
+  '/sign-in',
+  '/recover',
+  '/confirm-email',
+  '/reset-password?token=example',
+];
 
 for (const path of ROUTES) {
   test(`${path} has no automatically detectable accessibility violations`, async ({ page }) => {
@@ -18,6 +26,23 @@ for (const path of ROUTES) {
     ).toEqual([]);
   });
 }
+
+test.describe('with the operating system set to dark', () => {
+  test.use({ colorScheme: 'dark' });
+
+  // Nothing in the design file is drawn dark. Until something is, a machine set
+  // to dark must still get the palette the screens were designed and reviewed
+  // in — anything else is a version nobody has looked at.
+  for (const path of ROUTES) {
+    test(`${path} still renders the light palette`, async ({ page }) => {
+      await page.goto(path);
+      const surface = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--he-surface').trim(),
+      );
+      expect(surface).toBe('#fff');
+    });
+  }
+});
 
 test('the skip link is the first thing a keyboard reaches, and it works', async ({ page }) => {
   await page.goto('/');

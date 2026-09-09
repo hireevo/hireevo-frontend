@@ -1,6 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 3100;
+/**
+ * Its own port, not the dev server's.
+ *
+ * These tests are about a production build — the security headers differ from
+ * development's on purpose — so the suite starts its own and never reuses
+ * whatever is already listening. Sharing 3100 meant a developer with `pnpm dev`
+ * running got a failure that was really a mis-run.
+ */
+const PORT = 3101;
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -18,16 +26,27 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    // 360px is the narrowest layout the design system is checked at.
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    {
+      // 360px is the narrowest layout the design system is checked at.
+      name: 'mobile',
+      use: { ...devices['Pixel 7'] },
+      // The account journey is a flow, not a layout: running it a second time
+      // at a second width proves nothing and doubles how many accounts a run
+      // registers, which the API rate limits at ten per hour per address.
+      // The panel is hidden below `lg`, so its geometry has nothing to check
+      // at a phone width.
+      testIgnore: /auth-journey\.spec\.ts|marketing-panel\.spec\.ts/,
+    },
   ],
   webServer: {
     // The production build, not the dev server: security headers, static
     // rendering and the real bundle are exactly what these tests are about.
-    command: 'pnpm --filter @hireevo/web build && pnpm --filter @hireevo/web start',
+    command: `pnpm --filter @hireevo/web build && pnpm --filter @hireevo/web exec next start --port ${PORT}`,
     cwd: '..',
     url: `${baseURL}/api/health`,
-    reuseExistingServer: process.env.CI === undefined,
+    // Never reuse: anything already on this port would be another run's server,
+    // and the point of the port is that nothing else uses it.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

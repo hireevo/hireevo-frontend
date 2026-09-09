@@ -1,3 +1,8 @@
 pnpm-lock.yaml
 .next
 dist
+
+# Generated from the pinned OpenAPI spec. Prettier reformatting it would make it
+# differ from what the generator produces, and the drift check compares exactly
+# that — the two would fight, and the loser would be whichever ran last.
+packages/api-client/src/schema.d.ts

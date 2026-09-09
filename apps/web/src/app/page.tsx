@@ -12,11 +12,13 @@ export default function HomePage() {
         The web app scaffold is up.
       </h1>
       <p className="max-w-prose text-lg text-content-muted">
-        This placeholder is replaced by the first screen from the design file. The token system,
-        Tailwind wiring and shared primitives behind it are already in place.
+        The account screens from the design file are in. Everything past them — the freelancer
+        workspace dashboard — is still to come.
       </p>
       <div className="flex flex-wrap gap-3">
-        <Button>Primary action</Button>
+        <Link href="/sign-in">
+          <Button>Sign in</Button>
+        </Link>
         <Link
           href="/design-system"
           className="inline-flex h-10 items-center rounded-md border border-border-strong px-4 font-medium hover:bg-surface-subtle"
