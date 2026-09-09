@@ -144,11 +144,36 @@ export async function resetPassword(values: ResetPasswordValues): Promise<AuthRe
  * dropped connection — so the field stays silent rather than claiming a name is
  * taken because the check failed.
  */
-export async function isUsernameAvailable(username: string): Promise<boolean | null> {
+/**
+ * What the server says about a handle, as three distinguishable answers.
+ *
+ * A boolean cannot carry all of them. The server refuses a reserved or
+ * malformed name with a 400 and a reason, and that is an *answer* — collapsing
+ * it into "could not check" throws away the one message the person needs, and
+ * leaves them to discover it only when the form is submitted.
+ */
+export type UsernameVerdict =
+  | { status: 'available' }
+  | { status: 'taken' }
+  /** The server refused the name outright and said why. */
+  | { status: 'rejected'; message: string }
+  /** No usable answer — a rate limit, a dropped connection. Say nothing. */
+  | { status: 'unknown' };
+
+export async function isUsernameAvailable(username: string): Promise<UsernameVerdict> {
   const { data, error } = await api.GET('/api/v1/auth/username-available', {
     params: { query: { username } },
   });
 
-  if (error !== undefined || data === undefined) return null;
-  return data.available;
+  if (error !== undefined) {
+    const issue = toFieldIssues(error).find((candidate) => candidate.path === 'username');
+    if (issue !== undefined) return { status: 'rejected', message: issue.message };
+
+    // Anything else is the request failing rather than the name being refused,
+    // and a network hiccup must never read as "that name is unavailable".
+    return { status: 'unknown' };
+  }
+
+  if (data === undefined) return { status: 'unknown' };
+  return data.available ? { status: 'available' } : { status: 'taken' };
 }

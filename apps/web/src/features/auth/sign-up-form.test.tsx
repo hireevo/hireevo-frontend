@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type * as ApiModule from './api.ts';
-import type { signUp } from './api.ts';
+import type { isUsernameAvailable, signUp } from './api.ts';
 import { SignUpForm } from './sign-up-form.tsx';
 
 // The form links to /recover. `next/link` needs an App Router context that a
@@ -31,9 +31,16 @@ vi.mock('./session.tsx', () => ({
 // — these cases are about what the form does with an answer, not about getting
 // one, and left real every case here would make a request.
 const signUpMock = vi.fn<typeof signUp>(() => Promise.resolve({ ok: true }));
+
+// Returns the verdict shape the real function returns, so a change to that
+// shape breaks here rather than passing silently against a stale stub.
+const availabilityMock = vi.fn<typeof isUsernameAvailable>(() =>
+  Promise.resolve({ status: 'available' as const }),
+);
 vi.mock('./api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof ApiModule>()),
-  isUsernameAvailable: vi.fn(() => Promise.resolve(true)),
+  isUsernameAvailable: (...args: Parameters<typeof isUsernameAvailable>) =>
+    availabilityMock(...args),
   signUp: (...args: Parameters<typeof signUp>) => signUpMock(...args),
 }));
 
@@ -150,5 +157,59 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/confirm-email?email=a%40b.com');
+  });
+});
+
+describe('the username check', () => {
+  it('says nothing while the field is too short to ask about', async () => {
+    const user = userEvent.setup();
+    render(<SignUpForm />);
+    availabilityMock.mockClear();
+
+    await user.type(screen.getByLabelText('User Name'), 'ab');
+    await user.tab();
+
+    expect(availabilityMock).not.toHaveBeenCalled();
+  });
+
+  it('reports a name that is already taken', async () => {
+    const user = userEvent.setup();
+    availabilityMock.mockResolvedValueOnce({ status: 'taken' });
+    render(<SignUpForm />);
+
+    await user.type(screen.getByLabelText('User Name'), 'ayesha');
+    await user.tab();
+
+    expect(await screen.findByText('User name is already taken')).toBeInTheDocument();
+  });
+
+  it('passes on the reason the server gives for refusing a name', async () => {
+    // The server answers a reserved name with a 400 and a message. That is an
+    // answer, not a failure to answer, so it reaches the field rather than
+    // being swallowed and discovered only on submit.
+    const user = userEvent.setup();
+    availabilityMock.mockResolvedValueOnce({
+      status: 'rejected',
+      message: 'This username is reserved',
+    });
+    render(<SignUpForm />);
+
+    await user.type(screen.getByLabelText('User Name'), 'admin');
+    await user.tab();
+
+    expect(await screen.findByText('This username is reserved')).toBeInTheDocument();
+  });
+
+  it('stays silent when the question could not be answered', async () => {
+    // A dropped request or a rate limit must never read as "that name is
+    // unavailable" — the person would rename for no reason.
+    const user = userEvent.setup();
+    availabilityMock.mockResolvedValueOnce({ status: 'unknown' });
+    render(<SignUpForm />);
+
+    await user.type(screen.getByLabelText('User Name'), 'ayesha');
+    await user.tab();
+
+    expect(screen.queryByText(/taken|reserved/i)).not.toBeInTheDocument();
   });
 });

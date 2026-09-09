@@ -30,8 +30,15 @@ export function SignUpForm() {
   async function checkUsername(username: string) {
     setUsernameTaken(null);
     if (username.trim().length < 3) return;
-    const available = await isUsernameAvailable(username.trim());
-    if (available === false) setUsernameTaken('User name is already taken');
+
+    const verdict = await isUsernameAvailable(username.trim());
+
+    // A refusal carries the server's own reason — "This username is reserved"
+    // — which is more use than the generic line, and is the case the live check
+    // exists for. `unknown` stays silent: a dropped request must not read as a
+    // name being unavailable.
+    if (verdict.status === 'taken') setUsernameTaken('User name is already taken');
+    if (verdict.status === 'rejected') setUsernameTaken(verdict.message);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

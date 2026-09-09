@@ -41,14 +41,11 @@ describe('the reset password form', () => {
     );
   });
 
-  it('has no "remember me" control', () => {
-    // The frame draws one, copied from sign-in. This screen creates no session
-    // — resetting revokes every one — so the checkbox would change nothing, and
-    // a control that does nothing is worse than an absent one.
+  it('carries the same row as the other auth screens', () => {
     render(<ResetPasswordForm token="a-token" />);
 
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(screen.queryByText(/remember me/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /remember me/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Forgot Password?' })).toBeInTheDocument();
   });
 
   it('marks each rule as met only once the password satisfies it', async () => {

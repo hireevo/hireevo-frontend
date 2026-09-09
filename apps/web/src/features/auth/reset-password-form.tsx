@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Button, PasswordField } from '@hireevo/ui-web';
+import { Button, Checkbox, PasswordField } from '@hireevo/ui-web';
 import { resetPassword } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordRules } from './password-rules.tsx';
@@ -52,18 +52,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
         />
       </div>
 
-      {/* The frame draws sign-in's "Remember me / Forgot Password?" row here.
-          Only the link is kept.
+      {/* The same row sign-in, sign-up and recover carry, drawn the same way
+          here.
 
-          "Remember me" decides how long a session lasts, and this screen creates
-          no session — resetting revokes every one and hands the person to
-          sign-in. A checkbox that changes nothing is worse than an absent one,
-          because someone ticks it and reasonably expects it to matter.
-
-          The link does earn its place: the most common reason to be stuck on
-          this screen is a link that has expired, and this is the way to ask for
-          another. */}
-      <div className="mt-[25px] flex items-center justify-end">
+          The checkbox is inert on all four screens today: `remember` is read
+          from the form and handed to the submit call, and nothing downstream
+          sends it. That is worth fixing, but it is one gap across the flow
+          rather than something to solve on this screen alone — leaving it out
+          here would only make this the odd screen out. */}
+      <div className="mt-[25px] flex items-center justify-between gap-4">
+        <Checkbox name="remember">Remember me</Checkbox>
         <Link
           href="/recover"
           className="text-base font-medium text-content-link underline underline-offset-2"
