@@ -3,16 +3,21 @@ import Link from 'next/link';
 import { ResetPasswordForm } from '@/features/auth/reset-password-form.tsx';
 
 export const metadata: Metadata = {
-  title: 'Set a new password',
+  title: 'Reset password',
   robots: { index: false, follow: false },
 };
 
 /**
  * Where the recovery email lands.
  *
- * The design file has no frame for this screen, but the flow it does draw sends
- * a link that has to arrive somewhere, so this borrows the shell and the type
- * scale from the frames beside it.
+ * Copy follows the frame, with one word changed: the mock reads "previous used
+ * passwords", which is a slip rather than a decision. A visible typo in shipped
+ * text costs more than a one-word departure from the file.
+ *
+ * The frame does not mention that resetting signs the account out everywhere.
+ * That is deliberate rather than missing — the recovery email says it before
+ * the person arrives here, so repeating it under the heading would spend the
+ * screen's one line of explanation on something already read.
  */
 export default async function ResetPasswordPage({
   searchParams,
@@ -26,12 +31,12 @@ export default async function ResetPasswordPage({
     <>
       <div className="mt-[53px] max-w-[419px]">
         <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
-          Set a new password
+          Reset password
         </h1>
         <p className="mt-3 text-lg leading-[1.5] text-content">
           {token === ''
             ? 'This link is missing its token. Request a new one from the recovery page.'
-            : 'Choose a password you have not used here before. Setting it signs you out everywhere else.'}
+            : 'Your new password must be different from previously used passwords.'}
         </p>
       </div>
 
