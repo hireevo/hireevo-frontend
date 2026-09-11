@@ -103,7 +103,7 @@ export function OtpInput({
       role="group"
       aria-label={label}
       {...(describedBy === undefined ? {} : { 'aria-describedby': describedBy })}
-      className={cn('flex gap-2.5', className)}
+      className={cn('flex w-full max-w-[410px] gap-2 sm:gap-2.5', className)}
     >
       {Array.from({ length }, (_, index) => (
         <input
@@ -123,7 +123,10 @@ export function OtpInput({
           autoComplete={index === 0 ? 'one-time-code' : 'off'}
           maxLength={1}
           className={cn(
-            'size-15 rounded-md border bg-transparent text-center text-xl text-content',
+            // Six boxes share whatever width the screen has, never wider than the
+            // design's 60px: on a 320px phone that is ~39px each, still a
+            // comfortable target, instead of 410px of boxes pushing the page sideways.
+            'aspect-square h-auto min-w-0 flex-1 max-w-15 rounded-md border bg-transparent text-center text-xl text-content',
             'transition-colors focus:border-border-accent focus:outline-none',
             'disabled:cursor-not-allowed disabled:opacity-60',
             invalid ? 'border-border-danger' : 'border-border',

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button, Checkbox, PasswordField, TextField } from '@hireevo/ui-web';
 import { isUsernameAvailable, signUp } from './api.ts';
@@ -15,6 +15,16 @@ export function SignUpForm() {
   // The only controlled field: the rules list below it has to re-read the value
   // on every keystroke, which is the whole point of showing the list.
   const [password, setPassword] = useState('');
+  // Uncontrolled, so that anything typed before the page finished loading
+  // survives hydration: WebKit resets a controlled input's early value to the
+  // empty state it was rendered with, and the person's password silently
+  // vanishes. The rules still need the value, so it is mirrored on every change
+  // and read once on mount to pick up whatever arrived first.
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const field = form.current?.elements.namedItem('password');
+    if (field instanceof HTMLInputElement && field.value !== '') setPassword(field.value);
+  }, []);
   const [usernameTaken, setUsernameTaken] = useState<string | null>(null);
 
   /**
@@ -55,11 +65,22 @@ export function SignUpForm() {
     });
   }
 
+  // `method="post"` matters only before the page hydrates. Until then Enter
+  // submits the form natively, and a form's default GET puts every field — the
+  // password included — in the address bar, the history and the server logs.
+  // Safari does exactly that on a slow load. A POST keeps the fields in the
+  // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-5 flex flex-col">
+    <form
+      method="post"
+      ref={form}
+      onSubmit={handleSubmit}
+      noValidate
+      className="mt-5 flex flex-col"
+    >
       <div className="flex flex-col gap-[15px]">
         {/* 244 / 270 with a 16px gutter, straight from the design's 530px column. */}
-        <div className="grid grid-cols-[244fr_270fr] gap-4">
+        <div className="grid grid-cols-1 gap-[15px] sm:grid-cols-[244fr_270fr] sm:gap-4 [&>*]:min-w-0">
           <TextField
             label="First Name"
             name="firstName"
@@ -78,7 +99,7 @@ export function SignUpForm() {
           />
         </div>
 
-        <div className="grid grid-cols-[244fr_270fr] gap-4">
+        <div className="grid grid-cols-1 gap-[15px] sm:grid-cols-[244fr_270fr] sm:gap-4 [&>*]:min-w-0">
           <TextField
             label="E-mail"
             name="email"
@@ -108,7 +129,6 @@ export function SignUpForm() {
             name="password"
             autoComplete="new-password"
             placeholder="••••••••"
-            value={password}
             error={fieldErrors.password}
             onChange={(event) => {
               setPassword(event.target.value);

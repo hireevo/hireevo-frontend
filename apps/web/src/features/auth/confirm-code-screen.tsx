@@ -22,8 +22,10 @@ export function ConfirmCodeScreen({ address, purpose }: { address: string; purpo
           <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
             Confirm your email
           </h1>
-          {/* Four lines in an 81px box in the file, the third left blank. */}
-          <p className="mt-[19px] text-base leading-[20.25px] text-content">
+          {/* Four lines in an 81px box in the file, the third left blank. The
+              address may break anywhere: an email is one unbroken word, and a
+              long one otherwise pushes a phone screen sideways. */}
+          <p className="mt-[19px] text-base leading-[20.25px] text-content [overflow-wrap:anywhere]">
             Enter the 6-digit verification code we sent
             <br />
             to {address === '' ? 'your email address' : address}.

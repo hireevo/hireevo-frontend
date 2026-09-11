@@ -47,7 +47,12 @@ const csp = [
   "font-src 'self' data:",
   `connect-src 'self' ${apiOrigin}${developmentOnly.connect}`,
   "manifest-src 'self'",
-  'upgrade-insecure-requests',
+  // Production only. Safari applies this to `http://localhost` too, rewriting
+  // every stylesheet, script and image to an `https` address the dev server
+  // does not answer — so in development the page renders unstyled, with broken
+  // images, in Safari and nowhere else. Production is served over TLS, where the
+  // directive does its job.
+  ...(isProduction ? ['upgrade-insecure-requests'] : []),
 ].join('; ');
 
 const securityHeaders = [
