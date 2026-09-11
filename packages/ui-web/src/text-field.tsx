@@ -2,9 +2,12 @@ import type { InputHTMLAttributes, ReactNode } from 'react';
 import { cn } from './cn.ts';
 import { Field, type FieldOwnProps } from './field.tsx';
 
-/** The shared shell: border, height and radius are the same for every control. */
+/**
+ * The shared shell: border, height and radius are the same for every control.
+ * The design's 54px unless a screen short on height sets `--field-height`.
+ */
 export const inputShell = [
-  'flex h-[54px] w-full items-center rounded-lg border bg-transparent',
+  'flex h-[var(--field-height,54px)] w-full items-center rounded-lg border bg-transparent',
   'transition-colors focus-within:border-border-accent',
 ];
 

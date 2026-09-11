@@ -14,7 +14,7 @@ export default function RecoverPage() {
       {/* This frame starts its content at y=192 rather than the y=139 the
           shared shell provides, and the file reads "Recover you Account" with
           "Countinue" on the button. Both are typos and are corrected here. */}
-      <div className="mt-[53px] max-w-[419px]">
+      <div className="mt-[calc(24px+0.29*var(--fit))] max-w-[419px]">
         <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
           Recover your Account
         </h1>

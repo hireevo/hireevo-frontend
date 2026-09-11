@@ -27,8 +27,13 @@ export function SignInForm() {
   // Safari does exactly that on a slow load. A POST keeps the fields in the
   // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
-    <form method="post" onSubmit={handleSubmit} noValidate className="mt-[30px] flex flex-col">
-      <div className="flex flex-col gap-[25px]">
+    <form
+      method="post"
+      onSubmit={handleSubmit}
+      noValidate
+      className="mt-[calc(16px+0.14*var(--fit))] flex flex-col"
+    >
+      <div className="flex flex-col gap-[calc(12px+0.13*var(--fit))]">
         <TextField
           label="E-mail"
           name="email"
@@ -48,7 +53,7 @@ export function SignInForm() {
         />
       </div>
 
-      <div className="mt-[25px] flex items-center justify-between gap-4">
+      <div className="mt-[calc(12px+0.13*var(--fit))] flex items-center justify-between gap-4">
         <Checkbox name="remember">Remember me</Checkbox>
         <Link
           href="/recover"
@@ -64,7 +69,13 @@ export function SignInForm() {
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-[49px]">
+      <Button
+        type="submit"
+        size="xl"
+        fullWidth
+        loading={pending}
+        className="mt-[calc(24px+0.25*var(--fit))]"
+      >
         Sign in
       </Button>
     </form>

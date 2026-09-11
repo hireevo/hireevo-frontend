@@ -76,9 +76,9 @@ export function SignUpForm() {
       ref={form}
       onSubmit={handleSubmit}
       noValidate
-      className="mt-5 flex flex-col"
+      className="mt-[calc(12px+0.08*var(--fit))] flex flex-col"
     >
-      <div className="flex flex-col gap-[15px]">
+      <div className="flex flex-col gap-[calc(10px+0.05*var(--fit))]">
         {/* 244 / 270 with a 16px gutter, straight from the design's 530px column. */}
         <div className="grid grid-cols-1 gap-[15px] sm:grid-cols-[244fr_270fr] sm:gap-4 [&>*]:min-w-0">
           <TextField
@@ -148,7 +148,7 @@ export function SignUpForm() {
         />
       </div>
 
-      <div className="mt-[15px] flex items-center justify-between gap-4">
+      <div className="mt-[calc(10px+0.05*var(--fit))] flex items-center justify-between gap-4">
         <Checkbox name="remember">Remember me</Checkbox>
         <Link
           href="/recover"
@@ -164,7 +164,13 @@ export function SignUpForm() {
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-10">
+      <Button
+        type="submit"
+        size="xl"
+        fullWidth
+        loading={pending}
+        className="mt-[calc(20px+0.2*var(--fit))]"
+      >
         Create Account
       </Button>
     </form>

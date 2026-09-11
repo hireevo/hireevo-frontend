@@ -9,10 +9,14 @@ import { PASSWORD_RULES } from './schemas.ts';
  * It is a list rather than four paragraphs, and each item states whether it is
  * met in text as well as in colour — the design distinguishes them by fill
  * alone, which is the one cue a colour-blind user does not get.
+ *
+ * One column, as drawn, except in a window too short to hold it: four rows of
+ * rules were what kept sign-up's button off a laptop screen, so there they sit
+ * two by two. Not on a phone, whose column is too narrow for two.
  */
 export function PasswordRules({ value }: { value: string }) {
   return (
-    <ul className="mt-4 flex flex-col gap-px">
+    <ul className="mt-[calc(6px+0.1*var(--fit))] grid grid-cols-1 gap-px sm:short:grid-cols-2 sm:short:gap-x-4">
       {PASSWORD_RULES.map((rule) => {
         const met = rule.test(value);
         return (

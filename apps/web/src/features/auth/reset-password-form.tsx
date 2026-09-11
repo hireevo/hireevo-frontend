@@ -53,9 +53,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
         ref={form}
         onSubmit={handleSubmit}
         noValidate
-        className="mt-[17px] flex flex-col"
+        className="mt-[calc(10px+0.07*var(--fit))] flex flex-col"
       >
-        <div className="flex flex-col gap-[15px]">
+        <div className="flex flex-col gap-[calc(10px+0.05*var(--fit))]">
           <div>
             <PasswordField
               label="New Password"
@@ -89,7 +89,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           sends it. That is worth fixing, but it is one gap across the flow
           rather than something to solve on this screen alone — leaving it out
           here would only make this the odd screen out. */}
-        <div className="mt-[13px] flex items-center justify-between gap-4">
+        <div className="mt-[calc(8px+0.05*var(--fit))] flex items-center justify-between gap-4">
           <Checkbox name="remember">Remember me</Checkbox>
           <Link
             href="/recover"
@@ -105,7 +105,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
           </div>
         )}
 
-        <Button type="submit" size="xl" fullWidth loading={pending} className="mt-[39px]">
+        <Button
+          type="submit"
+          size="xl"
+          fullWidth
+          loading={pending}
+          className="mt-[calc(20px+0.19*var(--fit))]"
+        >
           Reset password
         </Button>
       </form>
