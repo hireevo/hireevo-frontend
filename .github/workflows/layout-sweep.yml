@@ -1,0 +1,62 @@
+name: Layout sweep
+
+# Every auth screen at every size in the full resolution grid, on every desktop
+# engine. Pull requests run the layout's switch points and the commonest sizes
+# (see e2e/tests/resolution-sweep.spec.ts); this runs everything in between, so
+# a fault at a size nobody listed surfaces within a day instead of in a user's
+# screenshot. Run it by hand from the Actions tab after a layout change.
+on:
+  schedule:
+    # 02:30 in Pakistan, when nobody is waiting on a runner.
+    - cron: '30 21 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+  NEXT_PUBLIC_SITE_URL: http://localhost:3100
+
+jobs:
+  sweep:
+    name: Every auth screen at every window size
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package.json') }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @hireevo/e2e install-browsers
+
+      - name: Full resolution sweep
+        run: >-
+          pnpm --filter @hireevo/e2e exec playwright test tests/resolution-sweep.spec.ts
+          --project=chromium --project=firefox --project=webkit
+        env:
+          SWEEP: full
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-sweep-report
+          path: e2e/playwright-report
+          retention-days: 14

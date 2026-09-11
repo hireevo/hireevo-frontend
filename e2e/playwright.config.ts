@@ -34,19 +34,24 @@ export default defineConfig({
       // at a second width proves nothing and doubles how many accounts a run
       // registers, which the API rate limits at ten per hour per address.
       // The panel is hidden below `lg`, so its geometry has nothing to check
-      // at a phone width.
-      testIgnore: /auth-journey\.spec\.ts|marketing-panel\.spec\.ts/,
+      // at a phone width. The resolution sweep resizes one page from 320px to
+      // 4K, which a phone's fixed screen cannot be; the desktop engines run it.
+      testIgnore: /auth-journey\.spec\.ts|marketing-panel\.spec\.ts|resolution-sweep\.spec\.ts/,
     },
     // Layout is where rendering engines disagree — container query units,
-    // `dvh`, blend modes, flex and grid sizing — so the responsive suite runs on
+    // `dvh`, blend modes, flex and grid sizing — so the layout suites run on
     // every engine a HireEvo user can arrive with. Everything else in the suite
     // is behaviour rather than layout, and running it three more times would
     // prove nothing new while registering three times as many accounts.
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /responsive\.spec\.ts/ },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      testMatch: /(responsive|resolution-sweep)\.spec\.ts/,
+    },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testMatch: /responsive\.spec\.ts/,
+      testMatch: /(responsive|resolution-sweep)\.spec\.ts/,
     },
     // A phone Safari, not just a narrow desktop one: touch, mobile viewport
     // handling and the dynamic toolbar are what break layouts on real iPhones.
