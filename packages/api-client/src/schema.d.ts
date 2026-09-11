@@ -52,7 +52,7 @@ export interface paths {
         put?: never;
         /**
          * Create an account
-         * @description Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. A taken username answers 409, because a username is a public identifier.
+         * @description Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. An address that is registered but never confirmed is sent a fresh confirmation code, because it is almost always someone who did not receive the first one. A taken username answers 409, because a username is a public identifier.
          */
         post: operations["RegistrationController_register_v1"];
         delete?: never;
@@ -71,8 +71,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a fresh confirmation link
-         * @description Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding link for the address is invalidated first.
+         * Send a fresh confirmation code
+         * @description Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding code for the address is retired first, so only the newest one works.
          */
         post: operations["RegistrationController_resendVerification_v1"];
         delete?: never;
@@ -204,9 +204,29 @@ export interface paths {
         put?: never;
         /**
          * Start password recovery
-         * @description Answers 202 for every address, known or not. A reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
+         * @description Emails a six-digit recovery code. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
          */
         post: operations["PasswordController_forgot_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password/verify-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange a recovery code for a reset grant
+         * @description Returns a single-use token, valid for ten minutes, that `reset` accepts. Wrong, expired and unknown all answer the same 400. Limited per address as well as per IP, because the code belongs to an account and the guessing budget has to be spent per account too.
+         */
+        post: operations["PasswordController_verifyCode_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -466,6 +486,14 @@ export interface components {
         Accepted: {
             /** @constant */
             accepted: true;
+        };
+        VerifyResetCodeRequest: {
+            email: string;
+            code: string;
+        };
+        ResetCodeVerified: {
+            resetToken: string;
+            expiresInSeconds: number;
         };
         ResetPasswordRequest: {
             token: string;
@@ -939,6 +967,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Accepted"];
+                };
+            };
+        };
+    };
+    PasswordController_verifyCode_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyResetCodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetCodeVerified"];
                 };
             };
         };

@@ -29,13 +29,13 @@ export default async function ResetPasswordPage({
 
   return (
     <>
-      <div className="mt-[53px] max-w-[419px]">
+      <div className="max-w-[441px]">
         <h1 className="text-[2rem] leading-none font-bold tracking-tight text-content-accent">
           Reset password
         </h1>
         <p className="mt-3 text-lg leading-[1.5] text-content">
           {token === ''
-            ? 'This link is missing its token. Request a new one from the recovery page.'
+            ? 'This reset has expired. Start again from the recovery page to get a new code.'
             : 'Your new password must be different from previously used passwords.'}
         </p>
       </div>
