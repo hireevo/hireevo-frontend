@@ -13,7 +13,7 @@
 @source '../../../../packages/ui-web/src';
 
 /* Windows too short for sign-up's password rules to stay one column and still
-   leave the button on screen. Below this the four rules sit two by two. */
+   leave the button on screen. Below this the four rules wrap side by side. */
 @custom-variant short (@media (max-height: 709px));
 
 /* The auth screens' controls follow the same curve as their spacing (see

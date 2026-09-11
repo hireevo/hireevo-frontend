@@ -84,16 +84,20 @@ export function Showcase() {
 
       {/* Sized by whichever axis is tighter, like the type. By width alone a
           short, wide panel got the 1024px frame's photograph and cut it off at
-          the knees; capped by height it ends at the panel's foot, as drawn. It is
-          anchored by its centre, so a smaller photograph stays under the same
-          spot. At 766 x 1024 both terms are the file's 574px and 123px offset. */}
+          the knees; capped by height it ends at the panel's foot, as drawn.
+
+          Anchored by its foot (11px past the panel's bottom edge, as in the
+          file) and its centre, not its top. In a tall, narrow panel it is width
+          that runs out, and a top-anchored photograph ended halfway down with
+          empty blue beneath it. At 766 x 1024 every term is the file's: 574px
+          wide, 123px in, 174px down. */}
       <Image
         src="/auth/workspace.png"
         alt=""
         width={574}
         height={861}
         priority
-        className="absolute top-[16.99%] left-[53.525%] w-[min(74.93cqw,56.05cqh)] -translate-x-1/2"
+        className="absolute -bottom-[1.074%] left-[53.525%] w-[min(74.93cqw,56.05cqh)] -translate-x-1/2"
       />
 
       {/* Absent on the sign-in and recovery frames; see ShowcaseAccents. */}
