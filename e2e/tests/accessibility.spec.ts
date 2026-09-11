@@ -2,9 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 // The Step 1.2 gate: axe plus a keyboard-only pass over the showcase. Every
-// route added to the app belongs in this list.
+// route added to the app belongs in this list. The root is not one: it
+// redirects to sign-in, which is already here.
 const ROUTES = [
-  '/',
   '/design-system',
   '/sign-up',
   '/sign-in',
@@ -45,7 +45,7 @@ test.describe('with the operating system set to dark', () => {
 });
 
 test('the skip link is the first thing a keyboard reaches, and it works', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/sign-in');
   await page.keyboard.press('Tab');
 
   const skipLink = page.getByRole('link', { name: 'Skip to content' });
@@ -53,7 +53,7 @@ test('the skip link is the first thing a keyboard reaches, and it works', async 
   await expect(skipLink).toBeVisible();
 
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL('/#main-content');
+  await expect(page).toHaveURL('/sign-in#main-content');
 });
 
 test('every control on the showcase is reachable by keyboard', async ({ page }) => {
