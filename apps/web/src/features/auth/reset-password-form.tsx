@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, PasswordField } from '@hireevo/ui-web';
 import { resetPassword } from './api.ts';
 import { FormMessage } from './form-message.tsx';
@@ -17,19 +17,44 @@ export function ResetPasswordForm({ token }: { token: string }) {
     resetPassword,
   );
   const [password, setPassword] = useState('');
+  // Uncontrolled, so that anything typed before the page finished loading
+  // survives hydration: WebKit resets a controlled input's early value to the
+  // empty state it was rendered with, and the person's password silently
+  // vanishes. The rules still need the value, so it is mirrored on every change
+  // and read once on mount to pick up whatever arrived first.
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const field = form.current?.elements.namedItem('password');
+    if (field instanceof HTMLInputElement && field.value !== '') setPassword(field.value);
+  }, []);
   const [changed, setChanged] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void run({ token, password, confirmPassword: data.get('confirmPassword') }).then((ok) => {
+    void run({
+      token,
+      password: data.get('password'),
+      confirmPassword: data.get('confirmPassword'),
+    }).then((ok) => {
       if (ok) setChanged(true);
     });
   }
 
+  // `method="post"` matters only before the page hydrates. Until then Enter
+  // submits the form natively, and a form's default GET puts every field — the
+  // password included — in the address bar, the history and the server logs.
+  // Safari does exactly that on a slow load. A POST keeps the fields in the
+  // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
     <>
-      <form onSubmit={handleSubmit} noValidate className="mt-[17px] flex flex-col">
+      <form
+        method="post"
+        ref={form}
+        onSubmit={handleSubmit}
+        noValidate
+        className="mt-[17px] flex flex-col"
+      >
         <div className="flex flex-col gap-[15px]">
           <div>
             <PasswordField
@@ -37,7 +62,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
               name="password"
               autoComplete="new-password"
               placeholder="••••••••"
-              value={password}
               error={fieldErrors.password}
               onChange={(event) => {
                 setPassword(event.target.value);

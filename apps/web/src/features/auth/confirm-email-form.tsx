@@ -17,21 +17,25 @@ const RESEND_SECONDS = 60;
  */
 export type CodePurpose = 'signup' | 'recovery';
 
-/** Spacing and alignment per frame; see ConfirmCodeScreen. */
+/**
+ * Spacing and alignment per frame; see ConfirmCodeScreen. The button margins are
+ * the file's less 3px, which the resend control gives back by being a 24px tap
+ * target instead of the file's 21px line.
+ */
 const LAYOUT = {
   signup: {
     form: 'mt-[30px]',
     block: 'w-full',
     boxes: 'items-center',
     resend: 'mt-[47px]',
-    submit: 'mt-[40px]',
+    submit: 'mt-[37px]',
   },
   recovery: {
     form: 'mt-[19px]',
     block: 'mx-auto w-full max-w-[441px]',
     boxes: 'items-start',
     resend: 'mt-[54px]',
-    submit: 'mt-[57px]',
+    submit: 'mt-[54px]',
   },
 } as const;
 
@@ -78,8 +82,18 @@ export function ConfirmEmailForm({
 
   const codeError = fieldErrors.code;
 
+  // `method="post"` matters only before the page hydrates. Until then Enter
+  // submits the form natively, and a form's default GET puts every field — the
+  // password included — in the address bar, the history and the server logs.
+  // Safari does exactly that on a slow load. A POST keeps the fields in the
+  // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
-    <form onSubmit={handleSubmit} noValidate className={`${layout.form} flex flex-col`}>
+    <form
+      method="post"
+      onSubmit={handleSubmit}
+      noValidate
+      className={`${layout.form} flex flex-col`}
+    >
       {/* The code entry and the resend line share the 441px block the copy
           above sits in; only the button runs the full width of the column. */}
       <div className={layout.block}>
@@ -113,7 +127,7 @@ export function ConfirmEmailForm({
             type="button"
             onClick={handleResend}
             disabled={seconds > 0 || resending}
-            className="text-content-subtle underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+            className="inline-flex min-h-6 items-center text-content-subtle underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
           >
             Resend code
           </button>

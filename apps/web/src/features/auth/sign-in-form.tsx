@@ -21,8 +21,13 @@ export function SignInForm() {
     });
   }
 
+  // `method="post"` matters only before the page hydrates. Until then Enter
+  // submits the form natively, and a form's default GET puts every field — the
+  // password included — in the address bar, the history and the server logs.
+  // Safari does exactly that on a slow load. A POST keeps the fields in the
+  // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-[30px] flex flex-col">
+    <form method="post" onSubmit={handleSubmit} noValidate className="mt-[30px] flex flex-col">
       <div className="flex flex-col gap-[25px]">
         <TextField
           label="E-mail"

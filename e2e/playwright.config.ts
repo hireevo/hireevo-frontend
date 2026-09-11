@@ -37,6 +37,24 @@ export default defineConfig({
       // at a phone width.
       testIgnore: /auth-journey\.spec\.ts|marketing-panel\.spec\.ts/,
     },
+    // Layout is where rendering engines disagree — container query units,
+    // `dvh`, blend modes, flex and grid sizing — so the responsive suite runs on
+    // every engine a HireEvo user can arrive with. Everything else in the suite
+    // is behaviour rather than layout, and running it three more times would
+    // prove nothing new while registering three times as many accounts.
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testMatch: /responsive\.spec\.ts/ },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+      testMatch: /responsive\.spec\.ts/,
+    },
+    // A phone Safari, not just a narrow desktop one: touch, mobile viewport
+    // handling and the dynamic toolbar are what break layouts on real iPhones.
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 13'] },
+      testMatch: /responsive\.spec\.ts/,
+    },
   ],
   webServer: {
     // The production build, not the dev server: security headers, static

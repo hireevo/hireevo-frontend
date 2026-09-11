@@ -19,8 +19,18 @@ export function RecoverForm() {
     void run({ email: data.get('email'), remember: data.get('remember') === 'on' });
   }
 
+  // `method="post"` matters only before the page hydrates. Until then Enter
+  // submits the form natively, and a form's default GET puts every field — the
+  // password included — in the address bar, the history and the server logs.
+  // Safari does exactly that on a slow load. A POST keeps the fields in the
+  // body; once hydrated, onSubmit prevents the native submission entirely.
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-[39px] flex flex-col lg:-mr-[5px]">
+    <form
+      method="post"
+      onSubmit={handleSubmit}
+      noValidate
+      className="mt-[39px] flex flex-col lg:-mr-[5px]"
+    >
       <TextField
         label="E-mail"
         name="email"

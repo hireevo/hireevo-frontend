@@ -25,30 +25,44 @@ for (const { width, height, note } of SIZES) {
     // Sign-up rather than sign-in: the sign-in frame draws the panel without the
     // rule (see the test below), so there is nothing there to measure.
     await page.goto('/sign-up');
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => document.fonts.ready);
 
-    const panel = page.locator('aside');
-    const headline = panel.locator('p', { hasText: 'Work' }).first();
-    const rule = panel.locator('span.bg-content-on-accent').first();
+    // Measured in one pass inside the page rather than through two locators.
+    // The root loading boundary remounts its content as the page hydrates, so a
+    // node found a moment earlier can be gone by the time it is measured — which
+    // read as "the headline is missing" on a panel that was plainly on screen.
+    const measured = await page.evaluate(() => {
+      const panel = document.querySelector('aside');
+      const headline = [...(panel?.querySelectorAll('p') ?? [])].find((node) =>
+        node.textContent?.includes('Work'),
+      );
+      const rule = panel?.querySelector('span.bg-content-on-accent');
+      if (headline === undefined || rule === null || rule === undefined) return null;
+      const headlineBox = headline.getBoundingClientRect();
+      return {
+        headlineBottom: headlineBox.bottom,
+        headlineHeight: headlineBox.height,
+        ruleTop: rule.getBoundingClientRect().top,
+        lineHeight: parseFloat(getComputedStyle(headline).lineHeight),
+      };
+    });
 
-    const [headlineBox, ruleBox] = await Promise.all([headline.boundingBox(), rule.boundingBox()]);
-    expect(headlineBox, 'the headline is missing').not.toBeNull();
-    expect(ruleBox, 'the rule is missing').not.toBeNull();
-    if (headlineBox === null || ruleBox === null) return;
+    expect(measured, 'the headline or the rule is missing').not.toBeNull();
+    if (measured === null) return;
 
     // Ten pixels rather than zero: touching is the same defect as overlapping,
     // and a descender reaches below the line box the measurement returns.
     expect(
-      ruleBox.y - (headlineBox.y + headlineBox.height),
+      measured.ruleTop - measured.headlineBottom,
       'the rule has drifted into the headline',
     ).toBeGreaterThan(10);
 
     // Two lines, as drawn. A wrap would mean the type outgrew its column, which
     // is the other way this composition comes apart.
-    const lineHeight = await headline.evaluate((node) =>
-      parseFloat(getComputedStyle(node).lineHeight),
+    expect(Math.round(measured.headlineHeight / measured.lineHeight), 'the headline wrapped').toBe(
+      2,
     );
-    expect(Math.round(headlineBox.height / lineHeight), 'the headline wrapped').toBe(2);
   });
 }
 
