@@ -100,6 +100,13 @@ const config: NextConfig = {
     remotePatterns: [],
   },
   headers: () => Promise.resolve([{ source: '/:path*', headers: securityHeaders }]),
+  // The app opens on sign-in: there is no public page at the root yet, and the
+  // workspace the account screens lead to does not exist. Temporary (307), not
+  // permanent: browsers cache a 308 indefinitely, and the root is where a landing
+  // page or the signed-in workspace will go. Done here, before rendering, rather
+  // than with `redirect()` in a page, so the answer is an HTTP redirect in every
+  // rendering mode — one thrown while a page streams arrives as a meta tag on a 200.
+  redirects: () => Promise.resolve([{ source: '/', destination: '/sign-in', permanent: false }]),
 };
 
 export default bundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })(config);
