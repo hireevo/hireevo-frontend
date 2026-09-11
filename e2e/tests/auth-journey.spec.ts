@@ -9,10 +9,23 @@ import { expect, test, type Page } from '@playwright/test';
  * fail, so a frontend-only run stays green — and so a skipped run is visibly
  * skipped rather than quietly passing.
  *
- * Bring the stack up from `hireevo-backend`: `pnpm db:up`, `pnpm db:migrate`,
- * then `pnpm dev`. The API's `CORS_ORIGINS` has to include the port this suite
- * serves on, which is its own rather than the dev server's. Per ADR-001 this eventually runs against the pinned backend
- * image named in `.api-version` rather than whatever is on the machine.
+ * The mailbox is no longer part of the default stack. Development sends real
+ * mail through the real provider, so `pnpm db:up` starts Postgres and Redis and
+ * nothing else — and these tests skip, because there is no mailbox to read a
+ * confirmation code out of. **They are the two tests that cover the whole of
+ * signing up and recovering an account, so a run without the catcher proves
+ * much less than the passing count suggests.**
+ *
+ * Bring the stack up from `hireevo-backend`:
+ *
+ *   pnpm db:up && pnpm mail:up && pnpm db:migrate
+ *   # point SMTP at localhost:1025 — see .env.example
+ *   pnpm dev
+ *
+ * The API's `CORS_ORIGINS` has to include the port this suite serves on, which
+ * is its own rather than the dev server's. Per ADR-001 this eventually runs
+ * against the pinned backend image named in `.api-version` rather than whatever
+ * is on the machine.
  *
  * Registration is rate limited to ten per hour per address, deliberately, so a
  * run that repeats often enough will start seeing "too many attempts". That is
