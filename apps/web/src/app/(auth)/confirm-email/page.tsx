@@ -33,7 +33,7 @@ export default async function ConfirmEmailPage({
             {address === '' ? 'your email address' : address}. Please enter it below
           </p>
         </div>
-        <DevMailboxNote />
+        <DevMailboxNote carries="code" />
       </div>
       <ConfirmEmailForm email={address} />
     </>
