@@ -17,6 +17,11 @@ const button = cva(
         primary: 'bg-accent text-content-on-accent hover:bg-accent-hover active:bg-accent-active',
         secondary:
           'border border-border-strong bg-surface text-content hover:bg-surface-subtle active:bg-surface-muted',
+        // `secondary` at container weight: the quiet "Add …" control that sits
+        // inside a card rather than beside a primary action, so its edge must
+        // not compete with the card's own.
+        outline:
+          'border border-border-subtle bg-surface text-content-accent hover:border-border hover:bg-surface-subtle active:bg-surface-muted',
         ghost: 'text-content-accent hover:bg-surface-accent-subtle active:bg-accent-muted',
         danger: 'bg-content-danger text-content-on-accent hover:opacity-90 active:opacity-80',
       },

@@ -1,7 +1,11 @@
 export { cn, type ClassValue } from './cn.ts';
 export { Button, type ButtonProps } from './button.tsx';
+export { Card, type CardProps } from './card.tsx';
 export { Checkbox, type CheckboxProps } from './checkbox.tsx';
+export { Chip, type ChipProps } from './chip.tsx';
 export { Field, type FieldOwnProps } from './field.tsx';
+export { IconTile, type IconTileProps } from './icon-tile.tsx';
 export { OtpInput, type OtpInputProps } from './otp-input.tsx';
 export { PasswordField, type PasswordFieldProps } from './password-field.tsx';
+export { ProgressBar, type ProgressBarProps } from './progress-bar.tsx';
 export { TextField, type TextFieldProps, inputShell } from './text-field.tsx';
