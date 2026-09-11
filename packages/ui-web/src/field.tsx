@@ -43,15 +43,18 @@ export function Field({ label, hideLabel, error, hint, children, className }: Fi
         // The 10px inset on both axes is the design's: the label sits in a
         // 10px-padded box, so it is proud of the input's own text padding and
         // carries the block's top spacing rather than being flush with it.
+        // The vertical inset and the gap can be tightened by a screen that is
+        // short on height (`--field-label-inset`, `--field-label-gap`); the
+        // horizontal inset stays, so the label never loses its alignment.
         className={cn(
           // 16px Medium in the design. Its label grey (#718096) is 3.8:1 on
           // the page and cannot carry body text, so the colour is one step
           // darker while the size, weight and tracking are the file's.
-          'pt-2.5 pl-2.5 text-base leading-5 font-medium tracking-[-0.154px] text-content-subtle',
+          'pt-[var(--field-label-inset,10px)] pl-2.5 text-base leading-5 font-medium tracking-[-0.154px] text-content-subtle',
           hideLabel === true && 'sr-only',
           // 20px of label plus 14px of gap is the design's 34px from the top of
           // the label to the top of the control.
-          hideLabel !== true && 'mb-3.5',
+          hideLabel !== true && 'mb-[var(--field-label-gap,14px)]',
         )}
       >
         {label}

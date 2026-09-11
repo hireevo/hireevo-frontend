@@ -20,22 +20,23 @@ export type CodePurpose = 'signup' | 'recovery';
 /**
  * Spacing and alignment per frame; see ConfirmCodeScreen. The button margins are
  * the file's less 3px, which the resend control gives back by being a 24px tap
- * target instead of the file's 21px line.
+ * target instead of the file's 21px line. Each margin is that value on a
+ * 1024px-tall window and a compact one on a short laptop; see `--fit`.
  */
 const LAYOUT = {
   signup: {
-    form: 'mt-[30px]',
+    form: 'mt-[calc(16px+0.14*var(--fit))]',
     block: 'w-full',
     boxes: 'items-center',
-    resend: 'mt-[47px]',
-    submit: 'mt-[37px]',
+    resend: 'mt-[calc(24px+0.23*var(--fit))]',
+    submit: 'mt-[calc(20px+0.17*var(--fit))]',
   },
   recovery: {
-    form: 'mt-[19px]',
+    form: 'mt-[calc(12px+0.07*var(--fit))]',
     block: 'mx-auto w-full max-w-[441px]',
     boxes: 'items-start',
-    resend: 'mt-[54px]',
-    submit: 'mt-[54px]',
+    resend: 'mt-[calc(28px+0.26*var(--fit))]',
+    submit: 'mt-[calc(28px+0.26*var(--fit))]',
   },
 } as const;
 
