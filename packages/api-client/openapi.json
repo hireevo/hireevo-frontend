@@ -13,15 +13,27 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "enum": ["ok", "degraded"], "example": "ok" },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ok", "degraded"],
+                      "example": "ok"
+                    },
                     "info": {
                       "type": "object",
-                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "example": {
+                        "database": {
+                          "status": "up",
+                          "responseTime": 12
+                        }
+                      },
                       "additionalProperties": {
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -38,7 +50,10 @@
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -50,12 +65,20 @@
                     },
                     "details": {
                       "type": "object",
-                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "example": {
+                        "database": {
+                          "status": "up",
+                          "responseTime": 12
+                        }
+                      },
                       "additionalProperties": {
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -83,12 +106,20 @@
                     },
                     "info": {
                       "type": "object",
-                      "example": { "database": { "status": "up", "responseTime": 12 } },
+                      "example": {
+                        "database": {
+                          "status": "up",
+                          "responseTime": 12
+                        }
+                      },
                       "additionalProperties": {
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -111,7 +142,10 @@
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -124,7 +158,10 @@
                     "details": {
                       "type": "object",
                       "example": {
-                        "database": { "status": "up", "responseTime": 12 },
+                        "database": {
+                          "status": "up",
+                          "responseTime": 12
+                        },
                         "redis": {
                           "status": "down",
                           "message": "Could not connect",
@@ -135,7 +172,10 @@
                         "type": "object",
                         "required": ["status"],
                         "properties": {
-                          "status": { "type": "string", "enum": ["up", "degraded", "down"] },
+                          "status": {
+                            "type": "string",
+                            "enum": ["up", "degraded", "down"]
+                          },
                           "responseTime": {
                             "type": "number",
                             "description": "Time the health indicator took to respond, in ms"
@@ -156,17 +196,26 @@
     },
     "/api/v1/auth/username-available": {
       "get": {
-        "description": "Public because a username is a public identifier — confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
+        "description": "Public because a username is a public identifier \u2014 confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
         "operationId": "RegistrationController_usernameAvailable_v1",
         "parameters": [
-          { "name": "username", "required": true, "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "username",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/UsernameAvailabilityResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/UsernameAvailabilityResponse"
+                }
               }
             }
           }
@@ -177,20 +226,28 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. A taken username answers 409, because a username is a public identifier.",
+        "description": "Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts \u2014 the owner of the address learns what happened from the email they receive. An address that is registered but never confirmed is sent a fresh confirmation code, because it is almost always someone who did not receive the first one. A taken username answers 409, because a username is a public identifier.",
         "operationId": "RegistrationController_register_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
           }
         },
         "responses": {
           "202": {
             "description": "",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
             }
           }
         },
@@ -200,14 +257,16 @@
     },
     "/api/v1/auth/resend-verification": {
       "post": {
-        "description": "Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding link for the address is invalidated first.",
+        "description": "Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding code for the address is retired first, so only the newest one works.",
         "operationId": "RegistrationController_resendVerification_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ResendVerificationRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              }
             }
           }
         },
@@ -215,11 +274,15 @@
           "202": {
             "description": "",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
             }
           }
         },
-        "summary": "Send a fresh confirmation link",
+        "summary": "Send a fresh confirmation code",
         "tags": ["auth"]
       }
     },
@@ -231,7 +294,11 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/VerifyEmailRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequest"
+              }
+            }
           }
         },
         "responses": {
@@ -239,7 +306,9 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/VerifyEmailResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyEmailResponse"
+                }
               }
             }
           }
@@ -256,27 +325,37 @@
             "name": "X-Device-Model",
             "in": "header",
             "required": false,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "X-Device-Id",
             "in": "header",
             "description": "Client-generated device id",
             "required": false,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
           {
             "name": "X-Client-Platform",
             "in": "header",
             "description": "web (default), ios or android. Browsers receive the refresh token as an httpOnly cookie and no token in the body; native clients receive it in the body.",
             "required": false,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
           }
         },
         "responses": {
@@ -284,7 +363,9 @@
             "description": "Signed in",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponse"
+                }
               }
             }
           }
@@ -303,13 +384,19 @@
             "in": "header",
             "description": "web (default), ios or android. Browsers receive the refresh token as an httpOnly cookie and no token in the body; native clients receive it in the body.",
             "required": false,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
           }
         },
         "responses": {
@@ -317,7 +404,9 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponse"
+                }
               }
             }
           }
@@ -334,7 +423,11 @@
           "200": {
             "description": "",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Revoked" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revoked"
+                }
+              }
             }
           }
         },
@@ -351,25 +444,31 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SessionListResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListResponse"
+                }
               }
             }
           }
         },
-        "summary": "List the caller’s active sessions",
+        "summary": "List the caller\u2019s active sessions",
         "tags": ["auth"]
       },
       "delete": {
         "operationId": "SessionController_revokeOtherSessions_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "Sign out everywhere else, keeping this session",
         "tags": ["auth"]
       }
     },
     "/api/v1/auth/sessions/{id}": {
       "delete": {
-        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user’s session id would be enough to sign them out.",
+        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user\u2019s session id would be enough to sign them out.",
         "operationId": "SessionController_revokeSession_v1",
         "parameters": [
           {
@@ -377,24 +476,32 @@
             "required": true,
             "in": "path",
             "description": "Session id",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "responses": { "200": { "description": "" } },
-        "summary": "Revoke one of the caller’s sessions",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke one of the caller\u2019s sessions",
         "tags": ["auth"]
       }
     },
     "/api/v1/auth/password/forgot": {
       "post": {
-        "description": "Answers 202 for every address, known or not. A reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.",
+        "description": "Emails a six-digit recovery code. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.",
         "operationId": "PasswordController_forgot_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RequestPasswordReset" }
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordReset"
+              }
             }
           }
         },
@@ -402,11 +509,46 @@
           "202": {
             "description": "",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
             }
           }
         },
         "summary": "Start password recovery",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/password/verify-code": {
+      "post": {
+        "description": "Returns a single-use token, valid for ten minutes, that `reset` accepts. Wrong, expired and unknown all answer the same 400. Limited per address as well as per IP, because the code belongs to an account and the guessing budget has to be spent per account too.",
+        "operationId": "PasswordController_verifyCode_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyResetCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetCodeVerified"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Exchange a recovery code for a reset grant",
         "tags": ["auth"]
       }
     },
@@ -419,7 +561,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ResetPasswordRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
             }
           }
         },
@@ -428,7 +572,9 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PasswordResetCompleted" }
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetCompleted"
+                }
               }
             }
           }
@@ -446,7 +592,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ChangePasswordRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
             }
           }
         },
@@ -455,7 +603,9 @@
             "description": "",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponse"
+                }
               }
             }
           }
@@ -466,14 +616,18 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless — this list draws the interface, it does not decide access.",
+        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless \u2014 this list draws the interface, it does not decide access.",
         "operationId": "AccountController_me_v1",
         "parameters": [],
         "responses": {
           "200": {
             "description": "",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/AuthenticatedUser" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedUser"
+                }
+              }
             }
           }
         },
@@ -485,7 +639,11 @@
       "get": {
         "operationId": "JwksController_jwks",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "Public keys for verifying access tokens",
         "tags": ["auth"]
       }
@@ -495,8 +653,12 @@
         "description": "One profile per account. A second attempt answers 409.",
         "operationId": "ProfilesController_create_v1",
         "parameters": [],
-        "responses": { "201": { "description": "" } },
-        "summary": "Create the caller’s profile draft",
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create the caller\u2019s profile draft",
         "tags": ["profiles"]
       }
     },
@@ -505,15 +667,23 @@
         "description": "The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it.",
         "operationId": "ProfilesController_getOwn_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
-        "summary": "The caller’s own profile, including contact details",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "The caller\u2019s own profile, including contact details",
         "tags": ["profiles"]
       },
       "patch": {
-        "description": "Every request states the version it was editing. A mismatch answers 409 with the current version so the client can offer a reload or a merge — a later edit is never silently overwritten.",
+        "description": "Every request states the version it was editing. A mismatch answers 409 with the current version so the client can offer a reload or a merge \u2014 a later edit is never silently overwritten.",
         "operationId": "ProfilesController_update_v1",
         "parameters": [],
-        "responses": { "200": { "description": "Saved; the response carries the new version" } },
+        "responses": {
+          "200": {
+            "description": "Saved; the response carries the new version"
+          }
+        },
         "summary": "Autosave the profile draft",
         "tags": ["profiles"]
       }
@@ -523,7 +693,11 @@
         "description": "Location granularity narrows rather than relabels: choosing country drops the city entirely rather than hiding its label.",
         "operationId": "ProfilesController_updateVisibility_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "Set what the profile shows publicly",
         "tags": ["profiles"]
       }
@@ -533,7 +707,11 @@
         "description": "Applies a stricter schema than autosave. Failures come back as a list of fields, because the person is looking at a form and needs to know which parts to fix.",
         "operationId": "ProfilesController_publish_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "Publish the profile",
         "tags": ["profiles"]
       }
@@ -542,7 +720,11 @@
       "post": {
         "operationId": "ProfilesController_unpublish_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "Withdraw the profile from public view",
         "tags": ["profiles"]
       }
@@ -551,14 +733,18 @@
       "get": {
         "operationId": "ProfilesController_listRevisions_v1",
         "parameters": [],
-        "responses": { "200": { "description": "" } },
-        "summary": "Version history of the caller’s profile",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Version history of the caller\u2019s profile",
         "tags": ["profiles"]
       }
     },
     "/api/v1/profiles/{slug}": {
       "get": {
-        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed — identically. A 403 would confirm the profile is real and merely hidden.",
+        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed \u2014 identically. A 403 would confirm the profile is real and merely hidden.",
         "operationId": "ProfilesController_getPublic_v1",
         "parameters": [
           {
@@ -566,10 +752,16 @@
             "required": true,
             "in": "path",
             "description": "Opaque public profile slug",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "responses": { "200": { "description": "" } },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
         "summary": "A published public profile",
         "tags": ["profiles"]
       }
@@ -585,7 +777,11 @@
   "servers": [],
   "components": {
     "securitySchemes": {
-      "access-token": { "scheme": "bearer", "bearerFormat": "JWT", "type": "http" }
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
     },
     "schemas": {
       "ErrorBody": {
@@ -596,30 +792,67 @@
             "example": "VALIDATION_FAILED",
             "description": "Stable machine-readable code"
           },
-          "message": { "type": "string", "example": "Request validation failed" },
-          "details": { "type": "object", "additionalProperties": true },
-          "requestId": { "type": "string", "example": "01JAV6M0T6M4T6QK1K7C0X5R2Z" }
+          "message": {
+            "type": "string",
+            "example": "Request validation failed"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "requestId": {
+            "type": "string",
+            "example": "01JAV6M0T6M4T6QK1K7C0X5R2Z"
+          }
         },
         "required": ["code", "message", "requestId"]
       },
       "ErrorResponse": {
         "type": "object",
-        "properties": { "error": { "$ref": "#/components/schemas/ErrorBody" } },
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
         "required": ["error"]
       },
       "AuthenticatedUser": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "email": { "type": "string" },
-          "firstName": { "type": ["string", "null"] },
-          "lastName": { "type": ["string", "null"] },
-          "username": { "type": ["string", "null"] },
-          "status": { "type": "string" },
-          "emailVerified": { "type": "boolean" },
-          "roles": { "type": "array", "items": { "type": "string" } },
-          "permissions": { "type": "array", "items": { "type": "string" } }
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": ["string", "null"]
+          },
+          "lastName": {
+            "type": ["string", "null"]
+          },
+          "username": {
+            "type": ["string", "null"]
+          },
+          "status": {
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         },
         "required": [
           "id",
@@ -637,29 +870,83 @@
       "RequestPasswordReset": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "email": { "type": "string", "maxLength": 254 } },
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          }
+        },
         "required": ["email"]
       },
       "Accepted": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "accepted": { "type": "boolean", "const": true } },
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          }
+        },
         "required": ["accepted"],
+        "additionalProperties": false
+      },
+      "VerifyResetCodeRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": ["email", "code"]
+      },
+      "ResetCodeVerified": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "resetToken": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["resetToken", "expiresInSeconds"],
         "additionalProperties": false
       },
       "ResetPasswordRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "token": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
           "password": {
             "type": "string",
             "minLength": 8,
             "maxLength": 256,
             "allOf": [
-              { "type": "string", "pattern": "[A-Z]" },
-              { "type": "string", "pattern": "[a-z]" },
-              { "type": "string", "pattern": "\\d" }
+              {
+                "type": "string",
+                "pattern": "[A-Z]"
+              },
+              {
+                "type": "string",
+                "pattern": "[a-z]"
+              },
+              {
+                "type": "string",
+                "pattern": "\\d"
+              }
             ]
           }
         },
@@ -668,7 +955,12 @@
       "PasswordResetCompleted": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "reset": { "type": "boolean", "const": true } },
+        "properties": {
+          "reset": {
+            "type": "boolean",
+            "const": true
+          }
+        },
         "required": ["reset"],
         "additionalProperties": false
       },
@@ -676,15 +968,28 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "currentPassword": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
           "newPassword": {
             "type": "string",
             "minLength": 8,
             "maxLength": 256,
             "allOf": [
-              { "type": "string", "pattern": "[A-Z]" },
-              { "type": "string", "pattern": "[a-z]" },
-              { "type": "string", "pattern": "\\d" }
+              {
+                "type": "string",
+                "pattern": "[A-Z]"
+              },
+              {
+                "type": "string",
+                "pattern": "[a-z]"
+              },
+              {
+                "type": "string",
+                "pattern": "\\d"
+              }
             ]
           }
         },
@@ -694,21 +999,51 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "accessToken": { "type": "string" },
-          "expiresIn": { "type": "number" },
-          "refreshToken": { "type": "string" },
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "number"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
           "user": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "email": { "type": "string" },
-              "firstName": { "type": ["string", "null"] },
-              "lastName": { "type": ["string", "null"] },
-              "username": { "type": ["string", "null"] },
-              "status": { "type": "string" },
-              "emailVerified": { "type": "boolean" },
-              "roles": { "type": "array", "items": { "type": "string" } },
-              "permissions": { "type": "array", "items": { "type": "string" } }
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "firstName": {
+                "type": ["string", "null"]
+              },
+              "lastName": {
+                "type": ["string", "null"]
+              },
+              "username": {
+                "type": ["string", "null"]
+              },
+              "status": {
+                "type": "string"
+              },
+              "emailVerified": {
+                "type": "boolean"
+              },
+              "roles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             },
             "required": [
               "id",
@@ -730,7 +1065,14 @@
       "UsernameAvailabilityResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "username": { "type": "string" }, "available": { "type": "boolean" } },
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          }
+        },
         "required": ["username", "available"],
         "additionalProperties": false
       },
@@ -738,48 +1080,87 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "firstName": { "type": "string", "minLength": 1, "maxLength": 80 },
-          "lastName": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
           "username": {
             "type": "string",
             "minLength": 3,
             "maxLength": 30,
             "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
           },
-          "email": { "type": "string", "maxLength": 254 },
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          },
           "password": {
             "type": "string",
             "minLength": 8,
             "maxLength": 256,
             "allOf": [
-              { "type": "string", "pattern": "[A-Z]" },
-              { "type": "string", "pattern": "[a-z]" },
-              { "type": "string", "pattern": "\\d" }
+              {
+                "type": "string",
+                "pattern": "[A-Z]"
+              },
+              {
+                "type": "string",
+                "pattern": "[a-z]"
+              },
+              {
+                "type": "string",
+                "pattern": "\\d"
+              }
             ]
           },
-          "confirmPassword": { "type": "string", "minLength": 1 }
+          "confirmPassword": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "required": ["firstName", "lastName", "username", "email", "password", "confirmPassword"]
       },
       "ResendVerificationRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "email": { "type": "string", "maxLength": 254 } },
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          }
+        },
         "required": ["email"]
       },
       "VerifyEmailRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "email": { "type": "string", "maxLength": 254 },
-          "code": { "type": "string", "pattern": "^\\d{6}$" }
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
         },
         "required": ["email", "code"]
       },
       "VerifyEmailResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "verified": { "type": "boolean", "const": true } },
+        "properties": {
+          "verified": {
+            "type": "boolean",
+            "const": true
+          }
+        },
         "required": ["verified"],
         "additionalProperties": false
       },
@@ -787,20 +1168,38 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "email": { "type": "string", "maxLength": 254 },
-          "password": { "type": "string", "minLength": 1, "maxLength": 256 }
+          "email": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
         },
         "required": ["email", "password"]
       },
       "RefreshRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "refreshToken": { "type": "string", "minLength": 1, "maxLength": 512 } }
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
       },
       "Revoked": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
-        "properties": { "revoked": { "type": "boolean", "const": true } },
+        "properties": {
+          "revoked": {
+            "type": "boolean",
+            "const": true
+          }
+        },
         "required": ["revoked"],
         "additionalProperties": false
       },
@@ -810,13 +1209,27 @@
         "items": {
           "type": "object",
           "properties": {
-            "id": { "type": "string" },
-            "current": { "type": "boolean" },
-            "userAgent": { "type": ["string", "null"] },
-            "devicePlatform": { "type": ["string", "null"] },
-            "deviceModel": { "type": ["string", "null"] },
-            "issuedAt": { "type": "string" },
-            "expiresAt": { "type": "string" }
+            "id": {
+              "type": "string"
+            },
+            "current": {
+              "type": "boolean"
+            },
+            "userAgent": {
+              "type": ["string", "null"]
+            },
+            "devicePlatform": {
+              "type": ["string", "null"]
+            },
+            "deviceModel": {
+              "type": ["string", "null"]
+            },
+            "issuedAt": {
+              "type": "string"
+            },
+            "expiresAt": {
+              "type": "string"
+            }
           },
           "required": [
             "id",

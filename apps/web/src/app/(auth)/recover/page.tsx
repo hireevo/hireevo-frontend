@@ -4,7 +4,7 @@ import { RecoverForm } from '@/features/auth/recover-form.tsx';
 
 export const metadata: Metadata = {
   title: 'Recover your account',
-  description: 'Send yourself a link to get back into your HireEvo account.',
+  description: 'Get a code to reset your HireEvo password.',
   robots: { index: false, follow: false },
 };
 

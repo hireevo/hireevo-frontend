@@ -22,7 +22,9 @@ const SIZES = [
 for (const { width, height, note } of SIZES) {
   test(`the rule clears the headline at ${width}x${height} (${note})`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto('/sign-in');
+    // Sign-up rather than sign-in: the sign-in frame draws the panel without the
+    // rule (see the test below), so there is nothing there to measure.
+    await page.goto('/sign-up');
     await page.evaluate(() => document.fonts.ready);
 
     const panel = page.locator('aside');
@@ -47,5 +49,34 @@ for (const { width, height, note } of SIZES) {
       parseFloat(getComputedStyle(node).lineHeight),
     );
     expect(Math.round(headlineBox.height / lineHeight), 'the headline wrapped').toBe(2);
+  });
+}
+
+/**
+ * Which frames draw the rule and the "Keep growing" pill.
+ *
+ * Sign-in and recover contain both layers in the design, but beneath the blue
+ * panel, so what those frames show is a panel without them. Every other auth
+ * frame shows them. Asserted per route so the two sets cannot quietly converge.
+ */
+const ACCENTS = [
+  { path: '/sign-in', shown: false },
+  { path: '/recover', shown: false },
+  { path: '/sign-up', shown: true },
+  { path: '/confirm-email?email=example%40gmail.com', shown: true },
+  { path: '/recover/verify?email=example%40gmail.com', shown: true },
+  { path: '/reset-password?token=example', shown: true },
+];
+
+for (const { path, shown } of ACCENTS) {
+  test(`the panel ${shown ? 'shows' : 'omits'} the rule and pill on ${path.split('?')[0]}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1024 });
+    await page.goto(path);
+
+    const panel = page.locator('aside');
+    await expect(panel.locator('span.bg-content-on-accent')).toHaveCount(shown ? 1 : 0);
+    await expect(panel.getByText('Keep growing')).toHaveCount(shown ? 1 : 0);
   });
 }

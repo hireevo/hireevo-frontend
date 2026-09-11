@@ -33,7 +33,7 @@ async function reachable(url: string): Promise<boolean> {
 }
 
 /** Polls the mailbox, because the API sends mail through an outbox worker. */
-async function waitForCode(email: string): Promise<string> {
+async function waitForCode(email: string, kind: RegExp = /confirmation code/): Promise<string> {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     const body = (await (await fetch(`${MAIL}/api/v1/messages?limit=20`)).json()) as {
       messages?: Array<{ Subject?: string; To?: Array<{ Address?: string }> }>;
@@ -42,39 +42,12 @@ async function waitForCode(email: string): Promise<string> {
     for (const message of body.messages ?? []) {
       const forUs = (message.To ?? []).some((to) => to.Address === email);
       const code = /^(\d{6})/.exec(message.Subject ?? '');
-      if (forUs && code?.[1] !== undefined) return code[1];
+      if (forUs && kind.test(message.Subject ?? '') && code?.[1] !== undefined) return code[1];
     }
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`No confirmation code arrived for ${email}`);
-}
-
-/**
- * Polls for the recovery mail and returns the token out of its link.
- *
- * Read from the message body rather than the subject, because a reset travels
- * as a link and a confirmation travels as a code — the two arrive in the same
- * mailbox and only the body tells them apart.
- */
-async function waitForResetToken(email: string): Promise<string> {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const list = (await (await fetch(`${MAIL}/api/v1/messages?limit=20`)).json()) as {
-      messages?: Array<{ ID?: string; To?: Array<{ Address?: string }> }>;
-    };
-
-    for (const message of list.messages ?? []) {
-      const forUs = (message.To ?? []).some((to) => to.Address === email);
-      if (!forUs || message.ID === undefined) continue;
-
-      const body = await (await fetch(`${MAIL}/api/v1/message/${message.ID}`)).text();
-      const token = /reset-password\?token=([A-Za-z0-9_%-]+)/.exec(body);
-      if (token?.[1] !== undefined) return decodeURIComponent(token[1]);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error(`No recovery link arrived for ${email}`);
 }
 
 async function signUp(page: Page, email: string, username: string): Promise<void> {
@@ -185,11 +158,12 @@ test.describe('account journey', () => {
     await expect(page).toHaveURL(/\/sign-in/);
   });
 
-  test('recover a forgotten password, and sign in with the new one', async ({ page }) => {
+  test('recover a forgotten password by code, and sign in with the new one', async ({ page }) => {
     const stamp = `${Date.now()}${process.env.TEST_PARALLEL_INDEX ?? ''}`;
     const email = `recover${stamp}@example.com`;
     const newPassword = 'Rec0veredPass';
 
+    // A confirmed account first: this journey is about the ordinary case.
     await signUp(page, email, `recover${stamp}`);
     await page.waitForURL('**/confirm-email**');
     await confirmByCode(page, email);
@@ -199,33 +173,37 @@ test.describe('account journey', () => {
     await page.getByLabel('E-mail').fill(email);
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    // The screen confirms in place. It must not navigate somewhere that implies
-    // an account exists — the API answers the same for every address, and the
-    // page is not allowed to give away more than the API does.
-    await expect(page.getByText(email)).toBeVisible();
+    // On to the code screen for every address, known or not. The API answers
+    // identically either way, so the page moves on identically.
+    await page.waitForURL('**/recover/verify**');
+    const code = await waitForCode(email, /password reset code/);
+    const digits = page.getByRole('textbox', { name: /digit/i });
+    for (const [index, digit] of [...code].entries()) {
+      await digits.nth(index).fill(digit);
+    }
+    await page.getByRole('button', { name: 'Submit' }).click();
 
-    const token = await waitForResetToken(email);
-    const link = `/reset-password?token=${encodeURIComponent(token)}`;
-
-    await page.goto(link);
+    await page.waitForURL('**/reset-password**');
     await page.getByLabel('New Password', { exact: true }).fill(newPassword);
     await page.getByLabel('Confirm New Password').fill(newPassword);
     await page.getByRole('button', { name: 'Reset password' }).click();
 
-    // Resetting ends every session, so there is nothing to adopt: the person
-    // arrives at sign-in rather than at their account.
+    // The design's confirmation, not a silent redirect.
+    const dialog = page.getByRole('dialog', { name: 'Password Changed!' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Go to your Account' }).click();
     await page.waitForURL('**/sign-in**');
 
-    // The same link again. A recovery mail left in a mailbox, or forwarded,
-    // must not still open the account weeks later. Asserted here rather than in
-    // a test of its own because a second test means a second registration, and
-    // the API allows ten an hour from one address — a suite that spends them
-    // faster than it needs to starts failing on its own rate limit.
-    await page.goto(link);
-    await page.getByLabel('New Password', { exact: true }).fill('SecondReset99');
-    await page.getByLabel('Confirm New Password').fill('SecondReset99');
-    await page.getByRole('button', { name: 'Reset password' }).click();
-    await expect(page).toHaveURL(/reset-password/);
+    // The code is spent. A recovery mail left in an inbox, or forwarded, must
+    // not buy a second reset. Asserted here rather than in a test of its own:
+    // another test means another registration, and the API allows ten an hour
+    // from one address.
+    await page.goto(`/recover/verify?email=${encodeURIComponent(email)}`);
+    const again = page.getByRole('textbox', { name: /digit/i });
+    for (const [index, digit] of [...code].entries()) {
+      await again.nth(index).fill(digit);
+    }
+    await page.getByRole('button', { name: 'Submit' }).click();
     await expect(page.getByText(/invalid or has expired/i)).toBeVisible();
 
     await page.goto('/sign-in');
@@ -233,8 +211,7 @@ test.describe('account journey', () => {
     await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // The old password has to stop working, or the reset changed nothing that
-    // matters. Still on sign-in, with the message a wrong password gets.
+    // The old password has to stop working, or the reset changed nothing.
     await expect(page).toHaveURL(/sign-in/);
     await expect(page.getByText(/incorrect/i)).toBeVisible();
 

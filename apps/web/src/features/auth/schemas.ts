@@ -60,7 +60,9 @@ export const confirmEmailSchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    token: z.string().min(1, { message: 'This link is missing its token.' }),
+    token: z
+      .string()
+      .min(1, { message: 'This reset has expired. Start again from the recovery page.' }),
     password,
     confirmPassword: z.string(),
   })

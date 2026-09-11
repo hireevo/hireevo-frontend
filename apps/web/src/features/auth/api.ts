@@ -98,11 +98,44 @@ export async function requestRecovery(values: RecoverValues): Promise<AuthResult
     body: { email: values.email },
   });
 
-  // Answered the same way for every address, known or not, so the screen
-  // confirms in place instead of navigating somewhere that implies an account
-  // exists.
+  if (error !== undefined) return toResult(error);
+
+  // The code screen follows for every address, known or not. The API answers
+  // identically either way, and a screen that only moved on for real accounts
+  // would give away what the API refuses to.
+  return {
+    ok: true,
+    redirectTo: `/recover/verify?email=${encodeURIComponent(values.email)}` as Route,
+  };
+}
+
+/** Sends a fresh recovery code; the screen's own countdown decides when it may. */
+export async function resendResetCode(email: string): Promise<AuthResult> {
+  const { error } = await api.POST('/api/v1/auth/password/forgot', { body: { email } });
   if (error !== undefined) return toResult(error);
   return { ok: true };
+}
+
+/**
+ * Spends the emailed recovery code and carries the grant it buys to the next
+ * screen. The grant is single-use and lives ten minutes, so it is fine in the
+ * address bar for the one hop it takes.
+ */
+export async function verifyResetCode(
+  values: ConfirmEmailValues & { email: string },
+): Promise<AuthResult> {
+  const { data, error } = await api.POST('/api/v1/auth/password/verify-code', {
+    body: { email: values.email, code: values.code },
+  });
+
+  if (error !== undefined || data === undefined) {
+    return toResult(error, { code: 'code', email: 'code' });
+  }
+
+  return {
+    ok: true,
+    redirectTo: `/reset-password?token=${encodeURIComponent(data.resetToken)}` as Route,
+  };
 }
 
 export async function confirmEmail(
@@ -133,8 +166,9 @@ export async function resetPassword(values: ResetPasswordValues): Promise<AuthRe
   if (error !== undefined) return toResult(error, { token: 'password' });
 
   // Resetting ends every session, including any the attacker holds, so there is
-  // nothing to adopt here — the next step is a deliberate sign-in.
-  return { ok: true, redirectTo: '/sign-in?reset=1' };
+  // nothing to adopt. The screen stays put and shows the design's confirmation
+  // dialog; its button is what moves the person on.
+  return { ok: true };
 }
 
 /**

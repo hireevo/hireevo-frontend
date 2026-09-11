@@ -14,11 +14,13 @@ export default function SignInPage() {
     <>
       {/* The sign-up frame starts its heading at y=139 and this one at y=154,
           so the extra 15px is the difference between the two frames rather than
-          something the shared shell should carry. */}
-      <h1 className="mt-[15px] text-5xl leading-none font-bold tracking-tight text-content-accent">
+          something the shared shell should carry. This frame also sets the
+          heading and the line under it at x=96, and the terms at x=98 — 11px
+          and 13px inside the form's edge — so they are inset by those amounts. */}
+      <h1 className="mt-[15px] text-5xl leading-none font-bold tracking-tight text-content-accent lg:pl-[11px]">
         Sign in
       </h1>
-      <p className="mt-[34px] text-lg text-content-subtle">
+      <p className="mt-[34px] text-lg text-content-subtle lg:pl-[11px]">
         Don&rsquo;t have an account?{' '}
         <Link
           href="/sign-up"
@@ -35,7 +37,7 @@ export default function SignInPage() {
           4.95:1. Its two links are drawn #f17300, which does not — 2.79:1 — so
           they keep `content-warning`, the same hue a step darker. The routes
           themselves are not built yet, so these are plain anchors. */}
-      <p className="mt-[33px] max-w-[505px] text-base leading-5 tracking-[-0.154px] text-accent-soft">
+      <p className="mt-[33px] max-w-[505px] text-base leading-5 tracking-[-0.154px] text-accent-soft lg:max-w-[518px] lg:pl-[13px]">
         By joining, you agree to the HireEvo{' '}
         <a href="/terms" className="text-content-warning underline underline-offset-2">
           Terms of Service

@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { ShowcaseAccents } from './showcase-accents.tsx';
 
 /**
  * The marketing panel beside every auth form.
@@ -86,11 +87,8 @@ export function Showcase() {
         className="absolute top-[16.99%] left-[16.06%] w-[74.93%]"
       />
 
-      <span className="absolute top-[19.82%] left-[21.41%] h-[min(0.781cqh,1.044cqw)] w-[11.75%] bg-content-on-accent" />
-
-      <span className="absolute top-[32.71%] left-[21.02%] inline-flex h-[min(3.809cqh,5.091cqw)] items-center rounded-full border border-white px-[min(2.390cqh,3.194cqw)] text-[min(1.718cqh,2.296cqw)] font-semibold text-white">
-        Keep growing
-      </span>
+      {/* Absent on the sign-in and recovery frames; see ShowcaseAccents. */}
+      <ShowcaseAccents />
 
       {/* Carousel affordance from the design. Nothing is wired to it yet, so it
           is a static indicator rather than a control that does nothing. */}

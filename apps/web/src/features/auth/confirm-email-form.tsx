@@ -3,17 +3,55 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button, OtpInput } from '@hireevo/ui-web';
-import { confirmEmail, resendCode } from './api.ts';
+import { confirmEmail, resendCode, resendResetCode, verifyResetCode } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { confirmEmailSchema } from './schemas.ts';
 import { useAuthForm } from './use-auth-form.ts';
 
 const RESEND_SECONDS = 60;
 
-export function ConfirmEmailForm({ email }: { email: string }) {
+/**
+ * Which flow the code belongs to. The screen is drawn identically for both —
+ * the design repeats the same frame in the sign-up and the recovery columns —
+ * so only what the code is spent on differs.
+ */
+export type CodePurpose = 'signup' | 'recovery';
+
+/** Spacing and alignment per frame; see ConfirmCodeScreen. */
+const LAYOUT = {
+  signup: {
+    form: 'mt-[30px]',
+    block: 'w-full',
+    boxes: 'items-center',
+    resend: 'mt-[47px]',
+    submit: 'mt-[40px]',
+  },
+  recovery: {
+    form: 'mt-[19px]',
+    block: 'mx-auto w-full max-w-[441px]',
+    boxes: 'items-start',
+    resend: 'mt-[54px]',
+    submit: 'mt-[57px]',
+  },
+} as const;
+
+const FLOWS = {
+  signup: { submit: confirmEmail, resend: resendCode },
+  recovery: { submit: verifyResetCode, resend: resendResetCode },
+} as const;
+
+export function ConfirmEmailForm({
+  email,
+  purpose = 'signup',
+}: {
+  email: string;
+  purpose?: CodePurpose;
+}) {
+  const flow = FLOWS[purpose];
+  const layout = LAYOUT[purpose];
   const { fieldErrors, formError, pending, run, clearField } = useAuthForm(
     confirmEmailSchema,
-    confirmEmail,
+    flow.submit,
   );
   const [code, setCode] = useState('');
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
@@ -27,11 +65,11 @@ export function ConfirmEmailForm({ email }: { email: string }) {
 
   const handleResend = useCallback(() => {
     setResending(true);
-    void resendCode(email).finally(() => {
+    void flow.resend(email).finally(() => {
       setResending(false);
       setSeconds(RESEND_SECONDS);
     });
-  }, [email]);
+  }, [email, flow]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,11 +79,11 @@ export function ConfirmEmailForm({ email }: { email: string }) {
   const codeError = fieldErrors.code;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-[19px] flex flex-col">
+    <form onSubmit={handleSubmit} noValidate className={`${layout.form} flex flex-col`}>
       {/* The code entry and the resend line share the 441px block the copy
           above sits in; only the button runs the full width of the column. */}
-      <div className="mx-auto w-full max-w-[441px]">
-        <div className="flex flex-col items-start">
+      <div className={layout.block}>
+        <div className={`flex flex-col ${layout.boxes}`}>
           <OtpInput
             label="Verification code"
             value={code}
@@ -67,7 +105,7 @@ export function ConfirmEmailForm({ email }: { email: string }) {
             page — unreadable rather than merely quiet. It is drawn that way
             because the countdown is running, so the state is expressed by
             disabling the control instead of by a colour nobody can read. */}
-        <div className="mt-[54px] flex flex-col items-center gap-1 text-sm leading-[1.5]">
+        <div className={`${layout.resend} flex flex-col items-center text-sm leading-[1.5]`}>
           <p className="text-content-accent">
             Didn&rsquo;t receive a code?{seconds > 0 ? ` within (${seconds}s)` : ''}
           </p>
@@ -88,7 +126,7 @@ export function ConfirmEmailForm({ email }: { email: string }) {
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-[57px]">
+      <Button type="submit" size="xl" fullWidth loading={pending} className={layout.submit}>
         Submit
       </Button>
     </form>

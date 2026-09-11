@@ -46,12 +46,12 @@ export function useAuthForm<Values>(
   }, []);
 
   const run = useCallback(
-    async (raw: unknown) => {
+    async (raw: unknown): Promise<boolean> => {
       const parsed = schema.safeParse(raw);
       if (!parsed.success) {
         setFieldErrors(byField(parsed.error.issues));
         setFormError(null);
-        return;
+        return false;
       }
 
       setFieldErrors({});
@@ -63,7 +63,7 @@ export function useAuthForm<Values>(
         setPending(false);
         setFieldErrors(result.fieldErrors ?? {});
         setFormError(result.message);
-        return;
+        return false;
       }
 
       // A session that came back with the response is adopted before the
@@ -77,10 +77,13 @@ export function useAuthForm<Values>(
         // Pending stays true across the navigation: releasing the button here
         // would let a second submit land while the next screen is still loading.
         router.push(result.redirectTo);
-        return;
+        return true;
       }
 
+      // No navigation: the screen shows the outcome in place, as the reset
+      // screen does with its confirmation dialog.
       setPending(false);
+      return true;
     },
     [adopt, router, schema, submit],
   );
