@@ -11,10 +11,10 @@ import type { SellerStatus } from './types.ts';
  * The bar under the header: seller tier, upgrade, whether the profile is live,
  * and availability.
  *
- * Only the design preview renders it. Nothing on the account yet carries a
- * tier or an availability flag, and the publish routes have no documented
- * body, so on the real dashboard a switch here would change nothing — which is
- * exactly the inert control §6.7 forbids.
+ * Nothing on the account carries a tier or an availability flag yet, and the
+ * publish routes have no documented body, so these values come from the design
+ * and the switch changes only what this page shows: it saves nothing and is
+ * back on after a reload. Wire it to the API before anything relies on it.
  */
 export function StatusBar({ seller }: { seller: SellerStatus }) {
   const labelId = useId();

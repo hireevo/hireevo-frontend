@@ -1,5 +1,5 @@
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { completionOf, EMPTY_DRAFT, KEY_STEPS } from '@/features/profile/draft.ts';
+import { DESIGN_SNAPSHOT } from './design-fixture.ts';
 import type { WorkspaceSnapshot } from './types.ts';
 
 type NamedUser = Pick<AuthenticatedUser, 'firstName' | 'lastName' | 'username' | 'email'>;
@@ -27,83 +27,24 @@ export function initialsOf(name: string): string {
   return letters === '' ? '?' : letters.toUpperCase();
 }
 
-function headlineFor(percent: number): string {
-  if (percent === 0) return 'Start your market-ready profile';
-  if (percent === 100) return 'You’re market-ready';
-  return 'You’re on your way to market-ready';
-}
-
 /**
- * What the dashboard can truthfully show today.
+ * What /dashboard shows.
  *
- * The API knows who is signed in and nothing else this screen needs: there is
- * no skills, portfolio, services, membership or project-brief module, and the
- * profile routes publish no response body in the contract. So the snapshot is
- * built from the signed-in user and from the absence of anything stored —
- * counts of zero, an empty profile — and the two cards whose feature does not
- * exist say "Coming soon" instead of showing the design file's sample content.
- * The design's content is at /design-system/workspace. As each module lands,
- * its part of this function reads from it.
+ * The design's dashboard (design-fixture.ts) with two things made real: the
+ * signed-in person in the avatar and account menu, and the Dashboard link
+ * pointing here rather than at the preview. Everything else is sample content
+ * shown to every account — a known gap against docs/engineering-standards.md
+ * §6.7, accepted by the owner until the modules behind it exist. This function
+ * is where each part switches to the API's answer as that module lands.
  */
 export function workspaceSnapshot(user: AuthenticatedUser): WorkspaceSnapshot {
   const name = displayNameOf(user);
-  const completion = completionOf(EMPTY_DRAFT);
 
   return {
+    ...DESIGN_SNAPSHOT,
     user: { name, initials: initialsOf(name) },
-    nav: [
-      { label: 'Dashboard', href: '/dashboard', current: true },
-      { label: 'Profile', href: '/client-profile' },
-      { label: 'Account', href: '/account' },
-    ],
-    utilities: false,
-    seller: null,
-    editProfile: { label: 'Edit profile', href: '/client-profile' },
-    stats: [
-      { id: 'skills', label: 'Skills', value: 0, trend: null },
-      { id: 'portfolio', label: 'Portfolio projects', value: 0, trend: null },
-      { id: 'services', label: 'Service offering', value: 0, trend: null },
-    ],
-    cards: [
-      {
-        id: 'featured',
-        eyebrow: 'Featured work',
-        title: 'Nothing featured yet',
-        description:
-          'Add a portfolio project to your profile and it is shown here — and to buyers — first.',
-        status: null,
-        meta: null,
-        action: { label: 'Add portfolio work', href: '/client-profile' },
-      },
-      {
-        id: 'membership',
-        eyebrow: 'Membership & bids',
-        title: 'Plans and bids',
-        description:
-          'Compare Free, Pro and Agency plans without changing your search rank or your HireEvo score.',
-        status: { label: 'Coming soon', tone: 'neutral', variant: 'pill' },
-        meta: null,
-        action: null,
-      },
-      {
-        id: 'posting',
-        eyebrow: 'Project posting',
-        title: 'Versioned project briefs',
-        description:
-          'Autosave, screening questions, protected files and moderation for the briefs you post.',
-        status: { label: 'Coming soon', tone: 'neutral', variant: 'pill' },
-        meta: null,
-        action: null,
-      },
-    ],
-    strength: {
-      percent: completion.percent,
-      done: completion.done,
-      total: completion.total,
-      label: null,
-      headline: headlineFor(completion.percent),
-      items: KEY_STEPS.map((step) => ({ label: step.label, done: step.isDone(EMPTY_DRAFT) })),
-      action: { label: 'Complete your profile', href: '/client-profile' },
-    },
+    nav: DESIGN_SNAPSHOT.nav.map((item) =>
+      item.current === true ? { ...item, href: '/dashboard' } : item,
+    ),
   };
 }

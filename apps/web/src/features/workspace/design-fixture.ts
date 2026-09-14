@@ -1,12 +1,17 @@
 import type { WorkspaceSnapshot } from './types.ts';
 
 /**
- * The dashboard exactly as the design file draws it, sample content and all.
+ * The dashboard exactly as the design file draws it.
  *
- * Rendered only at /design-system/workspace, for comparing the build against
- * the design and for the resolution sweep — it is the fullest this layout ever
- * gets. None of it is anyone's data. Actions whose destination does not exist
- * yet carry `href: null` and render as unavailable rather than as dead links.
+ * Both /dashboard and /design-system/workspace render this. The owner chose to
+ * show the designed dashboard until the backend modules it describes exist —
+ * skills, portfolio, services, membership and bids, project briefs — so these
+ * figures are the design's sample content, not the signed-in person's.
+ * /dashboard swaps in only who is signed in (see `workspaceSnapshot`), and each
+ * part here should be replaced by the API's answer as its module lands.
+ *
+ * Actions whose destination does not exist yet carry `href: null`: they are
+ * drawn as the design draws them but do not navigate, so none leads to a 404.
  */
 export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
   user: { name: 'Design preview', initials: 'DP' },

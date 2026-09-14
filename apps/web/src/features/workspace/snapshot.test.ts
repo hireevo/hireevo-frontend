@@ -1,6 +1,6 @@
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import { describe, expect, it } from 'vitest';
-import { KEY_STEPS } from '@/features/profile/draft.ts';
+import { DESIGN_SNAPSHOT } from './design-fixture.ts';
 import { displayNameOf, initialsOf, workspaceSnapshot } from './snapshot.ts';
 
 const user = (overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser => ({
@@ -46,39 +46,35 @@ describe('initialsOf', () => {
 });
 
 describe('workspaceSnapshot', () => {
-  it('claims nothing the API cannot say', () => {
+  it('shows the designed dashboard', () => {
     const snapshot = workspaceSnapshot(user());
-    expect(snapshot.seller).toBeNull();
-    expect(snapshot.utilities).toBe(false);
-    expect(snapshot.stats.map((stat) => stat.trend)).toEqual([null, null, null]);
-    expect(snapshot.strength.label).toBeNull();
+    expect(snapshot.stats).toEqual(DESIGN_SNAPSHOT.stats);
+    expect(snapshot.cards).toEqual(DESIGN_SNAPSHOT.cards);
+    expect(snapshot.strength).toEqual(DESIGN_SNAPSHOT.strength);
+    expect(snapshot.seller).toEqual(DESIGN_SNAPSHOT.seller);
   });
 
-  it('gives every action a destination, or no action at all', () => {
-    // §6.7: whatever the design shows, a link to nowhere on the real dashboard
-    // is a defect. Unavailable actions belong to the design preview only.
+  it('puts the signed-in person in the avatar, not the design’s initials', () => {
+    expect(workspaceSnapshot(user()).user).toEqual({ name: 'Ayesha Khan', initials: 'AK' });
+  });
+
+  it('points Dashboard at /dashboard, not at the preview', () => {
+    const { nav } = workspaceSnapshot(user());
+    expect(nav.find((item) => item.current === true)?.href).toBe('/dashboard');
+    expect(nav.map((item) => item.href)).not.toContain('/design-system/workspace');
+  });
+
+  it('never links to a screen that does not exist', () => {
+    // An action with no screen behind it carries `href: null` and is drawn
+    // without a link; every href that is set must be a real route.
     const snapshot = workspaceSnapshot(user());
-    const actions = [
-      snapshot.editProfile,
-      snapshot.strength.action,
-      ...snapshot.cards.flatMap((card) => (card.action === null ? [] : [card.action])),
-      ...snapshot.nav,
-    ];
-    for (const action of actions) expect(action.href).not.toBeNull();
-  });
-
-  it('says a feature that does not exist is coming, instead of drawing sample content', () => {
-    const cards = workspaceSnapshot(user()).cards.filter((card) => card.id !== 'featured');
-    for (const card of cards) {
-      expect(card.status?.label).toBe('Coming soon');
-      expect(card.action).toBeNull();
-      expect(card.meta).toBeNull();
-    }
-  });
-
-  it('counts profile steps from the list the profile screen uses', () => {
-    const { strength } = workspaceSnapshot(user());
-    expect(strength.total).toBe(KEY_STEPS.length);
-    expect(strength.items.map((item) => item.label)).toEqual(KEY_STEPS.map((step) => step.label));
+    const hrefs = [
+      snapshot.editProfile.href,
+      snapshot.strength.action.href,
+      snapshot.seller?.upgrade?.href ?? null,
+      ...snapshot.cards.map((card) => card.action?.href ?? null),
+      ...snapshot.nav.map((item) => item.href),
+    ].filter((href) => href !== null);
+    for (const href of hrefs) expect(['/dashboard', '/client-profile', '/account']).toContain(href);
   });
 });

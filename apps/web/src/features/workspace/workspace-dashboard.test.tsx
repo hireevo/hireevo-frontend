@@ -1,5 +1,5 @@
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -28,6 +28,13 @@ const ayesha: AuthenticatedUser = {
   permissions: [],
 };
 
+const DESIGN_TITLES = [
+  'Public benefits eligibility service redesign',
+  'See allowance, renewal and reset state',
+  'Draft, preview and publish a versioned brief',
+  'You’re nearly market-ready',
+];
+
 const renderReal = (onSignOut = vi.fn()) => {
   render(<WorkspaceDashboard snapshot={workspaceSnapshot(ayesha)} onSignOut={onSignOut} />);
   return { onSignOut, user: userEvent.setup() };
@@ -40,12 +47,7 @@ describe('WorkspaceDashboard with the design preview content', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'Your market-ready foundation',
     );
-    for (const title of [
-      'Public benefits eligibility service redesign',
-      'See allowance, renewal and reset state',
-      'Draft, preview and publish a versioned brief',
-      'You’re nearly market-ready',
-    ]) {
+    for (const title of DESIGN_TITLES) {
       expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
     }
     expect(screen.getByRole('progressbar', { name: 'Profile strength' })).toHaveAttribute(
@@ -60,10 +62,10 @@ describe('WorkspaceDashboard with the design preview content', () => {
     expect(screen.getByText('12 of 15 bids left this month')).toBeInTheDocument();
   });
 
-  it('shows an action with nowhere to go as text, never as a link', () => {
+  it('draws an action with nowhere to go as the design does, but not as a link', () => {
     render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
     expect(screen.queryByRole('link', { name: /Review membership/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Review membership')).toBeInTheDocument();
+    expect(screen.getByText('Review membership')).toHaveClass('underline');
   });
 
   it('reads each count with its subject', () => {
@@ -83,14 +85,32 @@ describe('WorkspaceDashboard with the design preview content', () => {
 });
 
 describe('WorkspaceDashboard for a signed-in user', () => {
+  it('draws the designed dashboard', () => {
+    renderReal();
+    for (const title of DESIGN_TITLES) {
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('progressbar', { name: 'Profile strength' })).toHaveAttribute(
+      'aria-valuenow',
+      '60',
+    );
+    expect(screen.getByRole('switch', { name: 'Available' })).toBeInTheDocument();
+    expect(screen.getByText('12 of 15 bids left this month')).toBeInTheDocument();
+  });
+
+  it('puts the signed-in person in the avatar', () => {
+    renderReal();
+    expect(screen.getByRole('button', { name: 'Account menu for Ayesha Khan' })).toHaveTextContent(
+      'AK',
+    );
+    expect(screen.queryByText('DP')).not.toBeInTheDocument();
+  });
+
   it('links only to screens that exist', () => {
     renderReal();
     for (const link of screen.getAllByRole('link')) {
       expect(['/dashboard', '/client-profile', '/account']).toContain(link.getAttribute('href'));
     }
-    expect(screen.queryByText(/not available yet/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Coming soon')).toHaveLength(2);
   });
 
   it('opens the navigation menu and closes it on Escape, back on its button', async () => {
@@ -113,8 +133,10 @@ describe('WorkspaceDashboard for a signed-in user', () => {
     const { onSignOut, user } = renderReal();
 
     await user.click(screen.getByRole('button', { name: 'Account menu for Ayesha Khan' }));
-    const menuButton = screen.getByRole('button', { name: 'Account menu for Ayesha Khan' });
-    expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Account menu for Ayesha Khan' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(onSignOut).toHaveBeenCalledOnce();
@@ -137,15 +159,5 @@ describe('WorkspaceDashboard for a signed-in user', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu for Ayesha Khan' }));
     await user.click(screen.getByRole('heading', { level: 1 }));
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
-  });
-
-  it('starts profile strength from nothing, because nothing is stored yet', () => {
-    renderReal();
-    const card = screen.getByRole('region', { name: 'Start your market-ready profile' });
-    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
-    expect(within(card).getByRole('link', { name: /Complete your profile/ })).toHaveAttribute(
-      'href',
-      '/client-profile',
-    );
   });
 });

@@ -17,9 +17,9 @@ const UTILITIES = [
 ] as const;
 
 /**
- * The design draws these four, but none has anywhere to go: there are no
- * notification, message or help screens, and the app is light-only until a dark
- * design exists. So they appear only on the design preview, marked unavailable.
+ * Drawn as the design draws them, but nothing is behind any of the four yet —
+ * no notification, message or help screens, and the app is light-only until a
+ * dark design exists — so they are marked unavailable and do nothing.
  */
 function UtilityButton({ utility }: { utility: (typeof UTILITIES)[number] }) {
   const { Icon } = utility;
@@ -50,8 +50,10 @@ function NavEntry({ item, layout }: { item: NavItem; layout: 'bar' | 'panel' }) 
     item.menu === true ? <LuChevronDown aria-hidden="true" className="size-4 shrink-0" /> : null;
 
   if (item.href === null) {
+    // Drawn like its neighbours, as the design draws it, but not a link: there
+    // is no screen behind it to go to yet.
     return (
-      <span className={cn(shape, 'cursor-not-allowed text-content-subtle')}>
+      <span className={cn(shape, 'text-content-muted')}>
         {item.label}
         {chevron}
         <span className="sr-only"> (not available yet)</span>

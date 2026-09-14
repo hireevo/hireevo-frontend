@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * The dashboard with the design file's sample content, for comparing the build
- * with the design at any window size. /dashboard is the same components fed
- * with what the API can actually say.
+ * The dashboard with the design file's content and no account, for comparing
+ * the build with the design at any window size and for the layout sweep, which
+ * cannot sign in. /dashboard shows the same content to a signed-in person.
  */
 export default function WorkspacePreviewPage() {
   return (
