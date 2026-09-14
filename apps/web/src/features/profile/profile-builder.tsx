@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
@@ -27,14 +27,10 @@ const STARTING_DRAFT: ProfileDraft = {
 
 export function ProfileBuilder() {
   const router = useRouter();
-  const { status, user } = useSession();
+  const { user } = useSession();
   const [draft, setDraft] = useState<ProfileDraft>(STARTING_DRAFT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status === 'anonymous') router.replace('/sign-in');
-  }, [status, router]);
 
   const patch = (fields: Partial<ProfileDraft>) =>
     setDraft((current) => ({ ...current, ...fields }));
@@ -51,13 +47,8 @@ export function ProfileBuilder() {
       setError(result.message);
       return;
     }
-    // Where the second of the five steps will live. Until it does, this is the
-    // only signed-in destination there is.
-    router.push('/account');
-  }
-
-  if (status === 'restoring') {
-    return <p className="py-16 text-sm text-content-subtle">Loading your profile…</p>;
+    // Back to the workspace. The second of the five steps has no screen yet.
+    router.push('/dashboard');
   }
 
   return (

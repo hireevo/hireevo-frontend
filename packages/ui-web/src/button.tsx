@@ -84,3 +84,6 @@ export function Button({
     </button>
   );
 }
+
+/** The same classes for something that is not a `<button>` — a link styled as one. */
+export { button as buttonVariants };

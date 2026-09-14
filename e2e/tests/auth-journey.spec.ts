@@ -115,6 +115,15 @@ test.describe('account journey', () => {
     await page.getByLabel('E-mail').fill(email);
     await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL('**/dashboard');
+
+    // Signing in lands on the workspace, and the account page is one click from
+    // its header. A click rather than `goto`, so the in-memory access token
+    // survives and the check below is about the token sign-in handed over.
+    await page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('link', { name: 'Account' })
+      .click();
     await page.waitForURL('**/account');
 
     // Read back from `/auth/me`, so this only appears if the access token was
@@ -230,6 +239,11 @@ test.describe('account journey', () => {
 
     await page.getByLabel('Password').fill(newPassword);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL('**/dashboard');
+    await page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('link', { name: 'Account' })
+      .click();
     await page.waitForURL('**/account');
     await expect(page.getByText(email).first()).toBeVisible();
   });

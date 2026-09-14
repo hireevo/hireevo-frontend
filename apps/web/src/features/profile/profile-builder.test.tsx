@@ -121,6 +121,6 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 
-    await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/account');
+    await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/dashboard');
   });
 });
