@@ -1,6 +1,7 @@
 export { cn, type ClassValue } from './cn.ts';
 export { Badge, type BadgeProps, type BadgeTone } from './badge.tsx';
-export { Button, buttonVariants, type ButtonProps } from './button.tsx';
+export { Button, type ButtonProps } from './button.tsx';
+export { buttonVariants } from './button-variants.ts';
 export { Card, type CardProps } from './card.tsx';
 export { Checkbox, type CheckboxProps } from './checkbox.tsx';
 export { Chip, type ChipProps } from './chip.tsx';

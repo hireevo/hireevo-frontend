@@ -52,7 +52,7 @@ export interface paths {
         put?: never;
         /**
          * Create an account
-         * @description Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. An address that is registered but never confirmed is sent a fresh confirmation code, because it is almost always someone who did not receive the first one. A taken username answers 409, because a username is a public identifier.
+         * @description Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do — the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.
          */
         post: operations["RegistrationController_register_v1"];
         delete?: never;
@@ -72,7 +72,7 @@ export interface paths {
         put?: never;
         /**
          * Send a fresh confirmation code
-         * @description Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding code for the address is retired first, so only the newest one works.
+         * @description Answers 202 for an unknown address, an existing account and a waiting sign-up alike. Only a sign-up still waiting is sent a code, and the new code replaces the previous one.
          */
         post: operations["RegistrationController_resendVerification_v1"];
         delete?: never;
@@ -91,8 +91,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm an email address using the emailed token
-         * @description Does not sign the person in. Once confirmed they sign in with their email address and password, which keeps a forwarded code from becoming a session. Limited per address as well as per IP: the code belongs to an account, so the guessing budget has to be spent per account too.
+         * Confirm the address and create the account
+         * @description Creates the account from the waiting sign-up. Wrong, expired and unknown all answer the same 400, and five wrong guesses retire the code. Does not sign the person in: they sign in with their email address and password, which keeps a forwarded code from becoming a session. Limited per address as well as per IP, so rotating IPs buys no extra guesses.
          */
         post: operations["RegistrationController_verifyEmail_v1"];
         delete?: never;
@@ -204,7 +204,7 @@ export interface paths {
         put?: never;
         /**
          * Start password recovery
-         * @description Emails a six-digit recovery code. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
+         * @description Emails a six-digit recovery code. An address whose sign-up was never confirmed has no password to reset, and is sent a reminder to sign up again instead. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
          */
         post: operations["PasswordController_forgot_v1"];
         delete?: never;
@@ -321,7 +321,7 @@ export interface paths {
         put?: never;
         /**
          * Create the caller’s profile draft
-         * @description One profile per account. A second attempt answers 409.
+         * @description One profile per account. A second attempt — including several sent at once — answers 409 with code CONFLICT.
          */
         post: operations["ProfilesController_create_v1"];
         delete?: never;
@@ -339,7 +339,7 @@ export interface paths {
         };
         /**
          * The caller’s own profile, including contact details
-         * @description The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it.
+         * @description The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it. Answers 404 until the profile has been created.
          */
         get: operations["ProfilesController_getOwn_v1"];
         put?: never;
@@ -349,7 +349,7 @@ export interface paths {
         head?: never;
         /**
          * Autosave the profile draft
-         * @description Every request states the version it was editing. A mismatch answers 409 with the current version so the client can offer a reload or a merge — a later edit is never silently overwritten.
+         * @description Every request states the version it was editing. A mismatch answers 409 with code VERSION_CONFLICT and `details.currentVersion`, so the client can offer a reload — a later edit is never silently overwritten. A field sent as null is cleared; a field left out is kept.
          */
         patch: operations["ProfilesController_update_v1"];
         trace?: never;
@@ -385,7 +385,7 @@ export interface paths {
         put?: never;
         /**
          * Publish the profile
-         * @description Applies a stricter schema than autosave. Failures come back as a list of fields, because the person is looking at a form and needs to know which parts to fix.
+         * @description Applies a stricter schema than autosave; failures answer 400 with one issue per field. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
          */
         post: operations["ProfilesController_publish_v1"];
         delete?: never;
@@ -403,7 +403,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Withdraw the profile from public view */
+        /**
+         * Withdraw the profile from public view
+         * @description Withdrawing a profile that is not published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
+         */
         post: operations["ProfilesController_unpublish_v1"];
         delete?: never;
         options?: never;
@@ -566,6 +569,103 @@ export interface components {
             issuedAt: string;
             expiresAt: string;
         }[];
+        OwnProfileResponse: {
+            id: string;
+            slug: string;
+            /** @enum {string} */
+            status: "draft" | "published" | "suspended";
+            version: number;
+            completeness: number;
+            displayName: string | null;
+            headline: string | null;
+            overview: string | null;
+            locationCountry: string | null;
+            locationRegion: string | null;
+            locationCity: string | null;
+            availability: ("available" | "open_to_offers" | "unavailable") | null;
+            availabilityNote: string | null;
+            rateAmountMinor: string | null;
+            rateCurrency: string | null;
+            contact: {
+                phoneE164: string | null;
+                contactEmail: string | null;
+                addressLine1: string | null;
+                addressLine2: string | null;
+                postalCode: string | null;
+                dateOfBirth: string | null;
+            };
+            visibility: {
+                profilePublic: boolean;
+                /** @enum {string} */
+                locationGranularity: "hidden" | "country" | "region" | "city";
+                showRates: boolean;
+                showCredentials: boolean;
+                showPortfolio: boolean;
+                showScore: boolean;
+            };
+            publishedAt: string | null;
+            updatedAt: string;
+        };
+        UpdateProfileRequest: {
+            version: number;
+            profile?: {
+                displayName?: string | null;
+                headline?: string | null;
+                overview?: string | null;
+                locationCountry?: string | null;
+                locationRegion?: string | null;
+                locationCity?: string | null;
+                availability?: ("available" | "open_to_offers" | "unavailable") | null;
+                availabilityNote?: string | null;
+                rateAmountMinor?: string | null;
+                rateCurrency?: string | null;
+            };
+            contact?: {
+                phoneE164?: string | null;
+                contactEmail?: string | null;
+                addressLine1?: string | null;
+                addressLine2?: string | null;
+                postalCode?: string | null;
+                dateOfBirth?: string | null;
+            };
+        };
+        UpdateVisibilityRequest: {
+            profilePublic: boolean;
+            /** @enum {string} */
+            locationGranularity: "hidden" | "country" | "region" | "city";
+            showRates: boolean;
+            showCredentials: boolean;
+            showPortfolio: boolean;
+            showScore: boolean;
+        };
+        ProfileVisibilityResponse: {
+            profilePublic: boolean;
+            /** @enum {string} */
+            locationGranularity: "hidden" | "country" | "region" | "city";
+            showRates: boolean;
+            showCredentials: boolean;
+            showPortfolio: boolean;
+            showScore: boolean;
+        };
+        ProfileRevisionList: {
+            version: number;
+            changedAt: string;
+            changeReason: string | null;
+        }[];
+        PublicProfileResponse: {
+            slug: string;
+            displayName: string | null;
+            headline: string | null;
+            overview: string | null;
+            location: string | null;
+            availability: ("available" | "open_to_offers" | "unavailable") | null;
+            availabilityNote: string | null;
+            rate: {
+                amountMinor: string;
+                currency: string;
+            } | null;
+            publishedAt: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1085,11 +1185,41 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Created */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OwnProfileResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1106,7 +1236,36 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OwnProfileResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1117,14 +1276,65 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
         responses: {
-            /** @description Saved; the response carries the new version */
+            /** @description Saved; carries the new version */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OwnProfileResponse"];
+                };
+            };
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1135,13 +1345,55 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVisibilityRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ProfileVisibilityResponse"];
+                };
+            };
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1158,7 +1410,54 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OwnProfileResponse"];
+                };
+            };
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1175,7 +1474,45 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OwnProfileResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1192,7 +1529,36 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ProfileRevisionList"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
@@ -1212,7 +1578,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PublicProfileResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };

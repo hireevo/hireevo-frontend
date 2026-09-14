@@ -65,7 +65,9 @@ describe('workspaceSnapshot', () => {
     expect(entries.length).toBeGreaterThan(0);
     for (const entry of entries) {
       if (entry.kind === 'link' && entry.href !== null) {
-        expect(['/dashboard', '/client-profile', '/account']).toContain(entry.href);
+        expect(['/dashboard', '/client-profile', '/profile/setup', '/account']).toContain(
+          entry.href,
+        );
       }
     }
   });
@@ -92,6 +94,7 @@ describe('workspaceSnapshot', () => {
           : item.entries.map((entry) => (entry.kind === 'link' ? entry.href : null)),
       ),
     ].filter((href) => href !== null);
-    for (const href of hrefs) expect(['/dashboard', '/client-profile', '/account']).toContain(href);
+    for (const href of hrefs)
+      expect(['/dashboard', '/client-profile', '/profile/setup', '/account']).toContain(href);
   });
 });

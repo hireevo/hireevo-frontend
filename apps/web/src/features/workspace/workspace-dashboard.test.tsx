@@ -117,7 +117,9 @@ describe('WorkspaceDashboard for a signed-in user', () => {
   it('links only to screens that exist', () => {
     renderReal();
     for (const link of screen.getAllByRole('link')) {
-      expect(['/dashboard', '/client-profile', '/account']).toContain(link.getAttribute('href'));
+      expect(['/dashboard', '/client-profile', '/profile/setup', '/account']).toContain(
+        link.getAttribute('href'),
+      );
     }
   });
 
@@ -180,7 +182,7 @@ describe('the header dropdowns', () => {
     const panel = panelOf(profile);
     expect(panel.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
       'href',
-      '/client-profile',
+      '/profile/setup',
     );
     // Listed so the menu shows what is coming, but not a link to a 404.
     expect(panel.getByText('View public profile')).toBeInTheDocument();

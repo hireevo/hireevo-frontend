@@ -26,6 +26,7 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-on-accent', 'surface-accent', 'body'],
   ['content-on-accent', 'accent-hover', 'body'],
   ['content-inverse', 'surface-inverse', 'body'],
+  ['content-inverse-muted', 'surface-inverse', 'body'],
   ['content', 'surface-accent-subtle', 'body'],
   ['content-accent', 'surface', 'body'],
   ['content-accent', 'surface-accent-subtle', 'body'],

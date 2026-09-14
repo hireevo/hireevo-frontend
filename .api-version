@@ -8,4 +8,4 @@
 # spec  the version string the document carries
 # sha   the hireevo-backend commit the document was published from
 spec=v1
-sha=1a2b724
+sha=b7e2c05

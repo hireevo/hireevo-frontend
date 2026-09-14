@@ -137,6 +137,18 @@ test.describe('account journey', () => {
     await page.reload();
     await expect(page.getByText(email).first()).toBeVisible();
 
+    // The profile editor against the real API. Every other profile test answers
+    // its own preflight, which is how a CORS policy without PATCH shipped: the
+    // autosave never left the browser and every mocked test still passed.
+    // Reloading afterwards proves the save reached the database, not just state.
+    await page.goto('/profile/setup');
+    await page.getByLabel('Display name').fill('Journey Tester');
+    await expect(page.getByText('Autosaved', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    await expect(page.getByLabel('Display name')).toHaveValue('Journey Tester');
+
+    await page.goto('/account');
+    await expect(page.getByText(email).first()).toBeVisible();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await page.waitForURL('**/sign-in');
 

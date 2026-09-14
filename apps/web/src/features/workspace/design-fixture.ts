@@ -24,7 +24,7 @@ export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
       kind: 'menu',
       label: 'Profile',
       entries: [
-        { kind: 'link', label: 'Edit profile', href: '/client-profile' },
+        { kind: 'link', label: 'Edit profile', href: '/profile/setup' },
         { kind: 'link', label: 'View public profile', href: null },
         { kind: 'link', label: 'Profile visibility', href: null },
       ],
@@ -56,7 +56,7 @@ export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
     profileLive: true,
     available: true,
   },
-  editProfile: { label: 'Edit profile', href: '/client-profile' },
+  editProfile: { label: 'Edit profile', href: '/profile/setup' },
   stats: [
     { id: 'skills', label: 'Skills', value: 0, trend: '+2 this month' },
     { id: 'portfolio', label: 'Portfolio projects', value: 0, trend: '+1 this month' },
@@ -107,6 +107,6 @@ export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
       { label: 'Add a portfolio video intro', done: false },
       { label: 'Connect a payment method', done: false },
     ],
-    action: { label: 'Complete your profile', href: '/client-profile' },
+    action: { label: 'Complete your profile', href: '/profile/setup' },
   },
 };
