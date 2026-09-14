@@ -58,10 +58,23 @@ describe('workspaceSnapshot', () => {
     expect(workspaceSnapshot(user()).user).toEqual({ name: 'Ayesha Khan', initials: 'AK' });
   });
 
+  it('gives every dropdown entry a real route or no link at all', () => {
+    const entries = workspaceSnapshot(user()).nav.flatMap((item) =>
+      item.kind === 'menu' ? item.entries : [],
+    );
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      if (entry.kind === 'link' && entry.href !== null) {
+        expect(['/dashboard', '/client-profile', '/account']).toContain(entry.href);
+      }
+    }
+  });
+
   it('points Dashboard at /dashboard, not at the preview', () => {
     const { nav } = workspaceSnapshot(user());
-    expect(nav.find((item) => item.current === true)?.href).toBe('/dashboard');
-    expect(nav.map((item) => item.href)).not.toContain('/design-system/workspace');
+    const current = nav.find((item) => item.kind === 'link' && item.current === true);
+    expect(current?.kind === 'link' ? current.href : null).toBe('/dashboard');
+    expect(JSON.stringify(nav)).not.toContain('/design-system/workspace');
   });
 
   it('never links to a screen that does not exist', () => {
@@ -73,7 +86,11 @@ describe('workspaceSnapshot', () => {
       snapshot.strength.action.href,
       snapshot.seller?.upgrade?.href ?? null,
       ...snapshot.cards.map((card) => card.action?.href ?? null),
-      ...snapshot.nav.map((item) => item.href),
+      ...snapshot.nav.flatMap((item) =>
+        item.kind === 'link'
+          ? [item.href]
+          : item.entries.map((entry) => (entry.kind === 'link' ? entry.href : null)),
+      ),
     ].filter((href) => href !== null);
     for (const href of hrefs) expect(['/dashboard', '/client-profile', '/account']).toContain(href);
   });

@@ -44,7 +44,7 @@ export function workspaceSnapshot(user: AuthenticatedUser): WorkspaceSnapshot {
     ...DESIGN_SNAPSHOT,
     user: { name, initials: initialsOf(name) },
     nav: DESIGN_SNAPSHOT.nav.map((item) =>
-      item.current === true ? { ...item, href: '/dashboard' } : item,
+      item.kind === 'link' && item.current === true ? { ...item, href: '/dashboard' } : item,
     ),
   };
 }

@@ -2,13 +2,20 @@ import type { Route } from 'next';
 
 export type Tone = 'neutral' | 'accent' | 'success' | 'warning';
 
-/** Something to do. `href: null` means it has nowhere to go yet, and renders as unavailable. */
+/** Something to do. `href: null` means it has nowhere to go yet. */
 export type Action = { label: string; href: Route | null };
 
 /** An action that always has a destination. */
 export type LinkAction = { label: string; href: Route };
 
-export type NavItem = { label: string; href: Route | null; current?: boolean; menu?: boolean };
+/** One row in a header dropdown. A link with `href: null` has no screen behind it yet. */
+export type MenuEntry =
+  { kind: 'link'; label: string; href: Route | null } | { kind: 'sign-out'; label: string };
+
+/** A header item: a plain link, or a dropdown of entries. */
+export type NavItem =
+  | { kind: 'link'; label: string; href: Route; current?: boolean }
+  | { kind: 'menu'; label: string; entries: MenuEntry[] };
 
 export type StatId = 'skills' | 'portfolio' | 'services';
 export type Stat = { id: StatId; label: string; value: number; trend: string | null };
@@ -42,13 +49,13 @@ export type SellerStatus = {
   available: boolean;
 };
 
-/** Everything the dashboard draws, as data — so the real page and the design preview share every component. */
+/** Everything the dashboard draws, as data — so /dashboard and the design preview share every component. */
 export type WorkspaceSnapshot = {
   user: { name: string; initials: string };
   nav: NavItem[];
-  /** The header's notification, message, help and theme icons. Design preview only. */
+  /** The header's notification, message, help and theme icons. */
   utilities: boolean;
-  /** The bar under the header. Null until there is a seller status to show. */
+  /** The bar under the header. Null hides it. */
   seller: SellerStatus | null;
   editProfile: LinkAction;
   stats: Stat[];

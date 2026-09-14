@@ -1,5 +1,5 @@
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,14 @@ const DESIGN_TITLES = [
   'Draft, preview and publish a versioned brief',
   'You’re nearly market-ready',
 ];
+
+/** The open panel of a header dropdown, found through its button's aria-controls. */
+const panelOf = (trigger: HTMLElement) => {
+  const id = trigger.getAttribute('aria-controls');
+  const panel = id === null ? null : document.getElementById(id);
+  if (panel === null) throw new Error('the dropdown is not open');
+  return within(panel);
+};
 
 const renderReal = (onSignOut = vi.fn()) => {
   render(<WorkspaceDashboard snapshot={workspaceSnapshot(ayesha)} onSignOut={onSignOut} />);
@@ -159,5 +167,114 @@ describe('WorkspaceDashboard for a signed-in user', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu for Ayesha Khan' }));
     await user.click(screen.getByRole('heading', { level: 1 }));
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+});
+
+describe('the header dropdowns', () => {
+  it('opens Profile with its entries, linking only what exists', async () => {
+    const { user } = renderReal();
+    const profile = screen.getByRole('button', { name: 'Profile' });
+
+    await user.click(profile);
+    expect(profile).toHaveAttribute('aria-expanded', 'true');
+    const panel = panelOf(profile);
+    expect(panel.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
+      'href',
+      '/client-profile',
+    );
+    // Listed so the menu shows what is coming, but not a link to a 404.
+    expect(panel.getByText('View public profile')).toBeInTheDocument();
+    expect(panel.queryByRole('link', { name: /View public profile/ })).not.toBeInTheDocument();
+    expect(panel.getAllByText('Soon')).toHaveLength(2);
+  });
+
+  it('keeps one dropdown open at a time', async () => {
+    const { user } = renderReal();
+    const profile = screen.getByRole('button', { name: 'Profile' });
+    const projects = screen.getByRole('button', { name: 'Projects' });
+
+    await user.click(profile);
+    await user.click(projects);
+
+    expect(profile).toHaveAttribute('aria-expanded', 'false');
+    expect(projects).toHaveAttribute('aria-expanded', 'true');
+    expect(panelOf(projects).getByText('Post a project brief')).toBeInTheDocument();
+  });
+
+  it('closes on Escape and puts focus back on its button', async () => {
+    const { user } = renderReal();
+    const projects = screen.getByRole('button', { name: 'Projects' });
+
+    await user.click(projects);
+    await user.keyboard('{Escape}');
+
+    expect(projects).toHaveAttribute('aria-expanded', 'false');
+    expect(projects).toHaveFocus();
+  });
+
+  it('closes on a click elsewhere', async () => {
+    const { user } = renderReal();
+    const account = screen.getByRole('button', { name: 'Account' });
+
+    await user.click(account);
+    await user.click(screen.getByRole('heading', { level: 1 }));
+
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes when focus tabs out past its last entry', async () => {
+    const { user } = renderReal();
+    const account = screen.getByRole('button', { name: 'Account' });
+
+    await user.click(account);
+    await user.tab(); // Account settings
+    await user.tab(); // Sign out
+    await user.tab(); // out of the dropdown
+
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('goes to account settings, and signs out, from Account', async () => {
+    const { onSignOut, user } = renderReal();
+    const account = screen.getByRole('button', { name: 'Account' });
+
+    await user.click(account);
+    expect(panelOf(account).getByRole('link', { name: 'Account settings' })).toHaveAttribute(
+      'href',
+      '/account',
+    );
+    await user.click(panelOf(account).getByRole('button', { name: 'Sign out' }));
+
+    expect(onSignOut).toHaveBeenCalledOnce();
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('lists every dropdown’s entries under its name in the phone menu', async () => {
+    const { user } = renderReal();
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }));
+    const [, phoneMenu] = screen.getAllByRole('navigation', { name: 'Workspace' });
+    if (phoneMenu === undefined) throw new Error('the phone menu did not open');
+
+    for (const [group, entry] of [
+      ['Profile', 'Edit profile'],
+      ['Projects', 'Project workspace'],
+      ['Account', 'Account settings'],
+    ] as const) {
+      expect(
+        within(within(phoneMenu).getByRole('list', { name: group })).getByText(entry),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it('shows sign-out as unavailable on the design preview, where no one is signed in', async () => {
+    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    const user = userEvent.setup();
+    const account = screen.getByRole('button', { name: 'Account' });
+
+    await user.click(account);
+
+    expect(panelOf(account).queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    expect(panelOf(account).getByText('Sign out')).toBeInTheDocument();
   });
 });

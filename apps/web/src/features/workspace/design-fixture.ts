@@ -15,11 +15,39 @@ import type { WorkspaceSnapshot } from './types.ts';
  */
 export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
   user: { name: 'Design preview', initials: 'DP' },
+  // The design draws Profile, Projects and Account with a chevron but not what
+  // opens under it, so the entries are ours: what exists links to its screen,
+  // and what does not yet is listed with `href: null` and shown as "Soon".
   nav: [
-    { label: 'Dashboard', href: '/design-system/workspace', current: true },
-    { label: 'Profile', href: '/client-profile', menu: true },
-    { label: 'Projects', href: null, menu: true },
-    { label: 'Account', href: '/account', menu: true },
+    { kind: 'link', label: 'Dashboard', href: '/design-system/workspace', current: true },
+    {
+      kind: 'menu',
+      label: 'Profile',
+      entries: [
+        { kind: 'link', label: 'Edit profile', href: '/client-profile' },
+        { kind: 'link', label: 'View public profile', href: null },
+        { kind: 'link', label: 'Profile visibility', href: null },
+      ],
+    },
+    {
+      kind: 'menu',
+      label: 'Projects',
+      entries: [
+        { kind: 'link', label: 'Project workspace', href: null },
+        { kind: 'link', label: 'Post a project brief', href: null },
+        { kind: 'link', label: 'Proposals and bids', href: null },
+      ],
+    },
+    {
+      kind: 'menu',
+      label: 'Account',
+      entries: [
+        { kind: 'link', label: 'Account settings', href: '/account' },
+        { kind: 'link', label: 'Membership and bids', href: null },
+        { kind: 'link', label: 'Payment methods', href: null },
+        { kind: 'sign-out', label: 'Sign out' },
+      ],
+    },
   ],
   utilities: true,
   seller: {

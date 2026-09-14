@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { LuBell, LuChevronDown, LuCircleHelp, LuMail, LuMenu, LuMoon, LuX } from 'react-icons/lu';
+import { LuBell, LuCircleHelp, LuMail, LuMenu, LuMoon, LuX } from 'react-icons/lu';
 import { cn } from '@hireevo/ui-web';
 import { CONTAINER } from './layout.ts';
+import { MenuEntryRow, NavDropdown } from './nav-menu.tsx';
 import type { NavItem } from './types.ts';
 import { UserMenu } from './user-menu.tsx';
 
@@ -41,33 +42,22 @@ function UtilityButton({ utility }: { utility: (typeof UTILITIES)[number] }) {
   );
 }
 
-function NavEntry({ item, layout }: { item: NavItem; layout: 'bar' | 'panel' }) {
-  const shape =
-    layout === 'bar'
-      ? 'relative inline-flex h-full items-center gap-1 text-[0.9375rem] whitespace-nowrap'
-      : 'flex min-h-11 items-center justify-between gap-2 rounded-md px-3 text-base';
-  const chevron =
-    item.menu === true ? <LuChevronDown aria-hidden="true" className="size-4 shrink-0" /> : null;
-
-  if (item.href === null) {
-    // Drawn like its neighbours, as the design draws it, but not a link: there
-    // is no screen behind it to go to yet.
-    return (
-      <span className={cn(shape, 'text-content-muted')}>
-        {item.label}
-        {chevron}
-        <span className="sr-only"> (not available yet)</span>
-      </span>
-    );
-  }
-
+function NavLink({
+  item,
+  layout,
+}: {
+  item: Extract<NavItem, { kind: 'link' }>;
+  layout: 'bar' | 'panel';
+}) {
   const current = item.current === true;
   return (
     <Link
       href={item.href}
       {...(current ? { 'aria-current': 'page' as const } : {})}
       className={cn(
-        shape,
+        layout === 'bar'
+          ? 'relative inline-flex h-full items-center text-[0.9375rem] whitespace-nowrap'
+          : 'flex min-h-11 items-center rounded-md px-3 text-base',
         'transition-colors',
         current ? 'font-medium text-content-link' : 'text-content-muted hover:text-content-accent',
         layout === 'bar' &&
@@ -77,7 +67,6 @@ function NavEntry({ item, layout }: { item: NavItem; layout: 'bar' | 'panel' }) 
       )}
     >
       {item.label}
-      {chevron}
     </Link>
   );
 }
@@ -93,20 +82,22 @@ export function WorkspaceHeader({
   user: { name: string; initials: string };
   onSignOut: (() => void) | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const toggle = useRef<HTMLButtonElement>(null);
-  const home = nav.find((item) => item.current === true)?.href ?? '/dashboard';
+  const current = nav.find((item) => item.kind === 'link' && item.current === true);
+  const home = current?.kind === 'link' ? current.href : '/dashboard';
 
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      setOpen(false);
+      setPanelOpen(false);
       toggle.current?.focus();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [panelOpen]);
 
   return (
     <header className="border-b border-border-subtle bg-surface">
@@ -122,13 +113,24 @@ export function WorkspaceHeader({
           />
         </Link>
 
-        {/* From `lg` the links sit in the bar; below it they would collide
-            with the icons, so they move into the menu the button opens. */}
+        {/* From `lg` the items sit in the bar, the dropdowns opening under
+            them; below it they would collide with the icons, so they move into
+            the menu the button opens. */}
         <nav aria-label="Workspace" className="ml-6 hidden h-full lg:block">
           <ul className="flex h-full items-stretch gap-6">
             {nav.map((item) => (
               <li key={item.label} className="flex">
-                <NavEntry item={item} layout="bar" />
+                {item.kind === 'link' ? (
+                  <NavLink item={item} layout="bar" />
+                ) : (
+                  <NavDropdown
+                    label={item.label}
+                    entries={item.entries}
+                    open={openMenu === item.label}
+                    onOpenChange={(next) => setOpenMenu(next ? item.label : null)}
+                    onSignOut={onSignOut}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -151,30 +153,59 @@ export function WorkspaceHeader({
           <button
             ref={toggle}
             type="button"
-            onClick={() => setOpen((current) => !current)}
-            aria-expanded={open}
-            {...(open ? { 'aria-controls': 'workspace-menu' } : {})}
+            onClick={() => setPanelOpen((open) => !open)}
+            aria-expanded={panelOpen}
+            {...(panelOpen ? { 'aria-controls': 'workspace-menu' } : {})}
             className="ml-1 flex size-10 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-surface-subtle lg:hidden"
           >
-            {open ? (
+            {panelOpen ? (
               <LuX aria-hidden="true" className="size-5" />
             ) : (
               <LuMenu aria-hidden="true" className="size-5" />
             )}
-            <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
+            <span className="sr-only">{panelOpen ? 'Close menu' : 'Open menu'}</span>
           </button>
         </div>
       </div>
 
-      {open ? (
+      {panelOpen ? (
         <div id="workspace-menu" className="border-t border-border-subtle lg:hidden">
           <nav aria-label="Workspace" className={cn(CONTAINER, 'py-2')}>
+            {/* On a phone there is room to list each dropdown's entries under
+                its name, so nothing here needs a second tap to reach. */}
             <ul className="flex flex-col gap-1">
-              {nav.map((item) => (
-                <li key={item.label}>
-                  <NavEntry item={item} layout="panel" />
-                </li>
-              ))}
+              {nav.map((item) => {
+                if (item.kind === 'link') {
+                  return (
+                    <li key={item.label}>
+                      <NavLink item={item} layout="panel" />
+                    </li>
+                  );
+                }
+                const groupId = `workspace-menu-${item.label.toLowerCase()}`;
+                return (
+                  <li key={item.label} className="pt-2">
+                    <p
+                      id={groupId}
+                      className="px-3 pb-1 text-xs font-medium tracking-wide text-content-subtle uppercase"
+                    >
+                      {item.label}
+                    </p>
+                    <ul aria-labelledby={groupId} className="flex flex-col">
+                      {item.entries.map((entry) => (
+                        <li key={entry.label}>
+                          <MenuEntryRow
+                            entry={entry}
+                            layout="panel"
+                            onSignOut={onSignOut}
+                            onChoose={() => setPanelOpen(false)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
             </ul>
             {utilities ? (
               <ul className="mt-2 flex flex-wrap gap-1 border-t border-border-subtle pt-2">

@@ -135,6 +135,9 @@ test('below 1024px the navigation is a menu that opens on screen and closes on E
 
   const menu = page.getByRole('navigation', { name: 'Workspace' });
   await expect(menu.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  for (const group of ['Profile', 'Projects', 'Account']) {
+    await expect(menu.getByRole('list', { name: group })).toBeVisible();
+  }
   const area = await menu.boundingBox();
   expect(area).not.toBeNull();
   if (area !== null) expect(area.x + area.width).toBeLessThanOrEqual(376);
@@ -152,4 +155,42 @@ test('from 1024px the navigation sits in the bar and the menu button is gone', a
     page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Dashboard' }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open menu' })).toBeHidden();
+});
+
+test('from 1024px each header dropdown opens on screen, one at a time, and closes on Escape', async ({
+  page,
+}) => {
+  for (const width of [1024, 1440, 2560]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(PREVIEW);
+    const bar = page.getByRole('navigation', { name: 'Workspace' });
+
+    for (const label of ['Profile', 'Projects', 'Account']) {
+      const trigger = bar.getByRole('button', { name: label, exact: true });
+      await trigger.click();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+      const id = await trigger.getAttribute('aria-controls');
+      expect(id, `${label} at ${width}px has no panel`).not.toBeNull();
+      const panel = page.locator(`[id="${id ?? ''}"]`);
+      await expect(panel).toBeVisible();
+      const area = await panel.boundingBox();
+      expect(area).not.toBeNull();
+      if (area !== null) {
+        expect(area.x, `${label} at ${width}px`).toBeGreaterThanOrEqual(0);
+        expect(area.x + area.width, `${label} at ${width}px`).toBeLessThanOrEqual(width + 1);
+      }
+
+      await page.keyboard.press('Escape');
+      await expect(panel).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+
+    const profile = bar.getByRole('button', { name: 'Profile', exact: true });
+    const account = bar.getByRole('button', { name: 'Account', exact: true });
+    await profile.click();
+    await account.click();
+    await expect(profile).toHaveAttribute('aria-expanded', 'false');
+    await expect(account).toHaveAttribute('aria-expanded', 'true');
+  }
 });
