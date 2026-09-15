@@ -2,13 +2,20 @@
 
 import Link from 'next/link';
 import { useId, useState } from 'react';
-import { LuChevronDown } from 'react-icons/lu';
+import { LuCheck, LuChevronDown } from 'react-icons/lu';
 import { Card, ProgressBar, cn } from '@hireevo/ui-web';
-import { STEPS, hrefFor, type Step } from './steps.ts';
+import { STEPS, hrefFor, type Step, type StepId } from './steps.ts';
 
 const EYEBROW = 'text-xs font-medium tracking-wide text-content-link uppercase';
 
-export function SetupSidebar({ current }: { current: Step }) {
+export function SetupSidebar({
+  current,
+  completed = new Set(),
+}: {
+  current: Step;
+  /** Steps shown with a tick. The current step keeps its ring either way. */
+  completed?: ReadonlySet<StepId>;
+}) {
   const listId = useId();
   const [open, setOpen] = useState(false);
 
@@ -44,6 +51,7 @@ export function SetupSidebar({ current }: { current: Step }) {
       <ol id={listId} className={cn('mt-2 lg:mt-5 lg:block', open ? 'block' : 'hidden')}>
         {STEPS.map((step, index) => {
           const isCurrent = step.id === current.id;
+          const isDone = completed.has(step.id);
           return (
             <li key={step.id} className="relative pb-3 last:pb-0">
               {index < STEPS.length - 1 ? (
@@ -60,13 +68,19 @@ export function SetupSidebar({ current }: { current: Step }) {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-medium',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
                     isCurrent
-                      ? 'border-2 border-accent text-content-link'
-                      : 'border border-border-subtle text-content-subtle',
+                      ? 'border-2 border-accent bg-surface text-content-link'
+                      : isDone
+                        ? 'bg-accent text-content-on-accent'
+                        : 'border border-border-subtle bg-surface text-content-subtle',
                   )}
                 >
-                  {step.number}
+                  {isDone && !isCurrent ? (
+                    <LuCheck className="size-4" strokeWidth={3} />
+                  ) : (
+                    step.number
+                  )}
                 </span>
                 <span
                   className={
@@ -76,6 +90,9 @@ export function SetupSidebar({ current }: { current: Step }) {
                   }
                 >
                   {step.label}
+                  {/* Starts with the comma, not a space: accessible-name computation
+                      trims a leading space, which would run the words together. */}
+                  {isDone ? <span className="sr-only">, complete</span> : null}
                 </span>
               </Link>
             </li>

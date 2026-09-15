@@ -1,9 +1,10 @@
 import spec from '@hireevo/api-client/openapi.json';
 import { describe, expect, it } from 'vitest';
-import { IDENTITY_LIMITS } from './limits.ts';
+import { IDENTITY_LIMITS, LOCATION_LIMITS } from './limits.ts';
 
 type JsonSchema = {
   maxLength?: number;
+  pattern?: string;
   properties?: Record<string, JsonSchema>;
   anyOf?: JsonSchema[];
 };
@@ -34,5 +35,19 @@ describe('identity field limits', () => {
     // A limit changed in the backend contract fails here, not in a form that
     // quietly lets someone type past what the server will accept (§6.1).
     expect(maxLengthOf(draft?.properties?.[field])).toBe(max);
+  });
+});
+
+describe('location and rate limits', () => {
+  const draft = schemas['UpdateProfileRequest']?.properties?.['profile'];
+
+  it('stop the city where the API does', () => {
+    expect(maxLengthOf(draft?.properties?.['locationCity'])).toBe(LOCATION_LIMITS.city);
+  });
+
+  it('allow as many digits in the rate as the API does', () => {
+    const rate = draft?.properties?.['rateAmountMinor'];
+    const pattern = rate?.pattern ?? rate?.anyOf?.find((option) => option.pattern)?.pattern;
+    expect(pattern).toBe(`^\\d{1,${LOCATION_LIMITS.rateAmountMinor}}$`);
   });
 });

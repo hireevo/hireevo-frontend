@@ -33,15 +33,16 @@ export function SetupField({
   optional?: boolean;
   hint?: string;
   error?: string | undefined;
-  length: number;
-  max: number;
+  /** With `max`, turns on the countdown near the limit. */
+  length?: number;
+  max?: number;
   className?: string;
   children: (control: FieldControlProps) => ReactNode;
 }) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
-  const remaining = max - length;
+  const remaining = max === undefined || length === undefined ? Infinity : max - length;
   const counting = remaining <= COUNT_FROM;
   const describedBy =
     [error === undefined ? null : errorId, hint === undefined && !counting ? null : hintId]

@@ -176,7 +176,7 @@ async function layoutFaults(): Promise<string[]> {
 
   const elements = [
     ...document.querySelectorAll(
-      'main a, main button, main h2, main p, main li, main label, main input, main textarea, [role="progressbar"], [data-slot="badge"]',
+      'main a, main button, main h2, main p, main li, main label, main input, main select, main textarea, [role="progressbar"], [data-slot="badge"]',
     ),
   ].filter(shown);
 
@@ -189,14 +189,17 @@ async function layoutFaults(): Promise<string[]> {
     ) {
       faults.add(`${name(element)} is under 12px`);
     }
-    if (element.matches('button, input, textarea') && (rect.width < 23.5 || rect.height < 23.5)) {
+    if (
+      element.matches('button, input, select, textarea') &&
+      (rect.width < 23.5 || rect.height < 23.5)
+    ) {
       faults.add(`${name(element)} is under 24px`);
     }
   }
 
   const blocks = elements.filter((element) =>
     element.matches(
-      'h2, p, a, button, label, input, textarea, [role="progressbar"], [data-slot="badge"]',
+      'h2, p, a, button, label, input, select, textarea, [role="progressbar"], [data-slot="badge"]',
     ),
   );
   for (const [index, first] of blocks.entries()) {
@@ -271,4 +274,63 @@ test('profile setup has no automatically detectable accessibility violations', a
   await page.getByRole('button', { name: 'Publish current revision' }).click();
   await expect(page.getByRole('alert').getByText('Set your availability')).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+/** Long values in every field, a rate at its 15-digit limit, and an error showing. */
+async function fillLocation(page: Page) {
+  await page.getByLabel('Country').fill('Bosnia & Herzegovina');
+  await page.getByLabel('City').fill('Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch');
+  await page
+    .getByLabel('Service area')
+    .fill('Remote across Europe, the Gulf and South Asia; on-site in Vienna, Lahore and Dubai');
+  await page.getByLabel('Remote availability').selectOption('hybrid');
+  await page.getByLabel('Rate currency (3 letters)').fill('EUR');
+  await page.getByLabel('Hourly rate in smallest currency unit').fill('999999999999999');
+  await page.getByLabel('Timezone').fill('Mars/Olympus');
+  await page.getByRole('button', { name: /Save and next/ }).click();
+  await expect(page.getByText('Choose a timezone from the list', { exact: false })).toBeVisible();
+}
+
+async function openLocation(page: Page) {
+  await page.goto('/profile/setup?step=location');
+  await expect(page.getByLabel('Country')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+}
+
+test('location and rate holds its layout at every window size, filled and with an error', async ({
+  page,
+}) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await openLocation(page);
+  await sweep(page, 'location and rate, empty');
+  await fillLocation(page);
+  await expect(page.getByText('€9,999,999,999,999.99 per hour')).toBeVisible();
+  await sweep(page, 'location and rate, filled');
+});
+
+test('location and rate has no automatically detectable accessibility violations', async ({
+  page,
+}) => {
+  await openLocation(page);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await fillLocation(page);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test('save and next registers the click that leaves a field with a problem in it', async ({
+  page,
+}) => {
+  // Errors that appeared on leaving a field pushed the button out from under
+  // the pointer between press and release, so the click never happened. jsdom
+  // has no layout, so only a real browser can catch that.
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openLocation(page);
+  await page.getByLabel('Hourly rate in smallest currency unit').fill('14000');
+  await page.getByLabel('Timezone').fill('Mars/Olympus');
+  await page.getByRole('button', { name: /Save and next/ }).click();
+
+  await expect(page.getByText('Add the currency this rate is in.')).toBeVisible();
+  await expect(page.getByText('Choose a timezone from the list', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Timezone')).toBeFocused();
+  await expect(page).toHaveURL(/step=location/);
 });

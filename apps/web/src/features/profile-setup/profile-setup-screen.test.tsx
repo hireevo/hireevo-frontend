@@ -272,3 +272,138 @@ describe('sinceLabel', () => {
     expect(sinceLabel(at, at.getTime() + elapsed)).toBe(label);
   });
 });
+
+describe('ProfileSetupScreen: Location and rate', () => {
+  const RATE = 'Hourly rate in smallest currency unit';
+  const CURRENCY = 'Rate currency (3 letters)';
+
+  it('shows every field of the design, empty, as step 2 of 6', async () => {
+    nav.step = 'location';
+    renderScreen();
+
+    expect(await screen.findByLabelText('Country')).toHaveValue('');
+    for (const label of [
+      'City',
+      'Service area',
+      'Timezone',
+      'Remote availability',
+      CURRENCY,
+      RATE,
+    ]) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByText('0 of 7 fields filled')).toBeInTheDocument();
+    expect(screen.getByText('Step 2')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Location & rate/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+  });
+
+  it('fills in completely and moves on to step 3', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+
+    await user.type(await screen.findByLabelText('Country'), 'austria');
+    await user.type(screen.getByLabelText('City'), 'Vienna');
+    await user.type(screen.getByLabelText('Service area'), 'Remote across Europe');
+    await user.type(screen.getByLabelText('Timezone'), 'Europe/Vienna');
+    await user.selectOptions(screen.getByLabelText('Remote availability'), 'remote');
+    await user.type(screen.getByLabelText(CURRENCY), 'eur');
+    await user.type(screen.getByLabelText(RATE), '14,000');
+
+    // Left the country field already, so it settled to its listed name.
+    expect(screen.getByLabelText('Country')).toHaveValue('Austria');
+    expect(screen.getByLabelText(CURRENCY)).toHaveValue('EUR');
+    expect(screen.getByLabelText(RATE)).toHaveValue('14000');
+    expect(screen.getByText('€140.00 per hour')).toBeInTheDocument();
+    expect(screen.getByText('All fields complete')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Location & rate, complete' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Save and next/ }));
+    expect(nav.push).toHaveBeenCalledWith('/profile/setup?step=skills');
+  });
+
+  it('leaves a field without an error, and shows it on Save and next until it is fixed', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+    const timezone = await screen.findByLabelText('Timezone');
+
+    await user.type(timezone, 'Mars/Olympus');
+    await user.tab();
+    // Nothing appears on leaving, so nothing moves under the pointer.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Save and next/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose a timezone from the list');
+    expect(timezone).toHaveAttribute('aria-invalid', 'true');
+
+    await user.type(timezone, '{Backspace}');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('asks before the page is left with location values entered', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+    const leave = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+
+    await screen.findByLabelText('City');
+    expect(leave()).toBe(false);
+    await user.type(screen.getByLabelText('City'), 'Vienna');
+    expect(leave()).toBe(true);
+  });
+
+  it('stays on the step and takes the person to the first problem', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+    const country = await screen.findByLabelText('Country');
+
+    await user.type(country, 'Atlantis');
+    await user.click(screen.getByRole('button', { name: /Save and next/ }));
+
+    await waitFor(() => expect(country).toHaveFocus());
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose a country from the list.');
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('asks for the currency a rate is in', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+
+    await user.type(await screen.findByLabelText(RATE), '14000');
+    await user.click(screen.getByRole('button', { name: /Save and next/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Add the currency this rate is in.');
+    await waitFor(() => expect(screen.getByLabelText(CURRENCY)).toHaveFocus());
+  });
+
+  it('says plainly that this section is not saved yet', async () => {
+    nav.step = 'location';
+    const user = renderScreen();
+
+    expect(await screen.findByLabelText('City')).toBeInTheDocument();
+    expect(screen.queryByText(/not connected to your profile yet/)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('City'), 'Vienna');
+
+    expect(screen.getByText(/not connected to your profile yet/)).toBeInTheDocument();
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  it('ticks Identity and story once its section is saved', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({ availabilityNote: 'From October' }),
+    });
+    nav.step = 'location';
+    renderScreen();
+
+    expect(
+      await screen.findByRole('link', { name: 'Identity & story, complete' }),
+    ).toBeInTheDocument();
+  });
+});
