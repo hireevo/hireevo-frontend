@@ -22,3 +22,22 @@ export const LOCATION_LIMITS = {
   serviceArea: 140,
   rateAmountMinor: 15,
 } as const;
+
+/**
+ * Languages, skills, experience, education and licenses have no API fields yet.
+ * These are the limits proposed for them in the API phase; limits.test.ts can
+ * check them against the spec only once the spec has them.
+ */
+export const SECTION_LIMITS = {
+  language: 60,
+  skill: 80,
+  years: 2,
+  role: 120,
+  organization: 120,
+  summary: 1000,
+  institution: 150,
+  qualification: 120,
+  fieldOfStudy: 120,
+  license: 150,
+  issuer: 150,
+} as const;

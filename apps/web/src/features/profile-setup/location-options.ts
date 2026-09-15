@@ -31,16 +31,26 @@ export function countryOptions(): CountryOption[] {
 }
 
 /** The country a typed name refers to, ignoring case and surrounding spaces. */
+let countryNames: readonly string[] | null = null;
+
+/** The countries' names alone, for suggestions. */
+export function countryNameOptions(): readonly string[] {
+  countryNames ??= countryOptions().map((country) => country.name);
+  return countryNames;
+}
+
 export function countryByName(name: string): CountryOption | undefined {
   const wanted = name.trim().toLowerCase();
   if (wanted === '') return undefined;
   return countryOptions().find((country) => country.name.toLowerCase() === wanted);
 }
 
-export function timezoneOptions(): string[] {
-  return typeof Intl.supportedValuesOf === 'function'
-    ? Intl.supportedValuesOf('timeZone')
-    : ['UTC'];
+let timezones: readonly string[] | null = null;
+
+export function timezoneOptions(): readonly string[] {
+  timezones ??=
+    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : ['UTC'];
+  return timezones;
 }
 
 /** `UTC` is accepted by name even where the browser lists it only under an alias. */
@@ -48,8 +58,12 @@ export function isTimezone(value: string): boolean {
   return value === 'UTC' || timezoneOptions().includes(value);
 }
 
-export function currencyOptions(): string[] {
-  return typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('currency') : [];
+let currencies: readonly string[] | null = null;
+
+export function currencyOptions(): readonly string[] {
+  currencies ??=
+    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('currency') : [];
+  return currencies;
 }
 
 export function isCurrency(value: string): boolean {

@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useId } from 'react';
 import { cn } from '@hireevo/ui-web';
-import { hrefFor, type Step } from './steps.ts';
+import { hrefFor, type Step, type StepId } from './steps.ts';
+
+export const PUBLISH_SECTION_ID = 'publish';
 
 export type PublishState =
   | { kind: 'idle' }
@@ -22,22 +24,26 @@ export function PublishBanner({
   published,
   state,
   onPublish,
+  onGoTo,
 }: {
   published: boolean;
   state: PublishState;
   onPublish: () => void;
+  /** Brings the section that fixes an issue into view. */
+  onGoTo: (id: StepId) => void;
 }) {
   const headingId = useId();
   const publishing = state.kind === 'publishing';
 
   return (
     <section
+      id={PUBLISH_SECTION_ID}
       aria-labelledby={headingId}
       className="rounded-xl bg-surface-inverse px-5 py-6 text-content-inverse sm:px-6"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 id={headingId} className="text-base font-semibold">
+          <h2 id={headingId} tabIndex={-1} className="text-base font-semibold outline-none">
             {published ? 'Your profile is live.' : 'Ready when you are.'}
           </h2>
           <p className="mt-1 text-sm text-content-inverse-muted">
@@ -74,6 +80,8 @@ export function PublishBanner({
                 {issue.message} <span className="text-content-subtle">—</span>{' '}
                 <Link
                   href={hrefFor(issue.step.id)}
+                  scroll={false}
+                  onClick={() => onGoTo(issue.step.id)}
                   className="rounded-sm font-medium text-content-link underline underline-offset-4"
                 >
                   {issue.step.label}

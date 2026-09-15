@@ -176,12 +176,16 @@ async function layoutFaults(): Promise<string[]> {
 
   const elements = [
     ...document.querySelectorAll(
-      'main a, main button, main h2, main p, main li, main label, main input, main select, main textarea, [role="progressbar"], [data-slot="badge"]',
+      'main a, main button, main h2, main h3, main p, main li, main label, main legend, main input, main select, main textarea, [role="progressbar"], [data-slot="badge"]',
     ),
   ].filter(shown);
+  // Measured once: the page has every section on it, and the overlap check
+  // below compares each pair.
+  const rects = new Map(elements.map((element) => [element, box(element)]));
+  const rectOf = (element: Element) => rects.get(element) ?? box(element);
 
   for (const element of elements) {
-    const rect = box(element);
+    const rect = rectOf(element);
     if (rect.left < -1 || rect.right > width + 1) faults.add(`${name(element)} is cut off`);
     if (
       (element.textContent ?? '').trim() !== '' &&
@@ -189,24 +193,27 @@ async function layoutFaults(): Promise<string[]> {
     ) {
       faults.add(`${name(element)} is under 12px`);
     }
-    if (
-      element.matches('button, input, select, textarea') &&
-      (rect.width < 23.5 || rect.height < 23.5)
-    ) {
-      faults.add(`${name(element)} is under 24px`);
+    if (element.matches('button, input, select, textarea')) {
+      // A checkbox or radio is clicked through its label, so the label is the
+      // target WCAG 2.5.8 measures.
+      const target = element.matches('[type="checkbox"], [type="radio"]')
+        ? (element.closest('label') ?? element)
+        : element;
+      const size = rectOf(target);
+      if (size.width < 23.5 || size.height < 23.5) faults.add(`${name(element)} is under 24px`);
     }
   }
 
   const blocks = elements.filter((element) =>
     element.matches(
-      'h2, p, a, button, label, input, select, textarea, [role="progressbar"], [data-slot="badge"]',
+      'h2, h3, p, a, button, label, legend, input, select, textarea, [role="progressbar"], [data-slot="badge"]',
     ),
   );
   for (const [index, first] of blocks.entries()) {
     for (const second of blocks.slice(index + 1)) {
       if (first.contains(second) || second.contains(first)) continue;
-      const a = box(first);
-      const b = box(second);
+      const a = rectOf(first);
+      const b = rectOf(second);
       const across = Math.min(a.right, b.right) - Math.max(a.left, b.left);
       const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
       if (across > 1 && down > 1) faults.add(`${name(first)} overlaps ${name(second)}`);
@@ -276,45 +283,159 @@ test('profile setup has no automatically detectable accessibility violations', a
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
-/** Long values in every field, a rate at its 15-digit limit, and an error showing. */
-async function fillLocation(page: Page) {
-  await page.getByLabel('Country').fill('Bosnia & Herzegovina');
-  await page.getByLabel('City').fill('Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch');
-  await page
+const region = (page: Page, name: RegExp) => page.getByRole('region', { name });
+
+/**
+ * Every section filled: long values, a second entry in each list, and an error
+ * showing in every section that can have one — the tallest and widest the page
+ * gets.
+ */
+async function fillEverything(page: Page) {
+  const location = region(page, /Location and rate/);
+  await location.getByLabel('Country').fill('Bosnia & Herzegovina');
+  await location
+    .getByLabel('City', { exact: true })
+    .fill('Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch');
+  await location
     .getByLabel('Service area')
     .fill('Remote across Europe, the Gulf and South Asia; on-site in Vienna, Lahore and Dubai');
-  await page.getByLabel('Remote availability').selectOption('hybrid');
-  await page.getByLabel('Rate currency (3 letters)').fill('EUR');
-  await page.getByLabel('Hourly rate in smallest currency unit').fill('999999999999999');
-  await page.getByLabel('Timezone').fill('Mars/Olympus');
-  await page.getByRole('button', { name: /Save and next/ }).click();
-  await expect(page.getByText('Choose a timezone from the list', { exact: false })).toBeVisible();
+  await location.getByLabel('Remote availability').selectOption('hybrid');
+  await location.getByLabel('Rate currency (3 letters)').fill('EUR');
+  await location.getByLabel('Hourly rate in smallest currency unit').fill('999999999999999');
+  await location.getByLabel('Timezone').fill('Mars/Olympus');
+  await location.getByRole('button', { name: /Save and next/ }).click();
+  await expect(
+    location.getByText('Choose a timezone from the list', { exact: false }),
+  ).toBeVisible();
+
+  const skills = region(page, /Languages and skills/);
+  await skills.getByRole('group', { name: 'Language 1' }).getByRole('combobox').fill('Portuguese');
+  await skills.getByRole('button', { name: 'Add language' }).click();
+  await skills.getByRole('group', { name: 'Language 2' }).getByRole('combobox').fill('portuguese');
+  await skills.getByRole('button', { name: 'Add approved skill' }).click();
+  const skill1 = skills.getByRole('group', { name: 'Skill 1' });
+  await skill1.getByLabel('Proficiency', { exact: true }).fill('Intermediate');
+  await skill1.getByLabel('Years', { exact: true }).fill('99');
+  await skills.getByRole('button', { name: 'Add skill' }).click();
+  const skill2 = skills.getByRole('group', { name: 'Skill 2' });
+  await skill2
+    .getByLabel('Skill', { exact: true })
+    .fill('Accessibility and inclusive design for regulated public services');
+  await skill2.getByLabel('Proficiency', { exact: true }).fill('Expert');
+  await skill2.getByLabel('Years', { exact: true }).fill('12');
+  await skills.getByRole('button', { name: /Save and next/ }).click();
+  await expect(skills.getByText('This language is already listed.')).toBeVisible();
+
+  const experience = region(page, /Step 4:\s?Experience/);
+  const role1 = experience.getByRole('group', { name: 'Role 1' });
+  await role1
+    .getByLabel('Role', { exact: true })
+    .fill('Lead Service Designer, Digital Banking Platforms');
+  await role1
+    .getByLabel('Organization', { exact: true })
+    .fill('Erste Group Bank AG — Digital Innovation and Customer Experience Division');
+  await role1.getByLabel('Start date').fill('2024-05-01');
+  await role1.getByLabel('End date').fill('2023-01-01');
+  await role1
+    .getByLabel('Summary')
+    .fill(
+      'Led cross-functional discovery and prototyping for customer-facing banking services. '.repeat(
+        6,
+      ),
+    );
+  await experience.getByRole('button', { name: /Save and next/ }).click();
+  await expect(experience.getByText('The end date is before the start date.')).toBeVisible();
+  // A second entry, added after the check: it is incomplete, so the section
+  // locks, as the design draws it — and a locked button cannot be clicked.
+  await experience.getByRole('button', { name: 'Add experience entry' }).click();
+  await experience
+    .getByRole('group', { name: 'Role 2' })
+    .getByLabel('Role', { exact: true })
+    .fill('Service Designer');
+
+  const education = region(page, /Education and licenses/);
+  await education
+    .getByLabel('Institution', { exact: true })
+    .fill('University of Applied Arts Vienna, Institute of Design');
+  await education
+    .getByLabel('Qualification')
+    .fill('Master of Arts in Social Design and Service Innovation');
+  await education.getByLabel('Field of study').fill('Interaction & Service Design');
+  await education.getByLabel('Start date').fill('2013-09-01');
+  await education.getByLabel('End date').fill('2017-06-30');
+  await education
+    .getByLabel('License', { exact: true })
+    .fill('Accessibility Fundamentals for Digital Services');
+  await education.getByLabel('Issuer').fill('Interaction Design Foundation');
+  await education.getByLabel('Issued').fill('2025-03-10');
+  await education.getByLabel('Expires').fill('2025-01-01');
+  await education.getByRole('button', { name: /Save and next/ }).click();
+  await expect(education.getByText('The expiry date is before the issue date.')).toBeVisible();
+
+  const visibility = region(page, /Visibility and publication/);
+  await visibility.getByRole('radio', { name: 'Public after publishing' }).check();
+  await visibility
+    .getByRole('checkbox', { name: 'Allow search engines to index the public profile' })
+    .check();
+  await visibility.getByRole('button', { name: 'Save section' }).click();
+  await expect(visibility.getByRole('alert')).toBeVisible();
 }
 
-async function openLocation(page: Page) {
-  await page.goto('/profile/setup?step=location');
-  await expect(page.getByLabel('Country')).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
-}
-
-test('location and rate holds its layout at every window size, filled and with an error', async ({
+test('profile setup holds its layout filled to its limits, with errors showing', async ({
   page,
 }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
-  await openLocation(page);
-  await sweep(page, 'location and rate, empty');
-  await fillLocation(page);
+  await open(page);
+  await fillEverything(page);
   await expect(page.getByText('€9,999,999,999,999.99 per hour')).toBeVisible();
-  await sweep(page, 'location and rate, filled');
+  await sweep(page, 'profile setup, filled');
 });
 
-test('location and rate has no automatically detectable accessibility violations', async ({
+test('profile setup filled in has no automatically detectable accessibility violations', async ({
   page,
 }) => {
-  await openLocation(page);
+  await open(page);
+  await fillEverything(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await fillLocation(page);
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test('a step link brings its section into view, and the step list follows the scroll', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await open(page);
+  const steps = region(page, /Profile setup steps/);
+
+  await steps.getByRole('link', { name: 'Experience' }).click();
+  const heading = page.getByRole('heading', { level: 2, name: /Step 4:\s?Experience/ });
+  await expect(heading).toBeFocused();
+  await expect(heading).toBeInViewport();
+  await expect(page).toHaveURL(/step=experience/);
+  await expect(steps.getByRole('link', { name: 'Experience' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
+
+  // The list stays beside the page and marks what is being read.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(steps).toBeInViewport();
+  await expect(steps.getByRole('link', { name: /Visibility & publication/ })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(steps.getByRole('link', { name: /Identity & story/ })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
+});
+
+test('an address naming a section opens the page there', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/profile/setup?step=education');
+  await expect(
+    page.getByRole('heading', { level: 2, name: /Education and licenses/ }),
+  ).toBeInViewport();
 });
 
 test('save and next registers the click that leaves a field with a problem in it', async ({
@@ -324,13 +445,20 @@ test('save and next registers the click that leaves a field with a problem in it
   // the pointer between press and release, so the click never happened. jsdom
   // has no layout, so only a real browser can catch that.
   await page.setViewportSize({ width: 1366, height: 900 });
-  await openLocation(page);
-  await page.getByLabel('Hourly rate in smallest currency unit').fill('14000');
-  await page.getByLabel('Timezone').fill('Mars/Olympus');
-  await page.getByRole('button', { name: /Save and next/ }).click();
+  await open(page);
+  const location = region(page, /Location and rate/);
+  await location.getByLabel('Country').fill('Austria');
+  await location.getByLabel('City', { exact: true }).fill('Vienna');
+  await location.getByLabel('Service area').fill('Remote across Europe');
+  await location.getByLabel('Remote availability').selectOption('remote');
+  await location.getByLabel('Rate currency (3 letters)').fill('EUR');
+  await location.getByLabel('Hourly rate in smallest currency unit').fill('14000');
+  await location.getByLabel('Timezone').fill('Mars/Olympus');
+  await location.getByRole('button', { name: /Save and next/ }).click();
 
-  await expect(page.getByText('Add the currency this rate is in.')).toBeVisible();
-  await expect(page.getByText('Choose a timezone from the list', { exact: false })).toBeVisible();
-  await expect(page.getByLabel('Timezone')).toBeFocused();
-  await expect(page).toHaveURL(/step=location/);
+  await expect(
+    location.getByText('Choose a timezone from the list', { exact: false }),
+  ).toBeVisible();
+  await expect(location.getByLabel('Timezone')).toBeFocused();
+  await expect(page).not.toHaveURL(/step=skills/);
 });

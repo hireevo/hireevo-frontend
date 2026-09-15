@@ -49,6 +49,11 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-on-accent', 'border-strong', 'large'],
   ['content-muted', 'surface-subtle', 'body'],
   ['border-subtle', 'surface', 'decorative'],
+  // Profile setup (apps/web/src/features/profile-setup): "Remove" on an entry
+  // panel, the locked Save and next, and focus inside the approved-skill bar.
+  ['content-warning', 'surface-subtle', 'body'],
+  ['content-muted', 'surface-muted', 'body'],
+  ['focus', 'surface-accent-subtle', 'large'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);

@@ -1,8 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import { LuArrowRight, LuCheck } from 'react-icons/lu';
-import { Button, Card, cn } from '@hireevo/ui-web';
+import { Card, cn } from '@hireevo/ui-web';
 import {
   IDENTITY_FIELDS,
   type FieldErrors,
@@ -12,7 +11,9 @@ import {
 import { IDENTITY_LIMITS } from './limits.ts';
 import { AutoGrowTextarea } from './auto-grow-textarea.tsx';
 import { CONTROL, SetupField } from './setup-field.tsx';
+import { StepFooter } from './step-footer.tsx';
 import { StepHeader } from './step-header.tsx';
+import { sectionIdFor } from './steps.ts';
 
 const border = (error: string | undefined) =>
   error === undefined ? 'border-border' : 'border-border-danger';
@@ -34,7 +35,11 @@ export function IdentityStep({
   const filled = IDENTITY_FIELDS.filter((field) => values[field].trim() !== '').length;
 
   return (
-    <Card aria-labelledby={headingId} className="rounded-xl p-5 sm:p-6">
+    <Card
+      id={sectionIdFor('identity')}
+      aria-labelledby={headingId}
+      className="scroll-mt-6 rounded-xl p-5 sm:p-6"
+    >
       <StepHeader
         id={headingId}
         number={1}
@@ -133,28 +138,11 @@ export function IdentityStep({
         </SetupField>
       </div>
 
-      <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
-          {filled === IDENTITY_FIELDS.length ? (
-            <>
-              <LuCheck aria-hidden="true" className="size-3.5 text-content-success" />
-              All fields complete
-            </>
-          ) : (
-            `${filled} of ${IDENTITY_FIELDS.length} fields filled`
-          )}
-        </p>
-        <Button
-          type="button"
-          onClick={onSaveAndNext}
-          loading={saving}
-          loadingLabel="Saving"
-          className="h-10 w-full rounded-lg px-4 text-sm font-semibold sm:w-auto"
-        >
-          Save and next
-          <LuArrowRight aria-hidden="true" className="size-4" />
-        </Button>
-      </div>
+      <StepFooter
+        complete={filled === IDENTITY_FIELDS.length}
+        onContinue={onSaveAndNext}
+        loading={saving}
+      />
     </Card>
   );
 }

@@ -18,7 +18,12 @@ export function StepHeader({
         {number}
       </span>
       <div className="min-w-0">
-        <h2 id={id} className="text-xl leading-snug font-semibold text-content">
+        {/* Focusable from script only: moving to a section puts focus here. */}
+        <h2
+          id={id}
+          tabIndex={-1}
+          className="text-xl leading-snug font-semibold text-content outline-none"
+        >
           <span className="sr-only">Step {number}: </span>
           {title}
         </h2>

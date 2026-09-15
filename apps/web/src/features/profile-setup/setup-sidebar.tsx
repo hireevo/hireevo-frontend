@@ -11,10 +11,13 @@ const EYEBROW = 'text-xs font-medium tracking-wide text-content-link uppercase';
 export function SetupSidebar({
   current,
   completed = new Set(),
+  onSelect,
 }: {
   current: Step;
   /** Steps shown with a tick. The current step keeps its ring either way. */
   completed?: ReadonlySet<StepId>;
+  /** Every section is on this page: a link brings its section into view. */
+  onSelect?: (id: StepId) => void;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -62,6 +65,11 @@ export function SetupSidebar({
               ) : null}
               <Link
                 href={hrefFor(step.id)}
+                scroll={false}
+                onClick={() => {
+                  setOpen(false);
+                  onSelect?.(step.id);
+                }}
                 {...(isCurrent ? { 'aria-current': 'step' as const } : {})}
                 className="group relative flex min-h-8 items-center gap-3 rounded-md text-sm"
               >

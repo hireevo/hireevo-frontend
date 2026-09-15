@@ -28,6 +28,11 @@ export function hrefFor(id: StepId): Route {
   return id === 'identity' ? '/profile/setup' : `/profile/setup?step=${id}`;
 }
 
+/** The element a section is rendered in, for scrolling to it. */
+export function sectionIdFor(id: StepId): string {
+  return `step-${id}`;
+}
+
 /**
  * Which step each field the API can complain about belongs to, so a publish
  * failure can send the person to the section that fixes it.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { countryByName, isCurrency, isTimezone } from './location-options.ts';
 
 export const LOCATION_FIELDS = [
@@ -63,7 +63,7 @@ function normalise(field: LocationField, value: string): string {
  * changing the API and integrating. Country, city, currency and rate do exist
  * in the API and are connected in that integration pass, together with the
  * rest, rather than half now. Until then the screen says so, and leaving the
- * page with anything entered asks first.
+ * page with anything entered asks first (in ProfileSetupScreen).
  *
  * Fields are checked when the step is submitted; an error clears as soon as
  * its field is edited.
@@ -106,13 +106,6 @@ export function useLocationDraft() {
   const complete =
     LOCATION_FIELDS.every((field) => values[field].trim() !== '') &&
     Object.keys(validateLocation(values)).length === 0;
-
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
 
   return { values, errors, change, settle, checkAll, dirty, complete };
 }

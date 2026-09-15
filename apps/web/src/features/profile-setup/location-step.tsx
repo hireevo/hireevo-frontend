@@ -2,18 +2,21 @@
 
 import { useId, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { LuArrowRight, LuCheck, LuChevronDown } from 'react-icons/lu';
-import { Button, Card, cn } from '@hireevo/ui-web';
+import { LuChevronDown } from 'react-icons/lu';
+import { Card, cn } from '@hireevo/ui-web';
 import { LOCATION_LIMITS } from './limits.ts';
 import {
   REMOTE_MODES,
-  countryOptions,
+  countryNameOptions,
   currencyOptions,
   formatRate,
   timezoneOptions,
 } from './location-options.ts';
 import { CONTROL, SetupField } from './setup-field.tsx';
+import { StaticDatalist } from './static-datalist.tsx';
+import { StepFooter } from './step-footer.tsx';
 import { StepHeader } from './step-header.tsx';
+import { sectionIdFor } from './steps.ts';
 import {
   LOCATION_FIELDS,
   type LocationErrors,
@@ -64,7 +67,11 @@ export function LocationStep({
   }
 
   return (
-    <Card aria-labelledby={headingId} className="rounded-xl p-5 sm:p-6">
+    <Card
+      id={sectionIdFor('location')}
+      aria-labelledby={headingId}
+      className="scroll-mt-6 rounded-xl p-5 sm:p-6"
+    >
       <StepHeader
         id={headingId}
         number={2}
@@ -200,42 +207,11 @@ export function LocationStep({
         </SetupField>
       </div>
 
-      <datalist id={countriesId}>
-        {countryOptions().map((country) => (
-          <option key={country.code} value={country.name} />
-        ))}
-      </datalist>
-      <datalist id={timezonesId}>
-        {timezoneOptions().map((zone) => (
-          <option key={zone} value={zone} />
-        ))}
-      </datalist>
-      <datalist id={currenciesId}>
-        {currencyOptions().map((code) => (
-          <option key={code} value={code} />
-        ))}
-      </datalist>
+      <StaticDatalist id={countriesId} options={countryNameOptions()} />
+      <StaticDatalist id={timezonesId} options={timezoneOptions()} />
+      <StaticDatalist id={currenciesId} options={currencyOptions()} />
 
-      <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
-          {filled === LOCATION_FIELDS.length ? (
-            <>
-              <LuCheck aria-hidden="true" className="size-3.5 text-content-success" />
-              All fields complete
-            </>
-          ) : (
-            `${filled} of ${LOCATION_FIELDS.length} fields filled`
-          )}
-        </p>
-        <Button
-          type="button"
-          onClick={saveAndNext}
-          className="h-10 w-full rounded-lg px-4 text-sm font-semibold sm:w-auto"
-        >
-          Save and next
-          <LuArrowRight aria-hidden="true" className="size-4" />
-        </Button>
-      </div>
+      <StepFooter complete={filled === LOCATION_FIELDS.length} onContinue={saveAndNext} />
     </Card>
   );
 }
