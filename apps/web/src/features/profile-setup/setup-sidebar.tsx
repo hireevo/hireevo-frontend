@@ -53,7 +53,7 @@ export function SetupSidebar({
           const isCurrent = step.id === current.id;
           const isDone = completed.has(step.id);
           return (
-            <li key={step.id} className="relative pb-3 last:pb-0">
+            <li key={step.id} className="relative pb-5 last:pb-0">
               {index < STEPS.length - 1 ? (
                 <span
                   aria-hidden="true"
@@ -86,7 +86,9 @@ export function SetupSidebar({
                   className={
                     isCurrent
                       ? 'font-medium text-content-link'
-                      : 'text-content-muted transition-colors group-hover:text-content'
+                      : isDone
+                        ? 'text-content-link transition-colors group-hover:text-content'
+                        : 'text-content-muted transition-colors group-hover:text-content'
                   }
                 >
                   {step.label}

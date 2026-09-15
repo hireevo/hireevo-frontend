@@ -182,11 +182,9 @@ export function LocationStep({
 
         <SetupField
           label="Hourly rate in smallest currency unit"
-          hint={
-            rate === null
-              ? 'In the currency’s smallest unit — for EUR, 14000 is €140.00.'
-              : `${rate} per hour`
-          }
+          // The design has no hint here. The amount is read back once it can be,
+          // because a rate in minor units is easy to enter a hundred times off.
+          {...(rate === null ? {} : { hint: `${rate} per hour` })}
           error={errors.rateAmountMinor}
         >
           {(control) => (

@@ -37,7 +37,8 @@ export function identitySaved(profile: OwnProfile | null): boolean {
   );
 }
 
-const MAIN = 'mx-auto w-full max-w-[1100px] px-4 py-6 sm:px-6 lg:py-8';
+/** The design's content is 1100px wide, so the column is that plus its padding. */
+const MAIN = 'mx-auto w-full max-w-[1148px] px-4 py-6 sm:px-6 lg:py-8';
 
 /** Shown while Location and rate holds anything, until the API can store it. */
 export const LOCATION_NOT_SAVED =

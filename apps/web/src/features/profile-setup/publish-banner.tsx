@@ -33,7 +33,7 @@ export function PublishBanner({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-xl bg-surface-inverse px-5 py-5 text-content-inverse sm:px-6"
+      className="rounded-xl bg-surface-inverse px-5 py-6 text-content-inverse sm:px-6"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
