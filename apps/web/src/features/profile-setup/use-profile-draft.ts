@@ -53,15 +53,24 @@ const keyOf = (values: IdentityValues) =>
  */
 export function useProfileDraft({
   autosaveDelay = 800,
+  autosave = true,
   fallbackDisplayName = '',
+  restore,
 }: {
   autosaveDelay?: number;
+  /**
+   * Off where a screen saves on a button of its own: what is typed is still
+   * kept, and `flush` is what sends it.
+   */
+  autosave?: boolean;
   /**
    * Fills the display name when the profile has none — the account's own name,
    * so a new profile opens with the person's name rather than a placeholder.
    * It counts as unsaved until something is saved, and the status says so.
    */
   fallbackDisplayName?: string;
+  /** Values typed before and not saved — a draft read back from this browser. */
+  restore?: IdentityValues | undefined;
 } = {}) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [profile, setProfile] = useState<OwnProfile | null>(null);
@@ -77,11 +86,13 @@ export function useProfileDraft({
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallback = useRef(fallbackDisplayName);
+  const restored = useRef(restore);
 
-  // Before the load effect below, so the first response already has it.
+  // Before the load effect below, so the first response already has them.
   useEffect(() => {
     fallback.current = fallbackDisplayName;
-  }, [fallbackDisplayName]);
+    restored.current = restore;
+  }, [fallbackDisplayName, restore]);
 
   /** Applies what a load returned. Called only after the request settles, never during render or an effect body. */
   const accept = useCallback((result: Awaited<ReturnType<typeof loadOrCreateProfile>>) => {
@@ -90,10 +101,13 @@ export function useProfileDraft({
       return;
     }
     const loaded = valuesOf(result.profile);
+    // A draft of this profile wins over what the server holds: it is the later
+    // of the two, and it is the work the person has not saved yet.
+    const withDraft = restored.current ?? loaded;
     const opening =
-      loaded.displayName.trim() === '' && fallback.current.trim() !== ''
-        ? { ...loaded, displayName: fallback.current }
-        : loaded;
+      withDraft.displayName.trim() === '' && fallback.current.trim() !== ''
+        ? { ...withDraft, displayName: fallback.current }
+        : withDraft;
     latest.current = opening;
     version.current = result.profile.version;
     // Keyed on what the server holds, not on the fallback, so a filled-in name
@@ -103,7 +117,12 @@ export function useProfileDraft({
     setProfile(result.profile);
     setValues(opening);
     setFieldErrors({});
-    setSave(opening === loaded ? { kind: 'saved', at: savedAt.current } : { kind: 'unsaved' });
+    // By value, not by identity: a restored draft equal to the server is saved.
+    setSave(
+      keyOf(opening) === keyOf(loaded)
+        ? { kind: 'saved', at: savedAt.current }
+        : { kind: 'unsaved' },
+    );
     setLoad({ status: 'ready' });
   }, []);
 
@@ -184,13 +203,14 @@ export function useProfileDraft({
       if (blocked.current) return;
 
       setSave({ kind: 'unsaved' });
+      if (!autosave) return;
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
         timer.current = null;
         void enqueue();
       }, autosaveDelay);
     },
-    [autosaveDelay, enqueue],
+    [autosave, autosaveDelay, enqueue],
   );
 
   /** Saves now instead of waiting for the pause in typing. */

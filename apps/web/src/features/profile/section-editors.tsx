@@ -22,7 +22,8 @@ function Opening() {
  * where its card already is.
  */
 export const IdentityEditor = dynamic(
-  () => import('@/features/profile-setup/identity-step.tsx').then((module) => module.IdentityStep),
+  () =>
+    import('@/features/profile-setup/identity-fields.tsx').then((module) => module.IdentityFields),
   { loading: Opening },
 );
 

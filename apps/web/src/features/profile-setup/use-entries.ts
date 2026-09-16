@@ -35,6 +35,7 @@ export function useEntries<F extends string>(
   {
     normalise,
     optional = [],
+    initial,
   }: {
     normalise?: (field: F, value: string) => string;
     /**
@@ -43,12 +44,20 @@ export function useEntries<F extends string>(
      * Everything else has to be filled in.
      */
     optional?: readonly F[];
+    /** Entries to open on — a draft read back from this browser. */
+    initial?: Entry<F>[] | undefined;
   } = {},
 ) {
-  const next = useRef(1);
-  const [items, setItems] = useState<Entry<F>[]>(() => [
-    { key: `${prefix}-0`, values: blank(fields) },
-  ]);
+  const [items, setItems] = useState<Entry<F>[]>(() =>
+    initial === undefined || initial.length === 0
+      ? [{ key: `${prefix}-0`, values: blank(fields) }]
+      : initial,
+  );
+  // Past every key already in use, so a restored draft and a new entry never
+  // share one.
+  const next = useRef(
+    Math.max(0, ...items.map((item) => Number(item.key.split('-').pop()) + 1 || 0)) || 1,
+  );
   const [errors, setErrors] = useState<EntryErrors>({});
   const [lastAdded, setLastAdded] = useState<string | null>(null);
 

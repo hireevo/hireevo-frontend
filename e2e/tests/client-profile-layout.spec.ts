@@ -142,26 +142,48 @@ test('fetches a section’s editor only when that section is opened', async ({ p
   expect(scripts.length, 'opening a section fetches its editor').toBeGreaterThan(settled);
 });
 
-test('opens the About editor in place, saves it, and shows what was saved', async ({ page }) => {
+test('opens About in place, and saves the whole form from the end of it', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Add details' }).click();
 
-  const editor = page.getByRole('region', { name: /Identity and story/ });
-  await expect(editor).toBeVisible();
-  await editor
+  const about = page.getByRole('region', { name: /About/ });
+  await about
     .getByLabel('Biography')
     .fill('I map difficult journeys and ship accessible services.');
+  // The section itself has no save: the form has one, at its end.
+  await expect(about.getByRole('button', { name: /Save and/ })).toHaveCount(0);
 
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/api/v1/profiles/me') && request.method() === 'PATCH',
   );
-  await editor.getByRole('button', { name: 'Save and close' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await saved;
 
-  await expect(editor).toBeHidden();
+  await expect(page.getByText('All changes saved')).toBeVisible();
+});
+
+test('opens again on what was typed but never saved', async ({ page }) => {
+  await open(page);
+
+  await page.getByRole('button', { name: 'Add skills and expertise' }).click();
+  await page
+    .getByRole('group', { name: 'Skill 1' })
+    .getByLabel('Skill', { exact: true })
+    .fill('Service design');
   await expect(
-    page.getByText('I map difficult journeys and ship accessible services.'),
+    page.getByRole('group', { name: 'Skill 1' }).getByLabel('Skill', { exact: true }),
+  ).toHaveValue('Service design');
+  // The draft is written a moment after the last keystroke.
+  await page.waitForTimeout(700);
+
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Build a profile that wins briefs', level: 1 }),
   ).toBeVisible();
+
+  await expect(page.getByRole('region', { name: /Skills and expertise/ })).toContainText(
+    'Service design',
+  );
 });
 
 test('the client profile holds its layout at every window size, open and closed', async ({
@@ -172,7 +194,7 @@ test('the client profile holds its layout at every window size, open and closed'
   await sweep(page, 'client profile');
 
   await page.getByRole('button', { name: 'Add details' }).click();
-  await expect(page.getByRole('region', { name: /Identity and story/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: /About/ }).getByLabel('Biography')).toBeVisible();
   await sweep(page, 'client profile with the About editor open');
 });
 

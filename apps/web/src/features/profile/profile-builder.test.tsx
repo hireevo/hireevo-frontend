@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as ProfileApi from '@/features/profile-setup/api.ts';
@@ -12,6 +12,7 @@ vi.mock('@/features/auth/session.tsx', () => ({
   useSession: () => ({
     status: 'authenticated',
     user: {
+      id: 'user-1',
       username: 'blacksmith90',
       firstName: 'Ayesha',
       lastName: 'Khan',
@@ -62,8 +63,12 @@ const open = async () => {
   return user;
 };
 
+/** Past the pause the draft waits for before it is written to this browser. */
+const afterTheDraftIsWritten = () => new Promise((resolve) => setTimeout(resolve, 500));
+
 beforeEach(() => {
   push.mockReset();
+  window.localStorage.clear();
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
   calls.save
     .mockReset()
@@ -73,14 +78,14 @@ beforeEach(() => {
 });
 
 describe('ProfileBuilder', () => {
-  it('opens on the account holder’s name, which is not saved until something is', async () => {
+  it('opens on the account holder’s name, which is not saved until Save is pressed', async () => {
     await open();
 
     expect(
       screen.getByRole('button', { name: 'Edit display name: Ayesha Khan' }),
     ).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
+    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet — kept in this browser');
     expect(bar()).toHaveAttribute('aria-valuetext', '20 percent complete, 1 of 5 key steps');
     expect(calls.save).not.toHaveBeenCalled();
   });
@@ -95,14 +100,30 @@ describe('ProfileBuilder', () => {
     expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
   });
 
-  it('opens Identity and story where the About card was, and closes it once saved', async () => {
+  it('opens About in its own card, with no save of its own', async () => {
     const user = await open();
 
     await user.click(screen.getByRole('button', { name: 'Add details' }));
 
-    const editor = within(await screen.findByRole('region', { name: /Identity and story/ }));
-    await user.type(editor.getByLabelText('Biography'), 'I build design systems.');
-    await user.click(editor.getByRole('button', { name: 'Save and close' }));
+    const about = section(/About/);
+    expect(await about.findByLabelText('Biography')).toBeInTheDocument();
+    expect(about.getByLabelText('Display name')).toHaveValue('Ayesha Khan');
+    expect(screen.queryByRole('button', { name: /Save and close/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Save and next/ })).not.toBeInTheDocument();
+    expect(about.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+
+  it('sends nothing while typing, and everything when Save is pressed', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    const about = section(/About/);
+
+    await user.type(await about.findByLabelText('Biography'), 'I build design systems.');
+    // Long past the pause an autosave would have used.
+    await afterTheDraftIsWritten();
+    expect(calls.save).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
@@ -110,24 +131,40 @@ describe('ProfileBuilder', () => {
         overview: 'I build design systems.',
       }),
     );
-    await waitFor(() =>
-      expect(screen.queryByRole('region', { name: /Identity and story/ })).not.toBeInTheDocument(),
-    );
-    expect(section(/About/).getByText('I build design systems.')).toBeInTheDocument();
+    expect(await screen.findByText('All changes saved')).toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '40');
   });
 
-  it('opens the skills editor inside its card and says it is not saved', async () => {
+  it('opens the page again on what was typed but never saved', async () => {
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
+    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+    await afterTheDraftIsWritten();
+
+    // The tab is closed and opened again.
+    cleanup();
+    await open();
+
+    expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
+    expect(section(/Skills and expertise/).getByText('Figma')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  it('opens the skills editor inside its card and says where it is kept', async () => {
     const user = await open();
 
     await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
 
     const skills = section(/Skills and expertise/);
     await user.type(await skills.findByLabelText('Skill'), 'Figma');
-    expect(skills.getByText(/Not connected to your profile yet/)).toBeInTheDocument();
+    expect(skills.getByText(/kept in this browser/)).toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '40');
 
-    await user.click(skills.getByRole('button', { name: 'Done' }));
+    await user.click(skills.getByRole('button', { name: 'Close' }));
     expect(skills.getByText('Figma')).toBeInTheDocument();
     expect(skills.queryByLabelText('Skill')).not.toBeInTheDocument();
   });
@@ -179,18 +216,6 @@ describe('ProfileBuilder', () => {
 
     expect(screen.queryByText('English · Conversational')).not.toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
-  });
-
-  it('autosaves what is typed, with no separate save to press', async () => {
-    const user = await open();
-
-    await user.click(screen.getByRole('button', { name: 'Add title' }));
-    await user.keyboard('Product Designer{Enter}');
-
-    await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ headline: 'Product Designer' }),
-    );
-    expect(screen.queryByRole('button', { name: /Continue/ })).not.toBeInTheDocument();
   });
 
   it('explains a profile that could not be loaded, and tries again', async () => {

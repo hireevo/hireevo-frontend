@@ -2,21 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { LuAward, LuBriefcaseBusiness, LuGraduationCap, LuStar, LuUser } from 'react-icons/lu';
-import { Button } from '@hireevo/ui-web';
+import { Button, Card } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
 import {
   EDUCATION_FIELDS,
   EXPERIENCE_FIELDS,
   LICENSE_FIELDS,
-  SKILL_FIELDS,
   OPEN_ENDED,
+  SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
 import { useEntries } from '@/features/profile-setup/use-entries.ts';
 import { useProfileDraft } from '@/features/profile-setup/use-profile-draft.ts';
 import { displayNameOf } from '@/features/workspace/snapshot.ts';
 import { AddButton } from './add-button.tsx';
+import { entriesFrom, readDraft, writeDraft, type DraftContents } from './client-profile-draft.ts';
 import { CompletionCard } from './completion-card.tsx';
 import { EMPTY_DRAFT, completionOf, type ProfileDraft } from './draft.ts';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
@@ -32,9 +33,9 @@ import {
 } from './section-editors.tsx';
 
 /**
- * The design shows one language already on the profile, and the footer counting
- * it as the first of five key steps. It is the account's own language rather
- * than something the person added, which is why it is here and not in
+ * The design shows one language already on the profile, and the completion
+ * counting it as the first of five key steps. It is the account's own language
+ * rather than something the person added, which is why it is here and not in
  * `EMPTY_DRAFT` — an empty draft is empty.
  */
 const STARTING_DRAFT: ProfileDraft = {
@@ -46,42 +47,106 @@ const STARTING_DRAFT: ProfileDraft = {
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
 type OpenSection = 'about' | 'skills' | 'experience' | 'education' | 'certifications' | null;
 
-/** Said under a section whose contents the API cannot hold yet. */
+/** Said under a section the profile API has no fields for. */
 const NOT_CONNECTED =
-  'Not connected to your profile yet: this section stays on this page and is lost on reload.';
+  'Your profile cannot store this section yet, so it is kept in this browser until it can.';
+
+/** How long to wait after a keystroke before writing the draft to this browser. */
+const DRAFT_DELAY = 400;
 
 /**
  * The client profile: everything a buyer sees, and the way in to each part of it.
  *
- * Signing in lands here. Identity — the name, headline, biography and
- * availability — is loaded from the profile API and autosaved as it is typed.
- * The lists below it are built but have no API fields yet, so they are held in
- * the page and say so.
+ * Signing in lands here, and the form is filled in a section at a time with one
+ * Save at the end of it — so nothing is sent while someone is still thinking.
+ * What that Save sends is the About fields, which is all the profile API can
+ * hold today; the rest waits for it.
  *
- * Each section's editor is fetched when that section is opened, rather than
- * shipped with the page or put behind a dialog or another route: see
- * section-editors.tsx.
+ * Nothing typed is lost in the meantime: every keystroke goes into a draft in
+ * this browser, and opening the page again starts from it. That draft is this
+ * browser only, which the page says rather than implying an account-wide save.
+ *
+ * Each section's editor is fetched when that section is opened rather than
+ * shipped with the page: see section-editors.tsx.
  */
 export function ProfileBuilder() {
   const { user } = useSession();
-  const identity = useProfileDraft(
-    user === null ? {} : { fallbackDisplayName: displayNameOf(user) },
-  );
-  const skills = useEntries('skill', SKILL_FIELDS, { normalise: normaliseSkill });
-  const experience = useEntries('role', EXPERIENCE_FIELDS, { optional: OPEN_ENDED.experience });
-  const education = useEntries('institution', EDUCATION_FIELDS, { optional: OPEN_ENDED.education });
-  const licenses = useEntries('license', LICENSE_FIELDS, { optional: OPEN_ENDED.licenses });
+  const userId = user?.id ?? null;
 
-  const [draft, setDraft] = useState<ProfileDraft>(STARTING_DRAFT);
+  // Read once, before anything renders: the page opens on the draft rather than
+  // flashing the server's answer and replacing it.
+  const [stored] = useState<DraftContents | null>(() =>
+    userId === null ? null : readDraft(userId),
+  );
+
+  const identity = useProfileDraft({
+    autosave: false,
+    ...(user === null ? {} : { fallbackDisplayName: displayNameOf(user) }),
+    ...(stored === null ? {} : { restore: stored.identity }),
+  });
+  const skills = useEntries('skill', SKILL_FIELDS, {
+    normalise: normaliseSkill,
+    initial: entriesFrom(SKILL_FIELDS, stored?.skills),
+  });
+  const experience = useEntries('role', EXPERIENCE_FIELDS, {
+    optional: OPEN_ENDED.experience,
+    initial: entriesFrom(EXPERIENCE_FIELDS, stored?.experience),
+  });
+  const education = useEntries('institution', EDUCATION_FIELDS, {
+    optional: OPEN_ENDED.education,
+    initial: entriesFrom(EDUCATION_FIELDS, stored?.education),
+  });
+  const licenses = useEntries('license', LICENSE_FIELDS, {
+    optional: OPEN_ENDED.licenses,
+    initial: entriesFrom(LICENSE_FIELDS, stored?.licenses),
+  });
+
+  const [draft, setDraft] = useState<ProfileDraft>(() =>
+    stored === null
+      ? STARTING_DRAFT
+      : {
+          ...STARTING_DRAFT,
+          country: stored.country,
+          languages: stored.languages,
+          records: { ...STARTING_DRAFT.records, portfolio: stored.portfolio },
+        },
+  );
   const [open, setOpen] = useState<OpenSection>(null);
 
-  const unsavedElsewhere = skills.dirty || experience.dirty || education.dirty || licenses.dirty;
+  const values = identity.values;
+  const entries = {
+    skills: skills.items,
+    experience: experience.items,
+    education: education.items,
+    licenses: licenses.items,
+  };
+
+  // Written a moment after the last keystroke rather than on every one, and
+  // gathered inside the effect so what is written is what those changes say.
   useEffect(() => {
-    if (!unsavedElsewhere) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [unsavedElsewhere]);
+    if (userId === null) return;
+    const id = setTimeout(() => {
+      writeDraft(userId, {
+        identity: values,
+        country: draft.country,
+        languages: draft.languages,
+        skills: entries.skills,
+        experience: entries.experience,
+        education: entries.education,
+        licenses: entries.licenses,
+        portfolio: draft.records.portfolio,
+      });
+    }, DRAFT_DELAY);
+    return () => clearTimeout(id);
+  }, [
+    userId,
+    values,
+    draft,
+    entries.skills,
+    entries.experience,
+    entries.education,
+    entries.licenses,
+  ]);
 
   if (identity.load.status === 'loading') {
     return (
@@ -105,8 +170,8 @@ export function ProfileBuilder() {
   /** The header card edits the same name and headline the About editor does. */
   const headerDraft: ProfileDraft = {
     ...draft,
-    displayName: identity.values.displayName,
-    title: identity.values.headline,
+    displayName: values.displayName,
+    title: values.headline,
   };
 
   function patchHeader(patch: Partial<ProfileDraft>) {
@@ -120,18 +185,12 @@ export function ProfileBuilder() {
     .map((item) => item.values.name.trim())
     .filter((name) => name !== '');
 
-  const completion = completionOf({
-    ...headerDraft,
-    about: identity.values.overview,
-    skills: namedSkills,
-  });
+  const completion = completionOf({ ...headerDraft, about: values.overview, skills: namedSkills });
 
   const saveStatus = {
     saved: 'All changes saved',
     saving: 'Saving your changes…',
-    // Covers both a pause in typing and the account name filled in on arrival:
-    // neither is on the server yet, and the next save sends both.
-    unsaved: 'Not saved yet',
+    unsaved: 'Not saved yet — kept in this browser',
     failed: identity.save.kind === 'failed' ? identity.save.message : '',
     conflict: identity.save.kind === 'conflict' ? identity.save.message : '',
   }[identity.save.kind];
@@ -140,11 +199,13 @@ export function ProfileBuilder() {
   const toggle = (section: Exclude<OpenSection, null>) =>
     setOpen((current) => (current === section ? null : section));
 
-  const done = (
+  const close = (
     <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(null)}>
-      Done
+      Close
     </Button>
   );
+
+  const keptHere = <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -160,43 +221,32 @@ export function ProfileBuilder() {
         <CompletionCard completion={completion} />
       </div>
 
-      <p role="status" aria-live="polite" className="-mt-2 text-xs text-content-subtle">
-        {saveStatus}
-      </p>
-
-      {open === 'about' ? (
-        // The step's own card, as the design draws it, in the About card's place.
-        <IdentityEditor
-          values={identity.values}
-          fieldErrors={identity.fieldErrors}
-          onChange={identity.change}
-          saving={identity.save.kind === 'saving'}
-          saveLabel="Save and close"
-          requireComplete={false}
-          onSaveAndNext={() => {
-            void identity.flush().then((saved) => {
-              if (saved) setOpen(null);
-            });
-          }}
-        />
-      ) : (
-        <SectionCard
-          title="About"
-          description="Share some details about yourself, your expertise, and what you offer."
-          icon={<LuUser />}
-          action={
+      <SectionCard
+        title="About"
+        description="Share some details about yourself, your expertise, and what you offer."
+        icon={<LuUser />}
+        action={
+          open === 'about' ? (
+            close
+          ) : (
             <AddButton onClick={() => toggle('about')}>
-              {identity.values.overview === '' ? 'Add details' : 'Edit details'}
+              {values.overview === '' ? 'Add details' : 'Edit details'}
             </AddButton>
-          }
-        >
-          {identity.values.overview === '' ? undefined : (
-            <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
-              {identity.values.overview}
-            </p>
-          )}
-        </SectionCard>
-      )}
+          )
+        }
+      >
+        {open === 'about' ? (
+          <IdentityEditor
+            values={values}
+            fieldErrors={identity.fieldErrors}
+            onChange={identity.change}
+          />
+        ) : values.overview === '' ? undefined : (
+          <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
+            {values.overview}
+          </p>
+        )}
+      </SectionCard>
 
       <SectionCard
         title="Skills and expertise"
@@ -204,7 +254,7 @@ export function ProfileBuilder() {
         icon={<LuStar />}
         action={
           open === 'skills' ? (
-            done
+            close
           ) : (
             <AddButton onClick={() => toggle('skills')}>
               {namedSkills.length === 0 ? 'Add skills and expertise' : 'Edit skills and expertise'}
@@ -215,7 +265,7 @@ export function ProfileBuilder() {
         {open === 'skills' ? (
           <>
             <SkillsEditor skills={skills} />
-            <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>
+            {keptHere}
           </>
         ) : namedSkills.length === 0 ? undefined : (
           <p className="text-sm text-content-muted">{namedSkills.join(' · ')}</p>
@@ -229,7 +279,7 @@ export function ProfileBuilder() {
         icon={<LuBriefcaseBusiness />}
         action={
           open === 'experience' ? (
-            done
+            close
           ) : (
             <AddButton onClick={() => toggle('experience')}>Add work experience</AddButton>
           )
@@ -238,14 +288,14 @@ export function ProfileBuilder() {
         {open === 'experience' ? (
           <>
             <ExperienceEditor experience={experience} />
-            <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>
+            {keptHere}
           </>
         ) : undefined}
       </SectionCard>
 
       {/* The only pair the design puts side by side, and only from `lg` — below
           that the column is too narrow for two of these to hold their shape. */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
         <SectionCard
           title="Education"
           optional
@@ -254,7 +304,7 @@ export function ProfileBuilder() {
           className={open === 'education' ? 'lg:col-span-2' : ''}
           action={
             open === 'education' ? (
-              done
+              close
             ) : (
               <AddButton onClick={() => toggle('education')}>Add education</AddButton>
             )
@@ -263,7 +313,7 @@ export function ProfileBuilder() {
           {open === 'education' ? (
             <>
               <EducationEditor education={education} />
-              <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>
+              {keptHere}
             </>
           ) : undefined}
         </SectionCard>
@@ -276,7 +326,7 @@ export function ProfileBuilder() {
           className={open === 'certifications' ? 'lg:col-span-2' : ''}
           action={
             open === 'certifications' ? (
-              done
+              close
             ) : (
               <AddButton onClick={() => toggle('certifications')}>Add certifications</AddButton>
             )
@@ -285,7 +335,7 @@ export function ProfileBuilder() {
           {open === 'certifications' ? (
             <>
               <LicenseEditor licenses={licenses} />
-              <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>
+              {keptHere}
             </>
           ) : undefined}
         </SectionCard>
@@ -302,6 +352,29 @@ export function ProfileBuilder() {
           }))
         }
       />
+
+      {/* One save, at the end of the form, for the whole of it. */}
+      <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p role="status" aria-live="polite" className="text-sm font-medium text-content">
+            {saveStatus}
+          </p>
+          <p className="mt-1 text-xs text-content-subtle">
+            Everything you type is kept in this browser as you go. Saving sends your name, headline,
+            biography and availability to your profile; the other sections wait until it can hold
+            them.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => void identity.flush()}
+          loading={identity.save.kind === 'saving'}
+          loadingLabel="Saving"
+          className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+        >
+          Save
+        </Button>
+      </Card>
     </div>
   );
 }
