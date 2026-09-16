@@ -1092,6 +1092,77 @@
         "tags": ["profiles"]
       }
     },
+    "/api/v1/profiles/me/avatar-upload": {
+      "post": {
+        "description": "The bytes go straight to storage, never through this API (ADR-004). Post the returned fields and the file to the returned URL, then claim the key with a normal PATCH of the profile. The signature states the key, the type and a size range, so storage refuses anything else.",
+        "operationId": "ProfilesController_avatarUpload_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A signed upload for the caller’s profile photo",
+        "tags": ["profiles"]
+      }
+    },
     "/api/v1/profiles/{slug}": {
       "get": {
         "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed — identically. A 403 would confirm the profile is real and merely hidden.",
@@ -1819,6 +1890,9 @@
           "displayName": {
             "type": ["string", "null"]
           },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          },
           "headline": {
             "type": ["string", "null"]
           },
@@ -2151,6 +2225,7 @@
           "version",
           "completeness",
           "displayName",
+          "avatarUrl",
           "headline",
           "overview",
           "locationCountry",
@@ -2188,6 +2263,17 @@
                   {
                     "type": "string",
                     "maxLength": 80
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "avatarKey": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
                   },
                   {
                     "type": "null"
@@ -2850,6 +2936,48 @@
           "additionalProperties": false
         }
       },
+      "AvatarUploadRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": ["image/jpeg", "image/png", "image/webp"]
+          }
+        },
+        "required": ["contentType"]
+      },
+      "UploadTicket": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "key": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["url", "fields", "key", "expiresAt", "maxBytes"],
+        "additionalProperties": false
+      },
       "PublicProfileResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -2858,6 +2986,9 @@
             "type": "string"
           },
           "displayName": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
             "type": ["string", "null"]
           },
           "headline": {
@@ -3014,6 +3145,7 @@
         "required": [
           "slug",
           "displayName",
+          "avatarUrl",
           "headline",
           "overview",
           "location",

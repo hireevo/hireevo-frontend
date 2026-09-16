@@ -431,6 +431,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/me/avatar-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A signed upload for the caller’s profile photo
+         * @description The bytes go straight to storage, never through this API (ADR-004). Post the returned fields and the file to the returned URL, then claim the key with a normal PATCH of the profile. The signature states the key, the type and a size range, so storage refuses anything else.
+         */
+        post: operations["ProfilesController_avatarUpload_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/{slug}": {
         parameters: {
             query?: never;
@@ -637,6 +657,7 @@ export interface components {
             version: number;
             completeness: number;
             displayName: string | null;
+            avatarUrl: string | null;
             headline: string | null;
             overview: string | null;
             locationCountry: string | null;
@@ -719,6 +740,7 @@ export interface components {
             version: number;
             profile?: {
                 displayName?: string | null;
+                avatarKey?: string | null;
                 headline?: string | null;
                 overview?: string | null;
                 locationCountry?: string | null;
@@ -819,9 +841,23 @@ export interface components {
             changedAt: string;
             changeReason: string | null;
         }[];
+        AvatarUploadRequest: {
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+        };
+        UploadTicket: {
+            url: string;
+            fields: {
+                [key: string]: string;
+            };
+            key: string;
+            expiresAt: string;
+            maxBytes: number;
+        };
         PublicProfileResponse: {
             slug: string;
             displayName: string | null;
+            avatarUrl: string | null;
             headline: string | null;
             overview: string | null;
             location: string | null;
@@ -1735,6 +1771,65 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileRevisionList"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ProfilesController_avatarUpload_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Not signed in */
