@@ -22,14 +22,21 @@ export type SkillField = (typeof SKILL_FIELDS)[number];
  * profile shows languages beside the person's name and skills in a card of
  * their own — the same list has to sit in both places.
  */
-export function LanguagesList({ languages }: { languages: Entries<LanguageField> }) {
+export function LanguagesList({
+  languages,
+  heading = true,
+}: {
+  languages: Entries<LanguageField>;
+  /** Off where the card around this list already says what it is. */
+  heading?: boolean;
+}) {
   const listId = useId();
   const addLanguage = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <ListHeader
-        title="Languages"
+        {...(heading ? { title: 'Languages' } : {})}
         addLabel="Add language"
         addRef={addLanguage}
         onAdd={() => languages.add()}
@@ -81,7 +88,14 @@ export function LanguagesList({ languages }: { languages: Entries<LanguageField>
 }
 
 /** The skills list, with the approved-taxonomy picker the design puts above it. */
-export function SkillsList({ skills }: { skills: Entries<SkillField> }) {
+export function SkillsList({
+  skills,
+  heading = true,
+}: {
+  skills: Entries<SkillField>;
+  /** Off where the card around this list already says what it is. */
+  heading?: boolean;
+}) {
   const pickerId = useId();
   const proficiencyListId = useId();
   const addSkill = useRef<HTMLButtonElement>(null);
@@ -114,7 +128,7 @@ export function SkillsList({ skills }: { skills: Entries<SkillField> }) {
   return (
     <>
       <ListHeader
-        title="Skills"
+        {...(heading ? { title: 'Skills' } : {})}
         addLabel="Add skill"
         addRef={addSkill}
         onAdd={() => skills.add()}

@@ -15,15 +15,23 @@ export function ListHeader({
   onAdd,
   addRef,
 }: {
-  title: string;
+  /** Left out where the card around the list already names it. */
+  title?: string;
   /** Starts with "Add", so the visible word is part of the name (WCAG 2.5.3). */
   addLabel: string;
   onAdd: () => void;
   addRef?: Ref<HTMLButtonElement>;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <h3 className="text-[0.8125rem] font-semibold text-content">{title}</h3>
+    <div
+      className={cn(
+        'flex items-center gap-3',
+        title === undefined ? 'justify-end' : 'justify-between',
+      )}
+    >
+      {title === undefined ? null : (
+        <h3 className="text-[0.8125rem] font-semibold text-content">{title}</h3>
+      )}
       <button
         ref={addRef}
         type="button"

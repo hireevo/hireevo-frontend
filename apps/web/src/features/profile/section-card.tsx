@@ -13,6 +13,12 @@ export type SectionCardProps = {
   action: ReactNode;
   /** What the section holds once it holds something. */
   children?: ReactNode;
+  /**
+   * True while this section's editor is open. The illustration is decoration,
+   * and an editor needs the width more than the card needs a star; the control
+   * that closes it belongs beside the heading rather than under the copy.
+   */
+  editing?: boolean;
   className?: string | undefined;
 };
 
@@ -24,12 +30,13 @@ export function SectionCard({
   action,
   children,
   className,
+  editing = false,
 }: SectionCardProps) {
   const headingId = useId();
 
   return (
     <Card aria-labelledby={headingId} className={cn('flex flex-col', className)}>
-      <div className="flex items-center gap-6">
+      <div className="flex items-start gap-6">
         <div className="min-w-0 flex-1">
           <h2 id={headingId} className="text-lg font-bold text-content-accent">
             {title}
@@ -42,14 +49,22 @@ export function SectionCard({
           <p className="mt-4 max-w-[420px] text-sm leading-[1.6] text-content-subtle">
             {description}
           </p>
-          <div className="mt-5">{action}</div>
+          {editing ? null : <div className="mt-5">{action}</div>}
         </div>
         {/* Decoration, and the first thing to go when the column is narrow:
             the design is one 1440px frame, and 100px of illustration beside
             two lines of copy on a phone leaves room for neither. */}
-        <IconTile className="hidden sm:flex">{icon}</IconTile>
+        {editing ? (
+          <div className="shrink-0">{action}</div>
+        ) : (
+          <IconTile className="hidden sm:flex">{icon}</IconTile>
+        )}
       </div>
-      {children === undefined ? null : <div className="mt-6">{children}</div>}
+      {children === undefined ? null : (
+        <div className={cn('mt-6', editing && 'border-t border-border-subtle pt-6')}>
+          {children}
+        </div>
+      )}
     </Card>
   );
 }

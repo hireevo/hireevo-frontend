@@ -18,13 +18,20 @@ export type LicenseField = (typeof LICENSE_FIELDS)[number];
  * Its own list, like the licenses below it: profile setup shows the two in one
  * step, and the client profile gives each a card of its own.
  */
-export function EducationList({ education }: { education: Entries<EducationField> }) {
+export function EducationList({
+  education,
+  heading = true,
+}: {
+  education: Entries<EducationField>;
+  /** Off where the card around this list already says what it is. */
+  heading?: boolean;
+}) {
   const addEducation = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <ListHeader
-        title="Education"
+        {...(heading ? { title: 'Education' } : {})}
         addLabel="Add education"
         addRef={addEducation}
         onAdd={() => education.add()}
@@ -102,13 +109,20 @@ export function EducationList({ education }: { education: Entries<EducationField
 }
 
 /** Licenses and certifications, each with who issued it and when it runs out. */
-export function LicenseList({ licenses }: { licenses: Entries<LicenseField> }) {
+export function LicenseList({
+  licenses,
+  heading = true,
+}: {
+  licenses: Entries<LicenseField>;
+  /** Off where the card around this list already says what it is. */
+  heading?: boolean;
+}) {
   const addLicense = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <ListHeader
-        title="Licenses"
+        {...(heading ? { title: 'Licenses' } : {})}
         addLabel="Add license"
         addRef={addLicense}
         onAdd={() => licenses.add()}

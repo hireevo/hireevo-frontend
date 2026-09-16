@@ -200,12 +200,12 @@ export function ProfileBuilder() {
     setOpen((current) => (current === section ? null : section));
 
   const close = (
-    <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(null)}>
+    <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(null)}>
       Close
     </Button>
   );
 
-  const keptHere = <p className="mt-4 text-xs text-content-warning">{NOT_CONNECTED}</p>;
+  const keptHere = <p className="mb-4 text-xs text-content-subtle">{NOT_CONNECTED}</p>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -225,6 +225,7 @@ export function ProfileBuilder() {
         title="About"
         description="Share some details about yourself, your expertise, and what you offer."
         icon={<LuUser />}
+        editing={open === 'about'}
         action={
           open === 'about' ? (
             close
@@ -252,6 +253,7 @@ export function ProfileBuilder() {
         title="Skills and expertise"
         description="Attract relevant clients by sharing your strengths and abilities."
         icon={<LuStar />}
+        editing={open === 'skills'}
         action={
           open === 'skills' ? (
             close
@@ -264,8 +266,8 @@ export function ProfileBuilder() {
       >
         {open === 'skills' ? (
           <>
-            <SkillsEditor skills={skills} />
             {keptHere}
+            <SkillsEditor skills={skills} heading={false} />
           </>
         ) : namedSkills.length === 0 ? undefined : (
           <p className="text-sm text-content-muted">{namedSkills.join(' · ')}</p>
@@ -277,6 +279,7 @@ export function ProfileBuilder() {
         optional
         description="Add your job history and achievements to give clients insight into your expertise."
         icon={<LuBriefcaseBusiness />}
+        editing={open === 'experience'}
         action={
           open === 'experience' ? (
             close
@@ -287,8 +290,8 @@ export function ProfileBuilder() {
       >
         {open === 'experience' ? (
           <>
-            <ExperienceEditor experience={experience} />
             {keptHere}
+            <ExperienceEditor experience={experience} heading={false} />
           </>
         ) : undefined}
       </SectionCard>
@@ -302,6 +305,7 @@ export function ProfileBuilder() {
           description="Back up your skills by adding any educational degrees or programs."
           icon={<LuGraduationCap />}
           className={open === 'education' ? 'lg:col-span-2' : ''}
+          editing={open === 'education'}
           action={
             open === 'education' ? (
               close
@@ -312,8 +316,8 @@ export function ProfileBuilder() {
         >
           {open === 'education' ? (
             <>
-              <EducationEditor education={education} />
               {keptHere}
+              <EducationEditor education={education} heading={false} />
             </>
           ) : undefined}
         </SectionCard>
@@ -324,6 +328,7 @@ export function ProfileBuilder() {
           description="Showcase your mastery with certifications earned in your field."
           icon={<LuAward />}
           className={open === 'certifications' ? 'lg:col-span-2' : ''}
+          editing={open === 'certifications'}
           action={
             open === 'certifications' ? (
               close
@@ -334,8 +339,8 @@ export function ProfileBuilder() {
         >
           {open === 'certifications' ? (
             <>
-              <LicenseEditor licenses={licenses} />
               {keptHere}
+              <LicenseEditor licenses={licenses} heading={false} />
             </>
           ) : undefined}
         </SectionCard>

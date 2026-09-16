@@ -13,13 +13,20 @@ import { errorKey, type Entries } from './use-entries.ts';
 export type ExperienceField = (typeof EXPERIENCE_FIELDS)[number];
 
 /** The roles someone has held: what they did, where, when, and in one paragraph. */
-export function ExperienceList({ experience }: { experience: Entries<ExperienceField> }) {
+export function ExperienceList({
+  experience,
+  heading = true,
+}: {
+  experience: Entries<ExperienceField>;
+  /** Off where the card around this list already says what it is. */
+  heading?: boolean;
+}) {
   const addRole = useRef<HTMLButtonElement>(null);
 
   return (
     <>
       <ListHeader
-        title="Experience entries"
+        {...(heading ? { title: 'Experience entries' } : {})}
         addLabel="Add experience entry"
         addRef={addRole}
         onAdd={() => experience.add()}
