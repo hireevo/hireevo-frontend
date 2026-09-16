@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ProfileBuilder } from '@/features/profile/profile-builder.tsx';
+import { WorkspaceTopBar } from '@/features/workspace/workspace-top-bar.tsx';
 
 export const metadata: Metadata = {
   title: 'Client profile',
@@ -12,34 +13,39 @@ export const metadata: Metadata = {
 
 export default function ClientProfilePage() {
   return (
-    <main id="main-content" className="mx-auto w-full max-w-[1010px] px-6 pt-10 pb-24">
-      <nav aria-label="Breadcrumb">
-        <ol className="flex items-center gap-2 text-sm text-content-subtle">
-          <li>
-            <Link href="/" className="rounded-sm transition-colors hover:text-content">
-              Home
-            </Link>
-          </li>
-          {/* The separator is decoration: read out, "Home slash Client profile"
-              is worse than the list semantics the markup already carries. */}
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="text-content">
-            Client profile
-          </li>
-        </ol>
-      </nav>
+    <div className="flex min-h-dvh flex-col">
+      {/* Signing in lands here, so this page carries the workspace navigation. */}
+      <WorkspaceTopBar />
 
-      <h1 className="mt-8 text-4xl font-bold tracking-tight text-content-accent">
-        Build a profile that wins briefs
-      </h1>
-      <p className="mt-3 max-w-[600px] text-base leading-[1.6] text-content-subtle">
-        Everything buyers see at a glance. The more complete your profile, the higher you rank in
-        search.
-      </p>
+      <main id="main-content" className="mx-auto w-full max-w-[1010px] px-4 pt-8 pb-24 sm:px-6">
+        <nav aria-label="Breadcrumb">
+          <ol className="flex items-center gap-2 text-sm text-content-subtle">
+            <li>
+              <Link href="/" className="rounded-sm transition-colors hover:text-content">
+                Home
+              </Link>
+            </li>
+            {/* The separator is decoration: read out, "Home slash Client profile"
+                is worse than the list semantics the markup already carries. */}
+            <li aria-hidden="true">/</li>
+            <li aria-current="page" className="text-content">
+              Client profile
+            </li>
+          </ol>
+        </nav>
 
-      <div className="mt-7">
-        <ProfileBuilder />
-      </div>
-    </main>
+        <h1 className="mt-8 text-3xl font-bold tracking-tight text-content-accent sm:text-4xl">
+          Build a profile that wins briefs
+        </h1>
+        <p className="mt-3 max-w-[600px] text-base leading-[1.6] text-content-subtle">
+          Everything buyers see at a glance. The more complete your profile, the higher you rank in
+          search.
+        </p>
+
+        <div className="mt-7">
+          <ProfileBuilder />
+        </div>
+      </main>
+    </div>
   );
 }

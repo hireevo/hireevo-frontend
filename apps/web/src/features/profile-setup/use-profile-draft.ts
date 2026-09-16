@@ -51,7 +51,18 @@ const keyOf = (values: IdentityValues) =>
  * every keystroke or, worse, succeed once the version was refreshed and
  * overwrite whatever the other tab saved. The person reloads instead.
  */
-export function useProfileDraft({ autosaveDelay = 800 }: { autosaveDelay?: number } = {}) {
+export function useProfileDraft({
+  autosaveDelay = 800,
+  fallbackDisplayName = '',
+}: {
+  autosaveDelay?: number;
+  /**
+   * Fills the display name when the profile has none — the account's own name,
+   * so a new profile opens with the person's name rather than a placeholder.
+   * It counts as unsaved until something is saved, and the status says so.
+   */
+  fallbackDisplayName?: string;
+} = {}) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [values, setValues] = useState<IdentityValues>(EMPTY);
@@ -65,6 +76,12 @@ export function useProfileDraft({ autosaveDelay = 800 }: { autosaveDelay?: numbe
   const blocked = useRef(false);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallback = useRef(fallbackDisplayName);
+
+  // Before the load effect below, so the first response already has it.
+  useEffect(() => {
+    fallback.current = fallbackDisplayName;
+  }, [fallbackDisplayName]);
 
   /** Applies what a load returned. Called only after the request settles, never during render or an effect body. */
   const accept = useCallback((result: Awaited<ReturnType<typeof loadOrCreateProfile>>) => {
@@ -73,14 +90,20 @@ export function useProfileDraft({ autosaveDelay = 800 }: { autosaveDelay?: numbe
       return;
     }
     const loaded = valuesOf(result.profile);
-    latest.current = loaded;
+    const opening =
+      loaded.displayName.trim() === '' && fallback.current.trim() !== ''
+        ? { ...loaded, displayName: fallback.current }
+        : loaded;
+    latest.current = opening;
     version.current = result.profile.version;
+    // Keyed on what the server holds, not on the fallback, so a filled-in name
+    // is saved by the next save rather than mistaken for something already sent.
     savedKey.current = keyOf(loaded);
     blocked.current = false;
     setProfile(result.profile);
-    setValues(loaded);
+    setValues(opening);
     setFieldErrors({});
-    setSave({ kind: 'saved', at: savedAt.current });
+    setSave(opening === loaded ? { kind: 'saved', at: savedAt.current } : { kind: 'unsaved' });
     setLoad({ status: 'ready' });
   }, []);
 

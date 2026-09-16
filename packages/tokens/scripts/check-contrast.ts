@@ -54,6 +54,9 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-warning', 'surface-subtle', 'body'],
   ['content-muted', 'surface-muted', 'body'],
   ['focus', 'surface-accent-subtle', 'large'],
+  // The client profile's completion card (features/profile/completion-card.tsx).
+  ['content-muted', 'surface-accent-subtle', 'body'],
+  ['content-subtle', 'surface-accent-subtle', 'body'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);

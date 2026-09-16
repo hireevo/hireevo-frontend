@@ -16,10 +16,14 @@ export function focusFirstProblem(root: HTMLElement | null) {
 /**
  * The end of a section: whether every field is filled, and the way on.
  *
- * Until every field is filled the button is locked, as the design draws it. It
- * stays in the tab order and says why it does nothing — `aria-disabled` with the
- * reason as its description — where `disabled` would silently skip it. Nothing
- * is trapped behind it: every section is on the same page.
+ * In profile setup, an unfinished section shows the button locked, as the design
+ * draws it. It stays in the tab order and says why it does nothing —
+ * `aria-disabled` with the reason as its description — where `disabled` would
+ * silently skip it. Nothing is trapped behind it: every section is on the page.
+ *
+ * Where a section is one card of its own rather than a step in a run of six —
+ * About on the client profile — `lockWhenIncomplete` is off: the rest of the
+ * fields belong to other cards there, so there is nothing to wait for.
  */
 export function StepFooter({
   complete,
@@ -27,12 +31,14 @@ export function StepFooter({
   label = 'Save and next',
   arrow = true,
   loading = false,
+  lockWhenIncomplete = true,
 }: {
   complete: boolean;
   onContinue: () => void;
   label?: string;
   arrow?: boolean;
   loading?: boolean;
+  lockWhenIncomplete?: boolean;
 }) {
   const reasonId = useId();
   const icon = arrow ? <LuArrowRight aria-hidden="true" className="size-4" /> : null;
@@ -44,13 +50,15 @@ export function StepFooter({
           <LuCheck aria-hidden="true" className="size-3.5 text-content-success" />
           All fields complete
         </p>
-      ) : (
+      ) : lockWhenIncomplete ? (
         <p id={reasonId} className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
           <LuLock aria-hidden="true" className="size-3.5" />
           Complete every field to continue
         </p>
+      ) : (
+        <p className="text-xs text-content-subtle">You can add the rest later</p>
       )}
-      {complete ? (
+      {complete || !lockWhenIncomplete ? (
         <Button
           type="button"
           onClick={onContinue}

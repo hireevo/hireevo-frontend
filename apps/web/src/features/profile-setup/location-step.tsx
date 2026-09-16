@@ -4,6 +4,7 @@ import { useId, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { LuChevronDown } from 'react-icons/lu';
 import { Card, cn } from '@hireevo/ui-web';
+import { border } from './entry-fields.ts';
 import { LOCATION_LIMITS } from './limits.ts';
 import {
   REMOTE_MODES,
@@ -23,9 +24,6 @@ import {
   type LocationField,
   type LocationValues,
 } from './use-location-draft.ts';
-
-const border = (error: string | undefined) =>
-  error === undefined ? 'border-border' : 'border-border-danger';
 
 export function LocationStep({
   values,

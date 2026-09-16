@@ -1,8 +1,10 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    // The suite's own imports name their files, as the web app's do.
+    "allowImportingTsExtensions": true,
     "types": ["node"],
     "tsBuildInfoFile": "./.turbo/tsconfig.tsbuildinfo"
   },
-  "include": ["tests/**/*", "playwright.config.ts"]
+  "include": ["tests/**/*", "support/**/*", "playwright.config.ts"]
 }

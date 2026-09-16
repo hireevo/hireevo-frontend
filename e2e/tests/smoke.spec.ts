@@ -50,9 +50,9 @@ test('someone already signed in is taken past sign-in to their workspace', async
   await answer(page, 'me', user);
 
   await page.goto('/');
-  await page.waitForURL('**/dashboard');
+  await page.waitForURL('**/client-profile');
   await expect(
-    page.getByRole('heading', { name: 'Your market-ready foundation', level: 1 }),
+    page.getByRole('heading', { name: 'Build a profile that wins briefs', level: 1 }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Account menu for Signed In' })).toBeVisible();
 });

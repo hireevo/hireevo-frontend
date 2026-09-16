@@ -8,6 +8,7 @@ import {
   type IdentityField,
   type IdentityValues,
 } from './api.ts';
+import { border } from './entry-fields.ts';
 import { IDENTITY_LIMITS } from './limits.ts';
 import { AutoGrowTextarea } from './auto-grow-textarea.tsx';
 import { CONTROL, SetupField } from './setup-field.tsx';
@@ -15,21 +16,24 @@ import { StepFooter } from './step-footer.tsx';
 import { StepHeader } from './step-header.tsx';
 import { sectionIdFor } from './steps.ts';
 
-const border = (error: string | undefined) =>
-  error === undefined ? 'border-border' : 'border-border-danger';
-
 export function IdentityStep({
   values,
   fieldErrors,
   onChange,
   onSaveAndNext,
   saving,
+  saveLabel = 'Save and next',
+  requireComplete = true,
 }: {
   values: IdentityValues;
   fieldErrors: FieldErrors;
   onChange: (field: IdentityField, value: string) => void;
   onSaveAndNext: () => void;
   saving: boolean;
+  /** The step's own wording by default; "Save and close" where this is one card. */
+  saveLabel?: string;
+  /** Off where the other fields live in cards of their own (the client profile). */
+  requireComplete?: boolean;
 }) {
   const headingId = useId();
   const filled = IDENTITY_FIELDS.filter((field) => values[field].trim() !== '').length;
@@ -142,6 +146,8 @@ export function IdentityStep({
         complete={filled === IDENTITY_FIELDS.length}
         onContinue={onSaveAndNext}
         loading={saving}
+        label={saveLabel}
+        lockWhenIncomplete={requireComplete}
       />
     </Card>
   );

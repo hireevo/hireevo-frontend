@@ -115,7 +115,7 @@ test.describe('account journey', () => {
     await page.getByLabel('E-mail').fill(email);
     await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForURL('**/dashboard');
+    await page.waitForURL('**/client-profile');
 
     // Signing in lands on the workspace, and the account page is one click from
     // its header. A click rather than `goto`, so the in-memory access token
@@ -251,7 +251,7 @@ test.describe('account journey', () => {
 
     await page.getByLabel('Password').fill(newPassword);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForURL('**/dashboard');
+    await page.waitForURL('**/client-profile');
     await page
       .getByRole('navigation', { name: 'Workspace' })
       .getByRole('link', { name: 'Account' })

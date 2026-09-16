@@ -31,7 +31,9 @@ export function Chip({ children, onRemove, removeLabel = 'Remove', className }: 
           onClick={onRemove}
           // A 24px target inside a 32px chip: small, but the chip is a shortcut
           // for something that can also be removed from the editor behind it.
-          className="flex size-6 items-center justify-center rounded-full text-content-subtle transition-colors hover:bg-accent-muted hover:text-content-accent"
+          // `shrink-0` keeps those 24px: in a tight row of chips on a phone,
+          // flex was squeezing this below the size a thumb can hit.
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-content-subtle transition-colors hover:bg-accent-muted hover:text-content-accent"
         >
           <LuX aria-hidden="true" className="size-3.5" />
           <span className="sr-only">{removeLabel}</span>

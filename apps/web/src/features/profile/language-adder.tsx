@@ -66,7 +66,9 @@ export function LanguageAdder({ chosen, onAdd }: LanguageAdderProps) {
           setName(available[0] ?? '');
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-content-link underline underline-offset-2"
+        // `min-h-6`: 24px is the smallest a target may be (WCAG 2.5.8), and the
+        // text alone measured 20.
+        className="inline-flex min-h-6 items-center gap-1.5 rounded-md text-sm font-medium text-content-link underline underline-offset-2"
       >
         <LuPlus aria-hidden="true" className="size-4" />
         Add languages

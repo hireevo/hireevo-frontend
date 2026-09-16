@@ -63,7 +63,7 @@ export async function signIn(values: SignInValues): Promise<AuthResult> {
 
   return {
     ok: true,
-    redirectTo: '/dashboard',
+    redirectTo: '/client-profile',
     session: { accessToken: data.accessToken, user: data.user },
   };
 }
