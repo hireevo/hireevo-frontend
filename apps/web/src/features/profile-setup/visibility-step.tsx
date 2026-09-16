@@ -21,16 +21,16 @@ export function VisibilityStep({
   onSave,
 }: {
   visibility: VisibilityDraft;
-  /** Answers whether the section was accepted. */
-  onSave: () => boolean;
+  /** Answers whether the section was saved. */
+  onSave: () => Promise<boolean>;
 }) {
   const headingId = useId();
   const errorId = useId();
   const fields = useRef<HTMLDivElement>(null);
   const { values, error } = visibility;
 
-  function save() {
-    if (!onSave()) focusFirstProblem(fields.current);
+  async function save() {
+    if (!(await onSave())) focusFirstProblem(fields.current);
   }
 
   return (
@@ -121,7 +121,13 @@ export function VisibilityStep({
         </div>
       </div>
 
-      <StepFooter complete onContinue={save} label="Save section" arrow={false} />
+      <StepFooter
+        complete
+        onContinue={() => void save()}
+        loading={visibility.saving}
+        label="Save section"
+        arrow={false}
+      />
     </Card>
   );
 }

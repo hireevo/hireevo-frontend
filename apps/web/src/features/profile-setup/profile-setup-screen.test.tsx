@@ -29,15 +29,50 @@ vi.mock('next/link', () => ({
 
 const calls = vi.hoisted(() => ({
   load: vi.fn<typeof Api.loadOrCreateProfile>(),
-  save: vi.fn<typeof Api.saveIdentity>(),
+  save: vi.fn<typeof Api.saveProfile>(),
+  visibility: vi.fn<typeof Api.saveVisibility>(),
   publish: vi.fn<typeof Api.publishProfile>(),
+  skills: vi.fn<typeof Api.listSkills>(),
+  suggest: vi.fn<typeof Api.suggestSkill>(),
 }));
 vi.mock('./api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof Api>()),
   loadOrCreateProfile: (...args: Parameters<typeof Api.loadOrCreateProfile>) => calls.load(...args),
-  saveIdentity: (...args: Parameters<typeof Api.saveIdentity>) => calls.save(...args),
+  saveProfile: (...args: Parameters<typeof Api.saveProfile>) => calls.save(...args),
+  saveVisibility: (...args: Parameters<typeof Api.saveVisibility>) => calls.visibility(...args),
   publishProfile: (...args: Parameters<typeof Api.publishProfile>) => calls.publish(...args),
+  listSkills: (...args: Parameters<typeof Api.listSkills>) => calls.skills(...args),
+  suggestSkill: (...args: Parameters<typeof Api.suggestSkill>) => calls.suggest(...args),
 }));
+
+/** The approved taxonomy, as the skills endpoint serves it. */
+const TAXONOMY = [
+  { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
+  { slug: 'service-design', name: 'Service design', category: 'Design' },
+  { slug: 'user-research', name: 'User research', category: 'Research' },
+];
+
+const NOTHING_SHARED = {
+  nameHeadline: false,
+  biography: false,
+  location: false,
+  languages: false,
+  rate: false,
+  skills: false,
+  experience: false,
+  education: false,
+  licenses: false,
+  availability: false,
+};
+
+const NO_SECTIONS = {
+  languages: [],
+  skills: [],
+  experience: [],
+  education: [],
+  licenses: [],
+  portfolio: [],
+};
 
 const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
   ({
@@ -53,9 +88,19 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     locationCountry: null,
     locationRegion: null,
     locationCity: null,
+    serviceArea: null,
+    timezone: null,
+    remoteMode: null,
     availability: null,
     rateAmountMinor: null,
     rateCurrency: null,
+    sections: NO_SECTIONS,
+    visibility: {
+      profilePublic: false,
+      locationGranularity: 'hidden',
+      sections: NOTHING_SHARED,
+      searchIndexable: false,
+    },
     ...overrides,
   }) as OwnProfile;
 
@@ -78,12 +123,26 @@ beforeEach(() => {
   scrollIntoView.mockReset();
   Element.prototype.scrollIntoView = scrollIntoView;
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
-  calls.save
-    .mockReset()
-    .mockImplementation((version, values) =>
-      Promise.resolve({ ok: true, profile: stored({ ...values, version: version + 1 }) }),
-    );
+  calls.save.mockReset().mockImplementation((version, values) => {
+    // The claimed photo is a key to send, not a field the profile answers with,
+    // and a remote mode is one of three words rather than whatever was typed.
+    const { avatarKey: _claimed, remoteMode: _mode, ...fields } = values;
+    return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
+  });
+  calls.visibility.mockReset().mockImplementation((settings) =>
+    Promise.resolve({
+      ok: true,
+      visibility: {
+        profilePublic: settings.profilePublic,
+        locationGranularity: settings.locationGranularity,
+        sections: settings.sections,
+        searchIndexable: settings.searchIndexable,
+      },
+    }),
+  );
   calls.publish.mockReset();
+  calls.skills.mockReset().mockResolvedValue(TAXONOMY);
+  calls.suggest.mockReset().mockResolvedValue({ ok: true });
 });
 
 describe('ProfileSetupScreen', () => {
@@ -305,7 +364,7 @@ describe('ProfileSetupScreen', () => {
     expect(screen.getByText('10 characters left')).toBeInTheDocument();
   });
 
-  it('says plainly that the sections after the first are not saved, and asks before leaving', async () => {
+  it('saves a section that is not the first, and asks before leaving until it lands', async () => {
     const user = renderScreen();
     const location = await section(/Location and rate/);
     const leave = () => {
@@ -314,14 +373,62 @@ describe('ProfileSetupScreen', () => {
       return event.defaultPrevented;
     };
 
-    expect(screen.queryByText(/not connected to your profile yet/)).not.toBeInTheDocument();
     expect(leave()).toBe(false);
 
     await user.type(location.getByLabelText('City'), 'Vienna');
-
-    expect(screen.getByText(/not connected to your profile yet/)).toBeInTheDocument();
     expect(leave()).toBe(true);
+
+    await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
+    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCity: 'Vienna' });
+    expect(leave()).toBe(false);
+  });
+
+  it('saves the country as the code the API stores, and opens on its name', async () => {
+    const user = renderScreen();
+    const location = await section(/Location and rate/);
+
+    await user.type(location.getByLabelText('Country'), 'austria');
+    await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
+
+    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCountry: 'AT' });
+  });
+
+  it('saves a list in the same request as the fields', async () => {
+    const user = renderScreen();
+    const skills = await section(/Languages and skills/);
+
+    await user.type(
+      within(skills.getByRole('group', { name: 'Skill 1' })).getByLabelText('Skill'),
+      'Figma',
+    );
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    expect(calls.save.mock.calls.at(-1)?.[2]).toMatchObject({
+      skills: [{ name: 'Figma', proficiency: null, years: null }],
+    });
+  });
+
+  it('opens on the lists the profile already holds, without sending them back', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
+        },
+      }),
+    });
+    renderScreen();
+    const skills = await section(/Languages and skills/);
+
+    const first = within(skills.getByRole('group', { name: 'Skill 1' }));
+    await waitFor(() => expect(first.getByLabelText('Skill')).toHaveValue('Service design'));
+    expect(first.getByLabelText('Proficiency')).toHaveValue('Expert');
+    expect(first.getByLabelText('Years')).toHaveValue('7');
+    // Filling the page in from the server is not a change to save.
+    await new Promise((resolve) => setTimeout(resolve, 80));
     expect(calls.save).not.toHaveBeenCalled();
+    expect(screen.getByText('Autosaved')).toBeInTheDocument();
   });
 
   it('ticks Identity and story once its section is saved', async () => {
@@ -348,10 +455,25 @@ describe('sectionsSavedIn', () => {
           availabilityNote: 'x',
           locationCountry: 'PK',
           rateAmountMinor: '100',
-          status: 'published',
+          sections: {
+            ...NO_SECTIONS,
+            languages: [{ name: 'Urdu', proficiency: 'native' }],
+            skills: [{ name: 'Figma', proficiency: null, years: null, approved: true }],
+          },
+          visibility: {
+            profilePublic: true,
+            locationGranularity: 'country',
+            sections: { ...NOTHING_SHARED, biography: true },
+            searchIndexable: false,
+          },
         }),
       ),
-    ).toBe(3);
+    ).toBe(4);
+  });
+
+  it('does not count a section the person has only typed into', () => {
+    // Typing is not saving: this reads what came back from the API.
+    expect(sectionsSavedIn(stored({ sections: { ...NO_SECTIONS, skills: [] } }))).toBe(0);
   });
 });
 
@@ -489,6 +611,53 @@ describe('Languages and skills', () => {
     expect(skills.getByRole('status')).toHaveTextContent(
       'Accessibility is already in your skills.',
     );
+  });
+
+  it('offers the taxonomy the API serves, not a list of its own', async () => {
+    renderScreen();
+    const skills = await section(/Languages and skills/);
+
+    const picker = skills.getByRole('combobox', { name: 'Approved skill' });
+    await waitFor(() =>
+      expect(
+        within(picker)
+          .getAllByRole('option')
+          .map((option) => option.textContent),
+      ).toEqual(['Accessibility', 'Service design', 'User research']),
+    );
+  });
+
+  it('asks for a skill the taxonomy does not have, once one has been typed', async () => {
+    const user = renderScreen();
+    const skills = await section(/Languages and skills/);
+
+    // Nothing typed yet: there is nothing to ask for, so it makes somewhere to type.
+    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
+    expect(skills.getByRole('status')).toHaveTextContent('Type the skill you want');
+    expect(calls.suggest).not.toHaveBeenCalled();
+
+    await user.type(
+      within(skills.getByRole('group', { name: 'Skill 1' })).getByLabelText('Skill'),
+      'Regulatory service design',
+    );
+    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
+
+    await waitFor(() => expect(calls.suggest).toHaveBeenCalledWith('Regulatory service design'));
+    expect(skills.getByRole('status')).toHaveTextContent('sent for approval');
+  });
+
+  it('says why a skill could not be sent', async () => {
+    calls.suggest.mockResolvedValue({ ok: false, message: 'Too many requests.' });
+    const user = renderScreen();
+    const skills = await section(/Languages and skills/);
+
+    await user.type(
+      within(skills.getByRole('group', { name: 'Skill 1' })).getByLabelText('Skill'),
+      'Regulatory service design',
+    );
+    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
+
+    await waitFor(() => expect(skills.getByRole('status')).toHaveTextContent('Too many requests.'));
   });
 
   it('adds a language with focus in it, and removes it with focus back on Add', async () => {
@@ -643,9 +812,83 @@ describe('Visibility and publication', () => {
     expect(visibility.queryByRole('alert')).not.toBeInTheDocument();
     await user.click(visibility.getByRole('button', { name: 'Save section' }));
 
-    expect(screen.getByRole('heading', { name: 'Ready when you are.' })).toHaveFocus();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Ready when you are.' })).toHaveFocus(),
+    );
+    const sent = calls.visibility.mock.calls.at(-1)?.[0];
+    expect(sent).toMatchObject({ version: 3, profilePublic: true, searchIndexable: false });
+    expect(sent?.sections.biography).toBe(true);
     expect(
       screen.getByRole('link', { name: 'Visibility & publication, complete' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows a section that was never chosen at the coarsest location, not at none', async () => {
+    const user = renderScreen();
+    const visibility = await section(/Visibility and publication/);
+
+    await user.click(visibility.getByRole('checkbox', { name: /Location and remote/ }));
+    await user.click(visibility.getByRole('button', { name: 'Save section' }));
+
+    await waitFor(() => expect(calls.visibility).toHaveBeenCalled());
+    expect(calls.visibility.mock.calls.at(-1)?.[0]).toMatchObject({
+      locationGranularity: 'country',
+    });
+  });
+
+  it('reads the profile back, so the next save is at the version this one moved it to', async () => {
+    const user = renderScreen();
+    const visibility = await section(/Visibility and publication/);
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ version: 9 }) });
+
+    await user.click(visibility.getByRole('checkbox', { name: 'Biography' }));
+    await user.click(visibility.getByRole('button', { name: 'Save section' }));
+    await waitFor(() => expect(calls.visibility).toHaveBeenCalled());
+
+    const identity = await section(/Identity and story/);
+    await user.type(identity.getByLabelText('Availability'), 'Now');
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    expect(calls.save.mock.calls.at(-1)?.[0]).toBe(9);
+  });
+
+  it('keeps the setting on screen when it could not be saved', async () => {
+    calls.visibility.mockResolvedValue({
+      ok: false,
+      kind: 'failed',
+      message: 'Could not reach HireEvo.',
+    });
+    const user = renderScreen();
+    const visibility = await section(/Visibility and publication/);
+
+    await user.click(visibility.getByRole('checkbox', { name: 'Biography' }));
+    await user.click(visibility.getByRole('button', { name: 'Save section' }));
+
+    expect(await visibility.findByRole('alert')).toHaveTextContent('Could not reach HireEvo.');
+    expect(visibility.getByRole('checkbox', { name: 'Biography' })).toBeChecked();
+    expect(
+      screen.queryByRole('link', { name: 'Visibility & publication, complete' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens on the setting the profile already holds', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        visibility: {
+          profilePublic: true,
+          locationGranularity: 'city',
+          sections: { ...NOTHING_SHARED, skills: true },
+          searchIndexable: true,
+        },
+      }),
+    });
+    renderScreen();
+    const visibility = await section(/Visibility and publication/);
+
+    await waitFor(() =>
+      expect(visibility.getByRole('radio', { name: 'Public after publishing' })).toBeChecked(),
+    );
+    expect(visibility.getByRole('checkbox', { name: 'Skills' })).toBeChecked();
+    expect(visibility.getByRole('checkbox', { name: /index the public profile/ })).toBeChecked();
   });
 });

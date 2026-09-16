@@ -45,6 +45,13 @@ export function countryByName(name: string): CountryOption | undefined {
   return countryOptions().find((country) => country.name.toLowerCase() === wanted);
 }
 
+/** The country a stored code refers to — what the API holds, named for the field. */
+export function countryByCode(code: string | null | undefined): CountryOption | undefined {
+  const wanted = (code ?? '').trim().toUpperCase();
+  if (wanted === '') return undefined;
+  return countryOptions().find((country) => country.code === wanted);
+}
+
 let timezones: readonly string[] | null = null;
 
 export function timezoneOptions(): readonly string[] {

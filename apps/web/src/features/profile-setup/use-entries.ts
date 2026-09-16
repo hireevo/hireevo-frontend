@@ -69,6 +69,30 @@ export function useEntries<F extends string>(
     return key;
   }
 
+  /**
+   * Replaces the list with what was saved.
+   *
+   * Entries arrive from the API after the page has rendered, so a list cannot
+   * simply start with them. Keys are made fresh from the counter rather than
+   * reused, so an entry added before the answer arrived can never collide with
+   * a saved one. Nothing takes focus: this is the page catching up with the
+   * server, not something the person just added.
+   */
+  function reset(rows: readonly Partial<Record<F, string>>[]) {
+    const replacement = rows.map((values) => {
+      const key = `${prefix}-${next.current}`;
+      next.current += 1;
+      return { key, values: { ...blank(fields), ...values } };
+    });
+    setItems(
+      replacement.length > 0
+        ? replacement
+        : [{ key: `${prefix}-${next.current++}`, values: blank(fields) }],
+    );
+    setErrors({});
+    setLastAdded(null);
+  }
+
   function remove(key: string) {
     setItems((current) => current.filter((item) => item.key !== key));
     setErrors((current) =>
@@ -96,6 +120,7 @@ export function useEntries<F extends string>(
     add,
     remove,
     update,
+    reset,
     showErrors: (found: EntryErrors) => setErrors(found),
     /** Some entry still has an empty field. */
     incomplete: items.some((item) => !filled(item)),

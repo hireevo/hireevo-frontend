@@ -23,7 +23,10 @@ export function ProfileHeaderCard({ draft, username, onChange }: ProfileHeaderCa
 
   return (
     <Card aria-labelledby="profile-identity" className="flex items-start gap-6">
-      <AvatarPicker url={draft.avatarUrl} onChange={(url) => onChange({ avatarUrl: url })} />
+      <AvatarPicker
+        url={draft.avatarUrl}
+        onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
+      />
 
       <div className="min-w-0 flex-1">
         <h2 id="profile-identity" className="sr-only">

@@ -1,12 +1,55 @@
 import { toApiError, toFieldIssues, type Schema } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
+import type { SectionsPayload } from './sections-payload.ts';
 
 export type OwnProfile = Schema<'OwnProfileResponse'>;
+export type UploadTicket = Schema<'UploadTicket'>;
+export type VisibilitySettings = Schema<'UpdateVisibilityRequest'>;
+export type ProfileVisibility = Schema<'ProfileVisibilityResponse'>;
+export type ApprovedSkill = Schema<'SkillListResponse'>['skills'][number];
 
-export const IDENTITY_FIELDS = ['displayName', 'headline', 'overview', 'availabilityNote'] as const;
+/**
+ * Every field of the profile the form edits, as the form holds them: strings,
+ * empty when unset.
+ *
+ * One list rather than one per screen. The profile is saved in a single request
+ * whatever section it was typed in, and a field missing from here is a field a
+ * screen can collect and never send — which is the failure this list exists to
+ * make impossible.
+ */
+export const PROFILE_FIELDS = [
+  'displayName',
+  'headline',
+  'overview',
+  'availabilityNote',
+  'locationCountry',
+  'locationRegion',
+  'locationCity',
+  'serviceArea',
+  'timezone',
+  'remoteMode',
+  'rateAmountMinor',
+  'rateCurrency',
+  'avatarKey',
+] as const;
+
+export type ProfileField = (typeof PROFILE_FIELDS)[number];
+export type ProfileValues = Record<ProfileField, string>;
+export type FieldErrors = Partial<Record<ProfileField, string>>;
+
+/** The four Identity and story fields, for the places that still speak of them. */
+export const IDENTITY_FIELDS = [
+  'displayName',
+  'headline',
+  'overview',
+  'availabilityNote',
+] as const satisfies readonly ProfileField[];
 export type IdentityField = (typeof IDENTITY_FIELDS)[number];
-export type IdentityValues = Record<IdentityField, string>;
-export type FieldErrors = Partial<Record<IdentityField, string>>;
+export type IdentityValues = Pick<ProfileValues, IdentityField>;
+
+export const EMPTY_VALUES: ProfileValues = Object.fromEntries(
+  PROFILE_FIELDS.map((field) => [field, '']),
+) as ProfileValues;
 
 const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
 
@@ -18,18 +61,53 @@ function messageOf(error: unknown): string {
     : envelope.message;
 }
 
-function isIdentityField(value: string | undefined): value is IdentityField {
-  return (IDENTITY_FIELDS as readonly string[]).includes(value ?? '');
+function isProfileField(value: string | undefined): value is ProfileField {
+  return (PROFILE_FIELDS as readonly string[]).includes(value ?? '');
+}
+
+/** What the API holds, as the form shows it: a string for every field. */
+export function valuesOf(profile: OwnProfile): ProfileValues {
+  const shown = (value: string | null | undefined) => value ?? '';
+
+  return {
+    displayName: shown(profile.displayName),
+    headline: shown(profile.headline),
+    overview: shown(profile.overview),
+    availabilityNote: shown(profile.availabilityNote),
+    locationCountry: shown(profile.locationCountry),
+    locationRegion: shown(profile.locationRegion),
+    locationCity: shown(profile.locationCity),
+    serviceArea: shown(profile.serviceArea),
+    timezone: shown(profile.timezone),
+    remoteMode: shown(profile.remoteMode),
+    rateAmountMinor: shown(profile.rateAmountMinor),
+    rateCurrency: shown(profile.rateCurrency),
+    // Never sent back as a key: the response carries the URL it is served from,
+    // and a claim only happens when a new photo has just been uploaded.
+    avatarKey: '',
+  };
 }
 
 /** An empty field is sent as null, which clears it; the API treats an absent key as "keep". */
-export function toPayload(values: IdentityValues) {
+export function toPayload(values: ProfileValues) {
   const clear = (value: string) => (value.trim() === '' ? null : value.trim());
+
   return {
     displayName: clear(values.displayName),
     headline: clear(values.headline),
     overview: clear(values.overview),
     availabilityNote: clear(values.availabilityNote),
+    locationCountry: clear(values.locationCountry),
+    locationRegion: clear(values.locationRegion),
+    locationCity: clear(values.locationCity),
+    serviceArea: clear(values.serviceArea),
+    timezone: clear(values.timezone),
+    remoteMode: clear(values.remoteMode) as 'remote' | 'on_site' | 'hybrid' | null,
+    rateAmountMinor: clear(values.rateAmountMinor),
+    rateCurrency: clear(values.rateCurrency),
+    // Absent unless a photo was just claimed: sending null would clear the one
+    // already on the profile every time anything else was saved.
+    ...(values.avatarKey.trim() === '' ? {} : { avatarKey: values.avatarKey.trim() }),
   };
 }
 
@@ -67,11 +145,25 @@ export type SaveResult =
   | { ok: false; kind: 'invalid'; message: string; fieldErrors: FieldErrors }
   | { ok: false; kind: 'failed'; message: string };
 
-/** One autosave of the identity fields, against the version the form was loaded at. */
-export async function saveIdentity(version: number, values: IdentityValues): Promise<SaveResult> {
+/**
+ * One save of the whole profile, against the version the form was loaded at.
+ *
+ * Fields and lists go in the same request because they are one decision by the
+ * person: pressing Save. Two requests would take two versions, and the second
+ * would lose to the first.
+ */
+export async function saveProfile(
+  version: number,
+  values: ProfileValues,
+  sections?: SectionsPayload,
+): Promise<SaveResult> {
   try {
     const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {
-      body: { version, profile: toPayload(values) },
+      body: {
+        version,
+        profile: toPayload(values),
+        ...(sections === undefined ? {} : { sections }),
+      },
     });
     if (data !== undefined) return { ok: true, profile: data };
 
@@ -87,7 +179,7 @@ export async function saveIdentity(version: number, values: IdentityValues): Pro
       const fieldErrors: FieldErrors = {};
       for (const issue of toFieldIssues(error)) {
         const field = issue.path.split('.').at(-1);
-        if (isIdentityField(field) && fieldErrors[field] === undefined) {
+        if (isProfileField(field) && fieldErrors[field] === undefined) {
           fieldErrors[field] = issue.message;
         }
       }
@@ -100,6 +192,105 @@ export async function saveIdentity(version: number, values: IdentityValues): Pro
   }
 }
 
+export type VisibilityResult =
+  | { ok: true; visibility: ProfileVisibility }
+  | { ok: false; kind: 'conflict'; message: string }
+  | { ok: false; kind: 'failed'; message: string };
+
+/** Who may see which section. Versioned like every other write to the profile. */
+export async function saveVisibility(settings: VisibilitySettings): Promise<VisibilityResult> {
+  try {
+    const { data, error, response } = await api.PUT('/api/v1/profiles/me/visibility', {
+      body: settings,
+    });
+    if (data !== undefined) return { ok: true, visibility: data };
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        kind: 'conflict',
+        message: 'This profile was changed in another tab or window.',
+      };
+    }
+    return { ok: false, kind: 'failed', message: messageOf(error) };
+  } catch {
+    return { ok: false, kind: 'failed', message: UNREACHABLE };
+  }
+}
+
+export type AvatarResult = { ok: true; key: string } | { ok: false; message: string };
+
+/**
+ * Uploads a photo and answers with the key to claim.
+ *
+ * Two steps, because the bytes never go through the API: it signs an upload,
+ * and the browser sends the file straight to storage. The key is claimed with
+ * the next save of the profile, so an upload nobody finished changes nothing.
+ */
+export async function uploadAvatar(file: File): Promise<AvatarResult> {
+  const contentType = file.type;
+  if (contentType !== 'image/jpeg' && contentType !== 'image/png' && contentType !== 'image/webp') {
+    return { ok: false, message: 'Choose a JPEG, PNG or WebP image.' };
+  }
+
+  let ticket: UploadTicket;
+  try {
+    const { data, error } = await api.POST('/api/v1/profiles/me/avatar-upload', {
+      body: { contentType },
+    });
+    if (data === undefined) return { ok: false, message: messageOf(error) };
+    ticket = data;
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
+
+  if (file.size > ticket.maxBytes) {
+    const megabytes = Math.floor(ticket.maxBytes / 1_000_000);
+    return { ok: false, message: `That image is over ${megabytes}MB. Choose a smaller one.` };
+  }
+
+  const form = new FormData();
+  // The fields the signature covers go first, in order; the file is last, which
+  // is what S3-compatible storage expects of a pre-signed post.
+  for (const [name, value] of Object.entries(ticket.fields)) form.append(name, value);
+  form.append('file', file);
+
+  try {
+    const response = await fetch(ticket.url, { method: 'POST', body: form });
+    if (!response.ok) {
+      return { ok: false, message: 'The photo could not be stored. Try again.' };
+    }
+  } catch {
+    return { ok: false, message: 'The photo could not be stored. Try again.' };
+  }
+
+  return { ok: true, key: ticket.key };
+}
+
+/** The approved skills, narrowed by what someone is typing. */
+export async function listSkills(query?: string): Promise<ApprovedSkill[]> {
+  try {
+    const { data } = await api.GET('/api/v1/skills', {
+      params: { query: query === undefined || query === '' ? {} : { query } },
+    });
+    return data?.skills ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export type SuggestResult = { ok: true } | { ok: false; message: string };
+
+/** Asks for a skill the taxonomy does not have. Asking twice is the same request. */
+export async function suggestSkill(name: string): Promise<SuggestResult> {
+  try {
+    const { data, error } = await api.POST('/api/v1/skills/suggestions', { body: { name } });
+    return data === undefined ? { ok: false, message: messageOf(error) } : { ok: true };
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
+}
+
 export type PublishIssue = { field: string; message: string };
 
 export type PublishResult =
@@ -108,7 +299,7 @@ export type PublishResult =
   | { ok: false; kind: 'conflict'; message: string }
   | { ok: false; kind: 'failed'; message: string };
 
-/** Publishes the profile. The API checks it against a stricter schema than autosave. */
+/** Publishes the profile. The API checks it against a stricter schema than a save. */
 export async function publishProfile(): Promise<PublishResult> {
   try {
     const { data, error, response } = await api.POST('/api/v1/profiles/me/publish');

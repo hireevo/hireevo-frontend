@@ -42,9 +42,13 @@ const PROFILE = {
     'I partner with product and operations leaders to map difficult customer journeys, validate ideas through evidence-based research, and ship accessible services with measurable business outcomes. '.repeat(
       3,
     ),
+  avatarUrl: null,
   locationCountry: null,
   locationRegion: null,
   locationCity: null,
+  serviceArea: null,
+  timezone: null,
+  remoteMode: null,
   availability: null,
   availabilityNote: 'Open to one discovery engagement starting October 2026, remote or in Lahore',
   rateAmountMinor: null,
@@ -57,16 +61,47 @@ const PROFILE = {
     postalCode: null,
     dateOfBirth: null,
   },
+  // Empty, so the sweep fills every list itself: seeded entries are covered by
+  // the unit tests, and here they would arrive in the fields this suite types
+  // its own longest values into.
+  sections: {
+    languages: [],
+    skills: [],
+    experience: [],
+    education: [],
+    licenses: [],
+    portfolio: [],
+  },
   visibility: {
     profilePublic: false,
     locationGranularity: 'country',
-    showRates: false,
-    showCredentials: false,
-    showPortfolio: true,
-    showScore: false,
+    sections: {
+      nameHeadline: false,
+      biography: false,
+      location: false,
+      languages: false,
+      rate: false,
+      skills: false,
+      experience: false,
+      education: false,
+      licenses: false,
+      availability: false,
+    },
+    searchIndexable: false,
   },
   publishedAt: null,
   updatedAt: '2026-09-14T10:00:00.000Z',
+};
+
+/** The approved taxonomy, as the skills endpoint serves it. */
+const SKILLS = {
+  skills: [
+    { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
+    { slug: 'content-design', name: 'Content design', category: 'Design' },
+    { slug: 'design-systems', name: 'Design systems', category: 'Design' },
+    { slug: 'service-design', name: 'Service design', category: 'Design' },
+    { slug: 'user-research', name: 'User research', category: 'Research' },
+  ],
 };
 
 const NOT_READY = {
@@ -119,8 +154,16 @@ async function answerTheApi(page: Page) {
       fulfil(route, route.request().method() === 'PATCH' ? { ...PROFILE, version: 8 } : PROFILE),
   );
   await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me/visibility',
+    (route) => fulfil(route, PROFILE.visibility),
+  );
+  await page.route(
     (url) => url.pathname === '/api/v1/profiles/me/publish',
     (route) => fulfil(route, NOT_READY, 400),
+  );
+  await page.route(
+    (url) => url.pathname === '/api/v1/skills',
+    (route) => fulfil(route, SKILLS),
   );
 }
 

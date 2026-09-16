@@ -1,27 +1,29 @@
 'use client';
 
-import type { IdentityValues } from '@/features/profile-setup/api.ts';
+import type { ProfileValues } from '@/features/profile-setup/api.ts';
 import type { Entry } from '@/features/profile-setup/use-entries.ts';
 import type { ProfileLanguage, ProfileRecord } from './draft.ts';
 
 /**
  * The client profile's unfinished work, kept in this browser.
  *
- * Someone filling in six sections will close the tab in the middle of it, and
- * only the About fields have somewhere on the server to go. So everything typed
- * is written here as it is typed, and read back when the page opens again.
+ * The page saves on a button rather than as it is typed, so someone who fills
+ * in three sections and closes the tab has told the server nothing. Everything
+ * typed is written here as it is typed, and read back when the page opens
+ * again, so that work survives the tab.
  *
- * This is this browser only — not the account, not another device. What has been
- * saved to the profile API is on the server; what has not says so on screen. The
- * key carries the account id so two people sharing a computer never see each
- * other's draft, and a version so an older shape is dropped rather than half
- * read.
+ * This is a safety net under the save, not a second place the profile lives:
+ * what has been saved is on the server, and a draft is only ever newer than
+ * that. The key carries the account id so two people sharing a computer never
+ * see each other's draft, and a version so an older shape is dropped rather
+ * than half read.
  */
-const VERSION = 1;
+const VERSION = 2;
 
 export type StoredDraft = {
   version: number;
-  identity: IdentityValues;
+  /** Partial: a draft written before a field existed still opens. */
+  identity: Partial<ProfileValues>;
   country: string;
   languages: ProfileLanguage[];
   skills: Entry<string>[];
@@ -57,6 +59,15 @@ export function writeDraft(userId: string, contents: DraftContents): void {
   } catch {
     // Out of quota, or storage blocked. Nothing on screen changes: what is typed
     // is still in the page, and what was saved is still on the server.
+  }
+}
+
+/** Forgets the draft, once what it was protecting has been saved. */
+export function clearDraft(userId: string): void {
+  try {
+    window.localStorage.removeItem(keyFor(userId));
+  } catch {
+    // Blocked storage. There is nothing to forget that anyone can read anyway.
   }
 }
 

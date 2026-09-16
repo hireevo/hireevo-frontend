@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  EMPTY_VALUES,
   loadOrCreateProfile,
-  saveIdentity,
+  saveProfile,
+  toPayload,
+  valuesOf,
   type FieldErrors,
-  type IdentityField,
-  type IdentityValues,
   type OwnProfile,
+  type ProfileField,
+  type ProfileValues,
 } from './api.ts';
+import type { SectionsPayload } from './sections-payload.ts';
 
 export type SaveState =
   | { kind: 'saved'; at: Date | null }
@@ -20,42 +24,38 @@ export type SaveState =
 export type LoadState =
   { status: 'loading' } | { status: 'ready' } | { status: 'error'; message: string };
 
-const EMPTY: IdentityValues = { displayName: '', headline: '', overview: '', availabilityNote: '' };
-
-const valuesOf = (profile: OwnProfile): IdentityValues => ({
-  displayName: profile.displayName ?? '',
-  headline: profile.headline ?? '',
-  overview: profile.overview ?? '',
-  availabilityNote: profile.availabilityNote ?? '',
-});
-
-/** What the server would store, so trailing spaces alone do not count as an unsaved change. */
-const keyOf = (values: IdentityValues) =>
-  JSON.stringify([
-    values.displayName.trim(),
-    values.headline.trim(),
-    values.overview.trim(),
-    values.availabilityNote.trim(),
-  ]);
+/**
+ * What the server would store, so trailing spaces alone do not count as an
+ * unsaved change — and so a list edited back to what it was stops asking to be
+ * saved. Built from the payload rather than the form, because the payload is
+ * what a save would actually send.
+ */
+const keyOf = (values: ProfileValues, sections: SectionsPayload | undefined) =>
+  JSON.stringify([toPayload(values), sections ?? null]);
 
 /**
- * The identity step's draft: loaded from the API, autosaved as it is typed.
+ * The profile being edited: loaded from the API, saved back to it.
  *
- * Saves run one at a time, in order. Two overlapping autosaves would both carry
- * the version the form was loaded at, and the second would be refused as a
- * conflict with the first — the person's own tab mistaken for another one.
- * What each save sends is read when it starts, so a burst of typing costs one
- * request, not one per keystroke.
+ * Saves run one at a time, in order. Two overlapping saves would both carry the
+ * version the form was loaded at, and the second would be refused as a conflict
+ * with the first — the person's own tab mistaken for another one. What each
+ * save sends is read when it starts, so a burst of typing costs one request,
+ * not one per keystroke.
  *
- * A real conflict stops autosaving. Carrying on would either be refused on
- * every keystroke or, worse, succeed once the version was refreshed and
- * overwrite whatever the other tab saved. The person reloads instead.
+ * Fields and lists go together in that one request. They are one profile at one
+ * version: sending them separately would make the second half lose to the
+ * first, and leave a half-saved profile when the second never arrived.
+ *
+ * A real conflict stops saving. Carrying on would either be refused on every
+ * keystroke or, worse, succeed once the version was refreshed and overwrite
+ * whatever the other tab saved. The person reloads instead.
  */
 export function useProfileDraft({
   autosaveDelay = 800,
   autosave = true,
   fallbackDisplayName = '',
   restore,
+  collect,
 }: {
   autosaveDelay?: number;
   /**
@@ -70,29 +70,37 @@ export function useProfileDraft({
    */
   fallbackDisplayName?: string;
   /** Values typed before and not saved — a draft read back from this browser. */
-  restore?: IdentityValues | undefined;
+  restore?: Partial<ProfileValues> | undefined;
+  /**
+   * The lists to save alongside the fields, read when a save starts rather than
+   * held here: they live in the components that edit them, and what matters is
+   * what they hold at the moment the request goes out.
+   */
+  collect?: (() => SectionsPayload) | undefined;
 } = {}) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [profile, setProfile] = useState<OwnProfile | null>(null);
-  const [values, setValues] = useState<IdentityValues>(EMPTY);
+  const [values, setValues] = useState<ProfileValues>(EMPTY_VALUES);
   const [save, setSave] = useState<SaveState>({ kind: 'saved', at: null });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const latest = useRef(EMPTY);
+  const latest = useRef(EMPTY_VALUES);
   const version = useRef(0);
-  const savedKey = useRef(keyOf(EMPTY));
+  const savedKey = useRef('');
   const savedAt = useRef<Date | null>(null);
   const blocked = useRef(false);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallback = useRef(fallbackDisplayName);
   const restored = useRef(restore);
+  const sections = useRef(collect);
 
   // Before the load effect below, so the first response already has them.
   useEffect(() => {
     fallback.current = fallbackDisplayName;
     restored.current = restore;
-  }, [fallbackDisplayName, restore]);
+    sections.current = collect;
+  }, [fallbackDisplayName, restore, collect]);
 
   /** Applies what a load returned. Called only after the request settles, never during render or an effect body. */
   const accept = useCallback((result: Awaited<ReturnType<typeof loadOrCreateProfile>>) => {
@@ -103,7 +111,7 @@ export function useProfileDraft({
     const loaded = valuesOf(result.profile);
     // A draft of this profile wins over what the server holds: it is the later
     // of the two, and it is the work the person has not saved yet.
-    const withDraft = restored.current ?? loaded;
+    const withDraft = { ...loaded, ...restored.current };
     const opening =
       withDraft.displayName.trim() === '' && fallback.current.trim() !== ''
         ? { ...withDraft, displayName: fallback.current }
@@ -112,14 +120,14 @@ export function useProfileDraft({
     version.current = result.profile.version;
     // Keyed on what the server holds, not on the fallback, so a filled-in name
     // is saved by the next save rather than mistaken for something already sent.
-    savedKey.current = keyOf(loaded);
+    savedKey.current = keyOf(loaded, sections.current?.());
     blocked.current = false;
     setProfile(result.profile);
     setValues(opening);
     setFieldErrors({});
     // By value, not by identity: a restored draft equal to the server is saved.
     setSave(
-      keyOf(opening) === keyOf(loaded)
+      keyOf(opening, sections.current?.()) === savedKey.current
         ? { kind: 'saved', at: savedAt.current }
         : { kind: 'unsaved' },
     );
@@ -149,24 +157,31 @@ export function useProfileDraft({
   const saveOnce = useCallback(async (): Promise<boolean> => {
     if (blocked.current) return false;
     const sending = latest.current;
-    const key = keyOf(sending);
+    const lists = sections.current?.();
+    const key = keyOf(sending, lists);
     if (key === savedKey.current) {
       setSave({ kind: 'saved', at: savedAt.current });
       return true;
     }
 
     setSave({ kind: 'saving' });
-    const result = await saveIdentity(version.current, sending);
+    const result = await saveProfile(version.current, sending, lists);
 
     if (result.ok) {
       version.current = result.profile.version;
-      savedKey.current = key;
+      // A photo is claimed once. Left in the form it would be sent with every
+      // later save, re-claiming a key the profile already holds.
+      savedKey.current = keyOf({ ...sending, avatarKey: '' }, lists);
       savedAt.current = new Date();
+      if (latest.current.avatarKey !== '') {
+        latest.current = { ...latest.current, avatarKey: '' };
+        setValues(latest.current);
+      }
       setProfile(result.profile);
       setFieldErrors({});
       // Only "saved" if nothing else was typed while this was on its way.
       setSave(
-        keyOf(latest.current) === key
+        keyOf(latest.current, sections.current?.()) === savedKey.current
           ? { kind: 'saved', at: savedAt.current }
           : { kind: 'unsaved' },
       );
@@ -190,8 +205,20 @@ export function useProfileDraft({
     return next;
   }, [saveOnce]);
 
+  /** Marks the draft changed, and starts the wait before an autosave. */
+  const touch = useCallback(() => {
+    if (blocked.current) return;
+    setSave({ kind: 'unsaved' });
+    if (!autosave) return;
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      void enqueue();
+    }, autosaveDelay);
+  }, [autosave, autosaveDelay, enqueue]);
+
   const change = useCallback(
-    (field: IdentityField, value: string) => {
+    (field: ProfileField, value: string) => {
       const next = { ...latest.current, [field]: value };
       latest.current = next;
       setValues(next);
@@ -200,17 +227,9 @@ export function useProfileDraft({
         const { [field]: _cleared, ...rest } = current;
         return rest;
       });
-      if (blocked.current) return;
-
-      setSave({ kind: 'unsaved' });
-      if (!autosave) return;
-      if (timer.current !== null) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        void enqueue();
-      }, autosaveDelay);
+      touch();
     },
-    [autosave, autosaveDelay, enqueue],
+    [touch],
   );
 
   /** Saves now instead of waiting for the pause in typing. */
@@ -222,7 +241,20 @@ export function useProfileDraft({
     return enqueue();
   }, [enqueue]);
 
-  /** Takes a newer copy from the server — e.g. after publishing — without touching what is typed. */
+  /**
+   * Counts what is on screen now as what the server holds.
+   *
+   * The lists arrive from the API after the page has rendered, so they cannot be
+   * part of the profile when it loads; put into their sections a moment later,
+   * they would otherwise look like unsaved work and be sent straight back. Only
+   * for that moment: called once the lists have been filled in from a load, and
+   * never after anything has been typed.
+   */
+  const rebaseline = useCallback(() => {
+    savedKey.current = keyOf(latest.current, sections.current?.());
+  }, []);
+
+  /** Takes a newer copy from the server — after publishing, or a visibility save. */
   const adopt = useCallback((next: OwnProfile) => {
     version.current = next.version;
     setProfile(next);
@@ -237,5 +269,21 @@ export function useProfileDraft({
     return () => window.removeEventListener('beforeunload', warn);
   }, [unsafeToLeave]);
 
-  return { load, profile, values, save, fieldErrors, change, flush, reload, adopt };
+  return {
+    load,
+    profile,
+    values,
+    save,
+    fieldErrors,
+    change,
+    touch,
+    rebaseline,
+    flush,
+    reload,
+    adopt,
+    /** The version a sibling write — visibility — has to send with it. */
+    version: () => version.current,
+  };
 }
+
+export type ProfileDraftState = ReturnType<typeof useProfileDraft>;

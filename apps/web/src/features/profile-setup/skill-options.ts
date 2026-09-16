@@ -1,7 +1,10 @@
 /**
- * Stand-ins for lists the API does not serve yet: the approved skills taxonomy
- * and the proficiency levels. They let the screen be built and tested now, and
- * are replaced by the taxonomy endpoint when the screens are integrated.
+ * The approved skills the picker falls back to, and the proficiency levels.
+ *
+ * The taxonomy itself is served by the API and read in `skill-lists.tsx`; this
+ * list is what the picker shows until that answers, and if it never does, so
+ * the control is never empty. The proficiency levels are not served: they are
+ * the four the contract's enum allows, named for a person to read.
  */
 export const APPROVED_SKILLS = [
   'Accessibility',

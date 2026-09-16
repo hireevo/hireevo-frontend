@@ -1,8 +1,9 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { LuArrowRight, LuChevronDown } from 'react-icons/lu';
 import { Button, cn } from '@hireevo/ui-web';
+import { listSkills, suggestSkill } from './api.ts';
 import type { LANGUAGE_FIELDS, SKILL_FIELDS } from './entries-validation.ts';
 import { border } from './entry-fields.ts';
 import { EntryPanel, ListHeader } from './entry-panel.tsx';
@@ -99,8 +100,26 @@ export function SkillsList({
   const pickerId = useId();
   const proficiencyListId = useId();
   const addSkill = useRef<HTMLButtonElement>(null);
+  const [approved, setApproved] = useState<readonly string[]>(APPROVED_SKILLS);
   const [picked, setPicked] = useState<string>(APPROVED_SKILLS[0]);
   const [notice, setNotice] = useState('');
+  const asking = useRef(false);
+
+  // The approved list comes from the taxonomy the API serves. Until it answers —
+  // and if it never does — the built-in list stands in, so the picker is never
+  // an empty control.
+  useEffect(() => {
+    let active = true;
+    void listSkills().then((skills) => {
+      if (!active || skills.length === 0) return;
+      const names = skills.map((skill) => skill.name);
+      setApproved(names);
+      setPicked((current) => (names.includes(current) ? current : (names[0] as string)));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function addApproved() {
     const wanted = picked.toLowerCase();
@@ -123,6 +142,38 @@ export function SkillsList({
       }, 0);
     }
     setNotice(`${picked} added to your skills.`);
+  }
+
+  /**
+   * Asks for a skill the taxonomy does not have yet.
+   *
+   * It sends the first skill typed into the list that is not already approved,
+   * which is what "can't find it" means — there is nothing to ask for until the
+   * person has said what they want, so an empty list gets an entry to type into
+   * instead.
+   */
+  async function suggest() {
+    if (asking.current) return;
+    const wanted = skills.items
+      .map((item) => item.values.name.trim())
+      .find(
+        (name) =>
+          name !== '' && !approved.some((option) => option.toLowerCase() === name.toLowerCase()),
+      );
+
+    if (wanted === undefined) {
+      skills.add();
+      setNotice('Type the skill you want, then ask for it again.');
+      return;
+    }
+
+    asking.current = true;
+    setNotice(`Asking for ${wanted}…`);
+    const result = await suggestSkill(wanted);
+    asking.current = false;
+    // The button keeps focus throughout: disabling the control someone just
+    // pressed drops it (§6.8), and this is over in a moment either way.
+    setNotice(result.ok ? `${wanted} has been sent for approval.` : result.message);
   }
 
   return (
@@ -148,7 +199,7 @@ export function SkillsList({
             }}
             className={cn(CONTROL, 'h-9 appearance-none border-border pr-9')}
           >
-            {APPROVED_SKILLS.map((skill) => (
+            {approved.map((skill) => (
               <option key={skill} value={skill}>
                 {skill}
               </option>
@@ -168,7 +219,7 @@ export function SkillsList({
         </Button>
         <button
           type="button"
-          onClick={() => skills.add()}
+          onClick={() => void suggest()}
           className="inline-flex min-h-6 items-center gap-1 self-start rounded-sm text-xs font-medium text-content-link underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
         >
           Can’t find it? Suggest a skill

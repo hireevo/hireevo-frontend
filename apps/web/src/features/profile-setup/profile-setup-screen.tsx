@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@hireevo/ui-web';
 import { publishProfile, type OwnProfile } from './api.ts';
 import { DraftStatusCard } from './draft-status-card.tsx';
@@ -25,7 +25,9 @@ import { ExperienceStep } from './experience-step.tsx';
 import { IdentityStep } from './identity-step.tsx';
 import { LocationStep } from './location-step.tsx';
 import { PUBLISH_SECTION_ID, PublishBanner, type PublishState } from './publish-banner.tsx';
+import { fromSavedSections, toSectionsPayload } from './sections-payload.ts';
 import { SetupSidebar } from './setup-sidebar.tsx';
+import { PROFICIENCIES } from './skill-options.ts';
 import { SkillsStep } from './skills-step.tsx';
 import { FIELD_STEP, hrefFor, sectionIdFor, stepFor, type StepId } from './steps.ts';
 import { useEntries, type EntryErrors } from './use-entries.ts';
@@ -38,14 +40,19 @@ import { VisibilityStep } from './visibility-step.tsx';
 /**
  * How many of the six sections the server holds a finished answer for. Read from
  * what was saved, never from what is typed, so the number cannot run ahead of
- * the data. Three sections have no API yet and cannot count.
+ * the data.
  */
 export function sectionsSavedIn(profile: OwnProfile | null): number {
   if (profile === null) return 0;
-  const identity = identitySaved(profile);
-  const location = profile.locationCountry !== null && profile.rateAmountMinor !== null;
-  const visibility = profile.status === 'published';
-  return [identity, location, visibility].filter(Boolean).length;
+  const { sections, visibility } = profile;
+  return [
+    identitySaved(profile),
+    profile.locationCountry !== null && profile.rateAmountMinor !== null,
+    sections.languages.length > 0 && sections.skills.length > 0,
+    sections.experience.length > 0,
+    sections.education.length + sections.licenses.length > 0,
+    visibility.profilePublic || Object.values(visibility.sections).some(Boolean),
+  ].filter(Boolean).length;
 }
 
 /** Whether every Identity and story field has a saved, non-blank value. */
@@ -60,10 +67,6 @@ export function identitySaved(profile: OwnProfile | null): boolean {
 
 /** The design's content is 1100px wide, so the column is that plus its padding. */
 const MAIN = 'mx-auto w-full max-w-[1148px] px-4 py-6 sm:px-6 lg:py-8';
-
-/** Shown while any section after the first holds anything, until the API can store it. */
-export const LOCAL_NOT_SAVED =
-  'Saved changes cover Identity and story. The other sections are not connected to your profile yet: they stay on this page and are lost on reload.';
 
 /** Brings a section to the top of the window and, when asked, puts focus on its heading. */
 function revealSection(id: StepId | 'publish', focus: boolean) {
@@ -81,63 +84,96 @@ const anyProblems = (...found: EntryErrors[]) =>
  * Profile setup: the six sections of the design on one page, with the step list
  * beside them following along.
  *
- * Identity and story autosaves to the profile API. The other sections are
- * complete on screen but kept in the page until the API gains their fields —
- * the draft card says so, and leaving the page with anything in them asks first.
+ * All six are the profile the API holds. Fields and lists autosave together, in
+ * one request at one version — the draft card beside the sections says where
+ * that save is up to. Visibility is the one exception: it is its own endpoint,
+ * saved by its own button, because who may see the profile is a decision worth
+ * making deliberately rather than as a side effect of typing.
  */
 export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }) {
   const router = useRouter();
   const step = stepFor(useSearchParams().get('step'));
-  const draft = useProfileDraft(autosaveDelay === undefined ? {} : { autosaveDelay });
   const [publish, setPublish] = useState<PublishState>({ kind: 'idle' });
-  const location = useLocationDraft();
+
   const languages = useEntries('language', LANGUAGE_FIELDS);
   const skills = useEntries('skill', SKILL_FIELDS, { normalise: normaliseSkill });
   const experience = useEntries('role', EXPERIENCE_FIELDS, { optional: OPEN_ENDED.experience });
   const education = useEntries('institution', EDUCATION_FIELDS, { optional: OPEN_ENDED.education });
   const licenses = useEntries('license', LICENSE_FIELDS, { optional: OPEN_ENDED.licenses });
-  const visibility = useVisibilityDraft();
 
-  const loaded = draft.load.status !== 'loading' && draft.load.status !== 'error';
-  const inView = useSectionInView(loaded);
+  const collect = useCallback(
+    () =>
+      toSectionsPayload({
+        languages: languages.items.map((item) => item.values),
+        skills: skills.items.map((item) => item.values),
+        experience: experience.items.map((item) => item.values),
+        education: education.items.map((item) => item.values),
+        licenses: licenses.items.map((item) => item.values),
+      }),
+    [languages.items, skills.items, experience.items, education.items, licenses.items],
+  );
 
-  const unsavedElsewhere =
-    location.dirty ||
-    languages.dirty ||
-    skills.dirty ||
-    experience.dirty ||
-    education.dirty ||
-    licenses.dirty ||
-    visibility.dirty;
+  const draft = useProfileDraft({
+    collect,
+    ...(autosaveDelay === undefined ? {} : { autosaveDelay }),
+  });
+  const location = useLocationDraft(draft);
+  const visibility = useVisibilityDraft(draft);
+
+  // The lists arrive with the profile, after the page has rendered. Filling them
+  // in is the page catching up with the server, so it counts as saved; every
+  // change after that is the person's, and saves like a keystroke does.
+  const stage = useRef<'waiting' | 'filling' | 'editing'>('waiting');
+  const [seeded, setSeeded] = useState(false);
+  const sent = useRef('');
+
+  // Ready means the sections are on the page, not merely that the profile has
+  // arrived: what follows looks for those sections, and a moment earlier there
+  // is nothing there to scroll to or watch.
+  const ready = draft.load.status === 'ready' && seeded;
+  const inView = useSectionInView(ready);
+  const { profile, rebaseline, touch } = draft;
+  useEffect(() => {
+    if (profile === null) return;
+
+    if (stage.current === 'waiting') {
+      stage.current = 'filling';
+      const saved = fromSavedSections(profile.sections, { skills: PROFICIENCIES });
+      languages.reset(saved.languages.map((entry) => ({ name: entry.name })));
+      skills.reset(saved.skills);
+      experience.reset(saved.experience);
+      education.reset(saved.education);
+      licenses.reset(saved.licenses);
+      setSeeded(true);
+      return;
+    }
+
+    if (stage.current === 'filling') {
+      stage.current = 'editing';
+      sent.current = JSON.stringify(collect());
+      rebaseline();
+      return;
+    }
+
+    const now = JSON.stringify(collect());
+    if (now === sent.current) return;
+    sent.current = now;
+    touch();
+    // The lists themselves are what this watches; `collect` changes with them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, collect, rebaseline, touch]);
 
   // `?step=` names the section to open at, or the one a link just asked for.
   const arrived = useRef(false);
   useEffect(() => {
-    if (!loaded) return;
+    if (!ready) return;
     const first = !arrived.current;
     arrived.current = true;
     // Arriving at the first section needs no scrolling, and taking focus while
     // the page loads would pull a screen reader away from where it starts.
     if (first && step.id === 'identity') return;
     revealSection(step.id, !first);
-  }, [loaded, step.id]);
-
-  useEffect(() => {
-    if (!unsavedElsewhere) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [unsavedElsewhere]);
-
-  if (draft.load.status === 'loading') {
-    return (
-      <main id="main-content" className={MAIN}>
-        <p role="status" className="text-sm text-content-subtle">
-          Loading your profile…
-        </p>
-      </main>
-    );
-  }
+  }, [ready, step.id]);
 
   if (draft.load.status === 'error') {
     return (
@@ -153,10 +189,30 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
     );
   }
 
+  // Still loading until the lists are in their sections, not just until the
+  // profile has arrived. Showing the sections a moment early means showing them
+  // empty and then replacing them, and anything typed into that first moment is
+  // typed into fields that are about to be thrown away.
+  if (draft.load.status === 'loading' || !seeded) {
+    return (
+      <main id="main-content" className={MAIN}>
+        <p role="status" className="text-sm text-content-subtle">
+          Loading your profile…
+        </p>
+      </main>
+    );
+  }
+
   /** Moves on to a section, and records it in the URL so a reload returns there. */
   function goTo(id: StepId) {
     router.push(hrefFor(id), { scroll: false });
     revealSection(id, true);
+  }
+
+  /** Sends what is on screen now rather than waiting out the pause in typing. */
+  function saveAnd(goToStep: StepId) {
+    void draft.flush();
+    goTo(goToStep);
   }
 
   async function identityNext() {
@@ -165,7 +221,7 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
 
   function locationNext(): boolean {
     if (Object.keys(location.checkAll()).length > 0) return false;
-    goTo('skills');
+    saveAnd('skills');
     return true;
   }
 
@@ -175,7 +231,7 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
     languages.showErrors(languageErrors);
     skills.showErrors(skillErrors);
     if (anyProblems(languageErrors, skillErrors)) return false;
-    goTo('experience');
+    saveAnd('experience');
     return true;
   }
 
@@ -183,7 +239,7 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
     const found = validateExperience(experience.items, todayIso());
     experience.showErrors(found);
     if (anyProblems(found)) return false;
-    goTo('education');
+    saveAnd('education');
     return true;
   }
 
@@ -193,12 +249,12 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
     education.showErrors(educationErrors);
     licenses.showErrors(licenseErrors);
     if (anyProblems(educationErrors, licenseErrors)) return false;
-    goTo('visibility');
+    saveAnd('visibility');
     return true;
   }
 
-  function visibilitySave(): boolean {
-    if (!visibility.save()) return false;
+  async function visibilitySave(): Promise<boolean> {
+    if (!(await visibility.save())) return false;
     revealSection('publish', true);
     return true;
   }
@@ -260,7 +316,6 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
             sectionsSaved={sectionsSavedIn(draft.profile)}
             onRetry={() => void draft.flush()}
             onReload={() => void draft.reload()}
-            notice={unsavedElsewhere ? LOCAL_NOT_SAVED : null}
           />
         </div>
 

@@ -25,13 +25,24 @@ vi.mock('@/features/auth/session.tsx', () => ({
 
 const calls = vi.hoisted(() => ({
   load: vi.fn<typeof ProfileApi.loadOrCreateProfile>(),
-  save: vi.fn<typeof ProfileApi.saveIdentity>(),
+  save: vi.fn<typeof ProfileApi.saveProfile>(),
+  skills: vi.fn<typeof ProfileApi.listSkills>(),
 }));
 vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileApi>()),
   loadOrCreateProfile: () => calls.load(),
-  saveIdentity: (...args: Parameters<typeof ProfileApi.saveIdentity>) => calls.save(...args),
+  saveProfile: (...args: Parameters<typeof ProfileApi.saveProfile>) => calls.save(...args),
+  listSkills: (...args: Parameters<typeof ProfileApi.listSkills>) => calls.skills(...args),
 }));
+
+const NO_SECTIONS = {
+  languages: [],
+  skills: [],
+  experience: [],
+  education: [],
+  licenses: [],
+  portfolio: [],
+};
 
 const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
   ({
@@ -41,17 +52,43 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     version: 3,
     completeness: 0,
     displayName: null,
+    avatarUrl: null,
     headline: null,
     overview: null,
     availabilityNote: null,
     locationCountry: null,
     locationRegion: null,
     locationCity: null,
+    serviceArea: null,
+    timezone: null,
+    remoteMode: null,
     availability: null,
     rateAmountMinor: null,
     rateCurrency: null,
+    sections: NO_SECTIONS,
+    visibility: {
+      profilePublic: false,
+      locationGranularity: 'hidden',
+      sections: {
+        nameHeadline: false,
+        biography: false,
+        location: false,
+        languages: false,
+        rate: false,
+        skills: false,
+        experience: false,
+        education: false,
+        licenses: false,
+        availability: false,
+      },
+      searchIndexable: false,
+    },
     ...overrides,
   }) as OwnProfile;
+
+/** A profile with the one language the completion counts as a first key step. */
+const withLanguage = () =>
+  stored({ sections: { ...NO_SECTIONS, languages: [{ name: 'English', proficiency: null }] } });
 
 const bar = () => screen.getByRole('progressbar', { name: 'Profile completion' });
 const section = (name: RegExp) => within(screen.getByRole('region', { name }));
@@ -70,11 +107,16 @@ beforeEach(() => {
   push.mockReset();
   window.localStorage.clear();
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
-  calls.save
-    .mockReset()
-    .mockImplementation((version, values) =>
-      Promise.resolve({ ok: true, profile: stored({ ...values, version: version + 1 }) }),
-    );
+  calls.skills.mockReset().mockResolvedValue([
+    { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
+    { slug: 'service-design', name: 'Service design', category: 'Design' },
+  ]);
+  calls.save.mockReset().mockImplementation((version, values) => {
+    // The claimed photo is a key to send, not a field the profile answers with,
+    // and a remote mode is one of three words rather than whatever was typed.
+    const { avatarKey: _claimed, remoteMode: _mode, ...fields } = values;
+    return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
+  });
 });
 
 describe('ProfileBuilder', () => {
@@ -85,8 +127,31 @@ describe('ProfileBuilder', () => {
       screen.getByRole('button', { name: 'Edit display name: Ayesha Khan' }),
     ).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet — kept in this browser');
-    expect(bar()).toHaveAttribute('aria-valuetext', '20 percent complete, 1 of 5 key steps');
+    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 5 key steps');
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  it('opens on the sections the profile already holds', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        displayName: 'Sophie Brandt',
+        locationCountry: 'AT',
+        sections: {
+          ...NO_SECTIONS,
+          languages: [{ name: 'German', proficiency: 'fluent' }],
+          skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
+        },
+      }),
+    });
+    await open();
+
+    expect(await screen.findByText('German · Fluent')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit location: Austria' })).toBeInTheDocument();
+    expect(section(/Skills and expertise/).getByText('Service design')).toBeInTheDocument();
+    // Filling the page in from the server is not work to send back.
+    expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -132,7 +197,31 @@ describe('ProfileBuilder', () => {
       }),
     );
     expect(await screen.findByText('All changes saved')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '40');
+    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+  });
+
+  it('sends every section in the one request the profile takes', async () => {
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    expect(sections).toMatchObject({ skills: [{ name: 'Figma' }] });
+  });
+
+  it('lets go of the browser draft once the save it was protecting lands', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Saved for real.');
+    await afterTheDraftIsWritten();
+    expect(window.localStorage.length).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(window.localStorage.length).toBe(0));
   });
 
   it('opens the page again on what was typed but never saved', async () => {
@@ -154,15 +243,14 @@ describe('ProfileBuilder', () => {
     expect(calls.save).not.toHaveBeenCalled();
   });
 
-  it('opens the skills editor inside its card and says where it is kept', async () => {
+  it('opens the skills editor inside its card and closes back to a summary', async () => {
     const user = await open();
 
     await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
 
     const skills = section(/Skills and expertise/);
     await user.type(await skills.findByLabelText('Skill'), 'Figma');
-    expect(skills.getByText(/kept in this browser/)).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '40');
+    expect(bar()).toHaveAttribute('aria-valuenow', '20');
 
     await user.click(skills.getByRole('button', { name: 'Close' }));
     expect(skills.getByText('Figma')).toBeInTheDocument();
@@ -178,7 +266,7 @@ describe('ProfileBuilder', () => {
     expect(await experience.findByRole('group', { name: 'Role 1' })).toBeInTheDocument();
     expect(experience.getByLabelText('Organization')).toBeInTheDocument();
     // Optional in the design, and not one of the five key steps.
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
   it('opens education and certifications separately, as the design draws them', async () => {
@@ -201,21 +289,25 @@ describe('ProfileBuilder', () => {
 
   it('needs a name and a title together for the identity step', async () => {
     const user = await open();
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
     await user.click(screen.getByRole('button', { name: 'Add title' }));
     await user.keyboard('Product Designer{Enter}');
 
-    expect(bar()).toHaveAttribute('aria-valuenow', '40');
+    expect(bar()).toHaveAttribute('aria-valuenow', '20');
   });
 
   it('removes a language from the header', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: withLanguage() });
     const user = await open();
+    expect(await screen.findByRole('button', { name: 'Remove English' })).toBeInTheDocument();
+    expect(bar()).toHaveAttribute('aria-valuenow', '20');
 
     await user.click(screen.getByRole('button', { name: 'Remove English' }));
 
-    expect(screen.queryByText('English · Conversational')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
   });
 
   it('explains a profile that could not be loaded, and tries again', async () => {

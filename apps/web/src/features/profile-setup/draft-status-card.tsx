@@ -30,14 +30,11 @@ export function DraftStatusCard({
   sectionsSaved,
   onRetry,
   onReload,
-  notice = null,
 }: {
   save: SaveState;
   sectionsSaved: number;
   onRetry: () => void;
   onReload: () => void;
-  /** Something on screen that this card's status does not cover, said plainly. */
-  notice?: string | null;
 }) {
   const now = useNow(30_000);
 
@@ -98,12 +95,6 @@ export function DraftStatusCard({
           Load the latest version
         </button>
       ) : null}
-
-      {notice === null ? null : (
-        <p className="mt-3 rounded-md bg-surface-warning-subtle px-3 py-2 text-xs text-content-warning">
-          {notice}
-        </p>
-      )}
 
       <p className="mt-4 flex items-baseline gap-1.5 border-t border-border-subtle pt-4">
         <span className="text-xl font-semibold text-content">{sectionsSaved}</span>

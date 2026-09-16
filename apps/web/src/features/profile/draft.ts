@@ -15,8 +15,10 @@ export type ProfileRecord = { id: string; fields: Record<string, string> };
 export type ProfileDraft = {
   displayName: string;
   title: string;
-  /** An object URL while the photo is only chosen; a real URL once uploaded. */
+  /** What the photo is shown from: the browser's own copy until the profile is saved. */
   avatarUrl: string | null;
+  /** The uploaded photo waiting to be claimed by the next save. Empty once it has been. */
+  avatarKey: string;
   country: string;
   languages: ProfileLanguage[];
   about: string;
@@ -28,6 +30,7 @@ export const EMPTY_DRAFT: ProfileDraft = {
   displayName: '',
   title: '',
   avatarUrl: null,
+  avatarKey: '',
   country: '',
   languages: [],
   about: '',

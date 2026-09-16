@@ -3,14 +3,20 @@
 import { useId, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { LuCamera, LuUser } from 'react-icons/lu';
-import { uploadAvatar } from './api.ts';
+import { uploadAvatar } from '@/features/profile-setup/api.ts';
 
 const ACCEPT = 'image/png,image/jpeg,image/webp';
-const MAX_BYTES = 5 * 1024 * 1024;
+
+export type ChosenPhoto = {
+  /** What to show it from until the profile is saved and the server names one. */
+  url: string;
+  /** What the next save claims. */
+  key: string;
+};
 
 export type AvatarPickerProps = {
   url: string | null;
-  onChange: (url: string) => void;
+  onChange: (photo: ChosenPhoto) => void;
 };
 
 /**
@@ -19,11 +25,19 @@ export type AvatarPickerProps = {
  * The control is a `<label>` over a hidden file input rather than a button that
  * clicks one: that way it is reachable by keyboard and announces itself as a
  * file picker, which a styled button forwarding a click does not.
+ *
+ * Choosing a photo uploads it straight to storage — the bytes never go through
+ * the API, which only signs the upload. What comes back is a key, and the
+ * profile claims it on its next save; a photo uploaded by someone who then
+ * leaves the page changes nothing. Until that save the picture on screen is the
+ * browser's own copy of the file, so the photo appears at once rather than
+ * after a round trip.
  */
 export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -32,13 +46,16 @@ export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
     event.target.value = '';
     if (file === undefined) return;
 
-    if (file.size > MAX_BYTES) {
-      setError('That image is over 5MB. Choose a smaller one.');
+    setError(null);
+    setBusy(true);
+    const result = await uploadAvatar(file);
+    setBusy(false);
+
+    if (!result.ok) {
+      setError(result.message);
       return;
     }
-    setError(null);
-    const result = await uploadAvatar(file);
-    onChange(result.url);
+    onChange({ url: URL.createObjectURL(file), key: result.key });
   }
 
   return (
@@ -48,9 +65,9 @@ export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
           {url === null ? (
             <LuUser aria-hidden="true" className="size-9 text-content-subtle" />
           ) : (
-            // Not `next/image`: the source is an object URL for a file the
-            // browser already holds, and there is nothing for the optimiser to
-            // fetch or resize.
+            // Not `next/image`: this is either the browser's own copy of a file
+            // it already holds or a URL from object storage, and neither is
+            // something the optimiser can fetch and resize.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt="" className="size-full object-cover" />
           )}
@@ -62,12 +79,17 @@ export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
         >
           <LuCamera aria-hidden="true" className="size-3.5" />
           <span className="sr-only">
-            {url === null ? 'Add a profile photo' : 'Change your profile photo'}
+            {busy
+              ? 'Uploading your profile photo'
+              : url === null
+                ? 'Add a profile photo'
+                : 'Change your profile photo'}
           </span>
           <input
             id={inputId}
             type="file"
             accept={ACCEPT}
+            disabled={busy}
             onChange={(event) => void handleChange(event)}
             {...(error === null ? {} : { 'aria-describedby': errorId })}
             className="sr-only"
@@ -75,6 +97,13 @@ export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
         </label>
       </div>
 
+      {/* Polite while it is working, assertive when it failed: one is progress,
+          the other is something the person has to act on. */}
+      {busy ? (
+        <p role="status" className="mt-2 w-40 text-xs text-content-subtle">
+          Uploading…
+        </p>
+      ) : null}
       {error === null ? null : (
         <p id={errorId} role="alert" className="mt-2 w-40 text-xs text-content-danger">
           {error}

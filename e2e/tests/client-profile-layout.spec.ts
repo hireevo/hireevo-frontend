@@ -31,11 +31,15 @@ const PROFILE = {
   version: 7,
   completeness: 20,
   displayName: null,
+  avatarUrl: null,
   headline: null,
   overview: null,
   locationCountry: null,
   locationRegion: null,
   locationCity: null,
+  serviceArea: null,
+  timezone: null,
+  remoteMode: null,
   availability: null,
   availabilityNote: null,
   rateAmountMinor: null,
@@ -48,16 +52,47 @@ const PROFILE = {
     postalCode: null,
     dateOfBirth: null,
   },
+  // Empty, so the page opens on an unfilled profile as the design draws it —
+  // and so the draft this suite writes is the newer of the two, which is what
+  // reopening the page has to prefer.
+  sections: {
+    languages: [],
+    skills: [],
+    experience: [],
+    education: [],
+    licenses: [],
+    portfolio: [],
+  },
   visibility: {
     profilePublic: false,
     locationGranularity: 'country',
-    showRates: false,
-    showCredentials: false,
-    showPortfolio: true,
-    showScore: false,
+    sections: {
+      nameHeadline: false,
+      biography: false,
+      location: false,
+      languages: false,
+      rate: false,
+      skills: false,
+      experience: false,
+      education: false,
+      licenses: false,
+      availability: false,
+    },
+    searchIndexable: false,
   },
   publishedAt: null,
   updatedAt: '2026-09-15T10:00:00.000Z',
+};
+
+/** The approved taxonomy, as the skills endpoint serves it. */
+const SKILLS = {
+  skills: [
+    { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
+    { slug: 'content-design', name: 'Content design', category: 'Design' },
+    { slug: 'design-systems', name: 'Design systems', category: 'Design' },
+    { slug: 'service-design', name: 'Service design', category: 'Design' },
+    { slug: 'user-research', name: 'User research', category: 'Research' },
+  ],
 };
 
 function fulfil(route: Route, body: unknown, status = 200) {
@@ -103,6 +138,10 @@ test.beforeEach(async ({ page }) => {
     (url) => url.pathname === '/api/v1/profiles/me',
     (route) =>
       fulfil(route, route.request().method() === 'PATCH' ? { ...PROFILE, version: 8 } : PROFILE),
+  );
+  await page.route(
+    (url) => url.pathname === '/api/v1/skills',
+    (route) => fulfil(route, SKILLS),
   );
 });
 

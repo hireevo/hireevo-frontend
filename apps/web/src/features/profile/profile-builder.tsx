@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LuAward, LuBriefcaseBusiness, LuGraduationCap, LuStar, LuUser } from 'react-icons/lu';
 import { Button, Card } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
@@ -13,13 +13,28 @@ import {
   SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
+import { countryByCode, countryByName } from '@/features/profile-setup/location-options.ts';
+import { fromSavedSections, toSectionsPayload } from '@/features/profile-setup/sections-payload.ts';
+import { PROFICIENCIES as SKILL_PROFICIENCIES } from '@/features/profile-setup/skill-options.ts';
 import { useEntries } from '@/features/profile-setup/use-entries.ts';
 import { useProfileDraft } from '@/features/profile-setup/use-profile-draft.ts';
 import { displayNameOf } from '@/features/workspace/snapshot.ts';
 import { AddButton } from './add-button.tsx';
-import { entriesFrom, readDraft, writeDraft, type DraftContents } from './client-profile-draft.ts';
+import {
+  clearDraft,
+  entriesFrom,
+  readDraft,
+  writeDraft,
+  type DraftContents,
+} from './client-profile-draft.ts';
 import { CompletionCard } from './completion-card.tsx';
-import { EMPTY_DRAFT, completionOf, type ProfileDraft } from './draft.ts';
+import {
+  EMPTY_DRAFT,
+  PROFICIENCIES,
+  completionOf,
+  type ProfileDraft,
+  type Proficiency,
+} from './draft.ts';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { RecordSection } from './record-section.tsx';
 import { RECORD_SPECS } from './record-specs.tsx';
@@ -32,39 +47,27 @@ import {
   SkillsEditor,
 } from './section-editors.tsx';
 
-/**
- * The design shows one language already on the profile, and the completion
- * counting it as the first of five key steps. It is the account's own language
- * rather than something the person added, which is why it is here and not in
- * `EMPTY_DRAFT` — an empty draft is empty.
- */
-const STARTING_DRAFT: ProfileDraft = {
-  ...EMPTY_DRAFT,
-  country: 'Pakistan',
-  languages: [{ name: 'English', proficiency: 'Conversational' }],
-};
-
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
 type OpenSection = 'about' | 'skills' | 'experience' | 'education' | 'certifications' | null;
 
-/** Said under a section the profile API has no fields for. */
-const NOT_CONNECTED =
-  'Your profile cannot store this section yet, so it is kept in this browser until it can.';
-
 /** How long to wait after a keystroke before writing the draft to this browser. */
 const DRAFT_DELAY = 400;
+
+/** A stored language level as one of the ones offered, or the mildest if it is none. */
+const asProficiency = (value: string): Proficiency =>
+  PROFICIENCIES.find((level) => level === value) ?? PROFICIENCIES[0];
 
 /**
  * The client profile: everything a buyer sees, and the way in to each part of it.
  *
  * Signing in lands here, and the form is filled in a section at a time with one
  * Save at the end of it — so nothing is sent while someone is still thinking.
- * What that Save sends is the About fields, which is all the profile API can
- * hold today; the rest waits for it.
+ * That Save sends the whole profile, fields and lists together, in the one
+ * request the API takes.
  *
- * Nothing typed is lost in the meantime: every keystroke goes into a draft in
- * this browser, and opening the page again starts from it. That draft is this
- * browser only, which the page says rather than implying an account-wide save.
+ * Nothing typed is lost while it waits: every keystroke goes into a draft in
+ * this browser, and opening the page again starts from it rather than from what
+ * was last saved. The draft is cleared once the save it was protecting lands.
  *
  * Each section's editor is fetched when that section is opened rather than
  * shipped with the page: see section-editors.tsx.
@@ -79,11 +82,6 @@ export function ProfileBuilder() {
     userId === null ? null : readDraft(userId),
   );
 
-  const identity = useProfileDraft({
-    autosave: false,
-    ...(user === null ? {} : { fallbackDisplayName: displayNameOf(user) }),
-    ...(stored === null ? {} : { restore: stored.identity }),
-  });
   const skills = useEntries('skill', SKILL_FIELDS, {
     normalise: normaliseSkill,
     initial: entriesFrom(SKILL_FIELDS, stored?.skills),
@@ -103,17 +101,102 @@ export function ProfileBuilder() {
 
   const [draft, setDraft] = useState<ProfileDraft>(() =>
     stored === null
-      ? STARTING_DRAFT
+      ? EMPTY_DRAFT
       : {
-          ...STARTING_DRAFT,
+          ...EMPTY_DRAFT,
           country: stored.country,
           languages: stored.languages,
-          records: { ...STARTING_DRAFT.records, portfolio: stored.portfolio },
+          records: { ...EMPTY_DRAFT.records, portfolio: stored.portfolio },
         },
   );
   const [open, setOpen] = useState<OpenSection>(null);
 
+  const languages = draft.languages;
+  const portfolio = draft.records.portfolio;
+
+  const collect = useCallback(
+    () =>
+      toSectionsPayload({
+        languages: languages.map((language) => ({
+          name: language.name,
+          proficiency: language.proficiency,
+        })),
+        skills: skills.items.map((item) => item.values),
+        experience: experience.items.map((item) => item.values),
+        education: education.items.map((item) => item.values),
+        licenses: licenses.items.map((item) => item.values),
+        portfolio: portfolio.map((record) => record.fields),
+      }),
+    [languages, portfolio, skills.items, experience.items, education.items, licenses.items],
+  );
+
+  const identity = useProfileDraft({
+    autosave: false,
+    collect,
+    ...(user === null ? {} : { fallbackDisplayName: displayNameOf(user) }),
+    ...(stored === null ? {} : { restore: stored.identity }),
+  });
+
   const values = identity.values;
+
+  // The profile arrives after the page has rendered. Where this browser holds a
+  // draft it is the later of the two and is left alone; otherwise the sections
+  // are filled in from what was saved, which counts as saved rather than as
+  // work to send straight back.
+  const stage = useRef<'waiting' | 'filling' | 'editing'>(stored === null ? 'waiting' : 'editing');
+  // A draft from this browser is already in the sections, so there is nothing to
+  // wait for; otherwise the page waits for the server's lists to be put there.
+  const [seeded, setSeeded] = useState(stored !== null);
+  const sent = useRef('');
+  const { profile, rebaseline, touch } = identity;
+  useEffect(() => {
+    if (profile === null) return;
+
+    if (stage.current === 'waiting') {
+      stage.current = 'filling';
+      const saved = fromSavedSections(profile.sections, {
+        languages: PROFICIENCIES,
+        skills: SKILL_PROFICIENCIES,
+      });
+      skills.reset(saved.skills);
+      experience.reset(saved.experience);
+      education.reset(saved.education);
+      licenses.reset(saved.licenses);
+      setDraft((current) => ({
+        ...current,
+        avatarUrl: profile.avatarUrl,
+        country: countryByCode(profile.locationCountry)?.name ?? '',
+        languages: saved.languages.map((language) => ({
+          name: language.name,
+          proficiency: asProficiency(language.proficiency),
+        })),
+        records: {
+          ...current.records,
+          portfolio: saved.portfolio.map((piece, index) => ({
+            id: `portfolio-${index}`,
+            fields: { title: piece.title, url: piece.url, summary: piece.summary },
+          })),
+        },
+      }));
+      setSeeded(true);
+      return;
+    }
+
+    if (stage.current === 'filling') {
+      stage.current = 'editing';
+      sent.current = JSON.stringify(collect());
+      rebaseline();
+      return;
+    }
+
+    const now = JSON.stringify(collect());
+    if (now === sent.current) return;
+    sent.current = now;
+    touch();
+    // The lists themselves are what this watches; `collect` changes with them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, collect, rebaseline, touch]);
+
   const entries = {
     skills: skills.items,
     experience: experience.items,
@@ -148,14 +231,6 @@ export function ProfileBuilder() {
     entries.licenses,
   ]);
 
-  if (identity.load.status === 'loading') {
-    return (
-      <p role="status" className="text-sm text-content-subtle">
-        Loading your profile…
-      </p>
-    );
-  }
-
   if (identity.load.status === 'error') {
     return (
       <div className="flex flex-col items-start gap-4">
@@ -167,7 +242,19 @@ export function ProfileBuilder() {
     );
   }
 
-  /** The header card edits the same name and headline the About editor does. */
+  // Still loading until the lists are in their sections, not just until the
+  // profile has arrived. Showing the sections a moment early means showing them
+  // empty and then replacing them, and anything typed into that first moment is
+  // typed into fields that are about to be thrown away.
+  if (identity.load.status === 'loading' || !seeded) {
+    return (
+      <p role="status" className="text-sm text-content-subtle">
+        Loading your profile…
+      </p>
+    );
+  }
+
+  /** The header card edits the same name, headline and country the profile holds. */
   const headerDraft: ProfileDraft = {
     ...draft,
     displayName: values.displayName,
@@ -175,9 +262,17 @@ export function ProfileBuilder() {
   };
 
   function patchHeader(patch: Partial<ProfileDraft>) {
-    const { displayName, title, ...rest } = patch;
+    const { displayName, title, avatarKey, country, ...rest } = patch;
     if (displayName !== undefined) identity.change('displayName', displayName);
     if (title !== undefined) identity.change('headline', title);
+    if (avatarKey !== undefined) identity.change('avatarKey', avatarKey);
+    if (country !== undefined) {
+      // The field takes a country's name; the profile stores its code. A name
+      // that is not one of them clears the code rather than saving something
+      // the API would refuse — and the name stays on screen to be corrected.
+      identity.change('locationCountry', countryByName(country)?.code ?? '');
+      setDraft((current) => ({ ...current, country }));
+    }
     if (Object.keys(rest).length > 0) setDraft((current) => ({ ...current, ...rest }));
   }
 
@@ -190,10 +285,15 @@ export function ProfileBuilder() {
   const saveStatus = {
     saved: 'All changes saved',
     saving: 'Saving your changes…',
-    unsaved: 'Not saved yet — kept in this browser',
+    unsaved: 'Not saved yet',
     failed: identity.save.kind === 'failed' ? identity.save.message : '',
     conflict: identity.save.kind === 'conflict' ? identity.save.message : '',
   }[identity.save.kind];
+
+  /** Saves the whole profile, and lets go of the draft that was protecting it. */
+  async function save() {
+    if ((await identity.flush()) && userId !== null) clearDraft(userId);
+  }
 
   /** Opens a section, or closes it when it is the one already open. */
   const toggle = (section: Exclude<OpenSection, null>) =>
@@ -204,8 +304,6 @@ export function ProfileBuilder() {
       Close
     </Button>
   );
-
-  const keptHere = <p className="mb-4 text-xs text-content-subtle">{NOT_CONNECTED}</p>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -265,10 +363,7 @@ export function ProfileBuilder() {
         }
       >
         {open === 'skills' ? (
-          <>
-            {keptHere}
-            <SkillsEditor skills={skills} heading={false} />
-          </>
+          <SkillsEditor skills={skills} heading={false} />
         ) : namedSkills.length === 0 ? undefined : (
           <p className="text-sm text-content-muted">{namedSkills.join(' · ')}</p>
         )}
@@ -289,10 +384,7 @@ export function ProfileBuilder() {
         }
       >
         {open === 'experience' ? (
-          <>
-            {keptHere}
-            <ExperienceEditor experience={experience} heading={false} />
-          </>
+          <ExperienceEditor experience={experience} heading={false} />
         ) : undefined}
       </SectionCard>
 
@@ -315,10 +407,7 @@ export function ProfileBuilder() {
           }
         >
           {open === 'education' ? (
-            <>
-              {keptHere}
-              <EducationEditor education={education} heading={false} />
-            </>
+            <EducationEditor education={education} heading={false} />
           ) : undefined}
         </SectionCard>
 
@@ -338,10 +427,7 @@ export function ProfileBuilder() {
           }
         >
           {open === 'certifications' ? (
-            <>
-              {keptHere}
-              <LicenseEditor licenses={licenses} heading={false} />
-            </>
+            <LicenseEditor licenses={licenses} heading={false} />
           ) : undefined}
         </SectionCard>
       </div>
@@ -365,14 +451,13 @@ export function ProfileBuilder() {
             {saveStatus}
           </p>
           <p className="mt-1 text-xs text-content-subtle">
-            Everything you type is kept in this browser as you go. Saving sends your name, headline,
-            biography and availability to your profile; the other sections wait until it can hold
-            them.
+            Everything you type is kept in this browser until you save, so nothing is lost if you
+            close the page. Saving sends the whole profile — your details and every section.
           </p>
         </div>
         <Button
           type="button"
-          onClick={() => void identity.flush()}
+          onClick={() => void save()}
           loading={identity.save.kind === 'saving'}
           loadingLabel="Saving"
           className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
