@@ -1774,6 +1774,24 @@
         "required": ["slug", "name", "status"],
         "additionalProperties": false
       },
+      "ProfileConflictDetails": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "currentVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "yourVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["currentVersion", "yourVersion"],
+        "additionalProperties": false
+      },
       "OwnProfileResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",

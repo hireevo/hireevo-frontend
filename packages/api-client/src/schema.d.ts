@@ -625,6 +625,10 @@ export interface components {
             /** @enum {string} */
             status: "pending" | "accepted" | "declined";
         };
+        ProfileConflictDetails: {
+            currentVersion: number;
+            yourVersion: number;
+        };
         OwnProfileResponse: {
             id: string;
             slug: string;
