@@ -597,6 +597,43 @@ export interface components {
                 postalCode: string | null;
                 dateOfBirth: string | null;
             };
+            sections: {
+                languages: {
+                    name: string;
+                    proficiency: ("basic" | "conversational" | "fluent" | "native") | null;
+                }[];
+                skills: {
+                    name: string;
+                    proficiency: ("beginner" | "intermediate" | "advanced" | "expert") | null;
+                    years: number | null;
+                    approved: boolean;
+                }[];
+                experience: {
+                    role: string;
+                    organization: string | null;
+                    startDate: string | null;
+                    endDate: string | null;
+                    summary: string | null;
+                }[];
+                education: {
+                    institution: string;
+                    qualification: string | null;
+                    fieldOfStudy: string | null;
+                    startDate: string | null;
+                    endDate: string | null;
+                }[];
+                licenses: {
+                    name: string;
+                    issuer: string | null;
+                    issuedOn: string | null;
+                    expiresOn: string | null;
+                }[];
+                portfolio: {
+                    title: string;
+                    url: string | null;
+                    summary: string | null;
+                }[];
+            };
             visibility: {
                 profilePublic: boolean;
                 /** @enum {string} */
@@ -633,6 +670,42 @@ export interface components {
                 addressLine2?: string | null;
                 postalCode?: string | null;
                 dateOfBirth?: string | null;
+            };
+            sections?: {
+                languages?: {
+                    name: string;
+                    proficiency?: ("basic" | "conversational" | "fluent" | "native") | null;
+                }[];
+                skills?: {
+                    name: string;
+                    proficiency?: ("beginner" | "intermediate" | "advanced" | "expert") | null;
+                    years?: number | null;
+                }[];
+                experience?: {
+                    role: string;
+                    organization?: string | null;
+                    startDate?: string | null;
+                    endDate?: string | null;
+                    summary?: string | null;
+                }[];
+                education?: {
+                    institution: string;
+                    qualification?: string | null;
+                    fieldOfStudy?: string | null;
+                    startDate?: string | null;
+                    endDate?: string | null;
+                }[];
+                licenses?: {
+                    name: string;
+                    issuer?: string | null;
+                    issuedOn?: string | null;
+                    expiresOn?: string | null;
+                }[];
+                portfolio?: {
+                    title: string;
+                    url?: string | null;
+                    summary?: string | null;
+                }[];
             };
         };
         UpdateVisibilityRequest: {
