@@ -79,8 +79,11 @@ export function ExperienceList({ experience }: { experience: Entries<ExperienceF
                       />
                     )}
                   </SetupField>
-                  {/* The design marks every field here Optional except this one. */}
-                  <SetupField label="End date" optional={false} error={error('endDate')}>
+                  <SetupField
+                    label="End date"
+                    hint="Leave empty if this is your current role"
+                    error={error('endDate')}
+                  >
                     {(control) => (
                       <input
                         {...control}

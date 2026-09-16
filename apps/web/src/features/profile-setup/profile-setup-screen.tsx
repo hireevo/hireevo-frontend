@@ -12,6 +12,7 @@ import {
   LANGUAGE_FIELDS,
   LICENSE_FIELDS,
   SKILL_FIELDS,
+  OPEN_ENDED,
   normaliseSkill,
   todayIso,
   validateEducation,
@@ -91,10 +92,10 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
   const [publish, setPublish] = useState<PublishState>({ kind: 'idle' });
   const location = useLocationDraft();
   const languages = useEntries('language', LANGUAGE_FIELDS);
-  const skills = useEntries('skill', SKILL_FIELDS, normaliseSkill);
-  const experience = useEntries('role', EXPERIENCE_FIELDS);
-  const education = useEntries('institution', EDUCATION_FIELDS);
-  const licenses = useEntries('license', LICENSE_FIELDS);
+  const skills = useEntries('skill', SKILL_FIELDS, { normalise: normaliseSkill });
+  const experience = useEntries('role', EXPERIENCE_FIELDS, { optional: OPEN_ENDED.experience });
+  const education = useEntries('institution', EDUCATION_FIELDS, { optional: OPEN_ENDED.education });
+  const licenses = useEntries('license', LICENSE_FIELDS, { optional: OPEN_ENDED.licenses });
   const visibility = useVisibilityDraft();
 
   const loaded = draft.load.status !== 'loading' && draft.load.status !== 'error';

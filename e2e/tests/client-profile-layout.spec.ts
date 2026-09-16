@@ -114,12 +114,11 @@ async function open(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-test('opens on the account holder’s name, with the workspace navigation', async ({ page }) => {
+test('opens on the account holder’s name', async ({ page }) => {
   await open(page);
 
   await expect(page.getByRole('button', { name: 'Edit display name: Ayesha Khan' })).toBeVisible();
   await expect(page.getByText('@ayeshakhan')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeVisible();
 });
 
 test('fetches a section’s editor only when that section is opened', async ({ page }) => {

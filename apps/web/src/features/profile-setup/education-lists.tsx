@@ -84,7 +84,11 @@ export function EducationList({ education }: { education: Entries<EducationField
                   <SetupField label="Start date" optional={false} error={error('startDate')}>
                     {(control) => <input {...control} {...bind('startDate')} {...DATE_INPUT} />}
                   </SetupField>
-                  <SetupField label="End date" error={error('endDate')}>
+                  <SetupField
+                    label="End date"
+                    hint="Leave empty if you are still studying"
+                    error={error('endDate')}
+                  >
                     {(control) => <input {...control} {...bind('endDate')} {...DATE_INPUT} />}
                   </SetupField>
                 </div>
@@ -146,7 +150,11 @@ export function LicenseList({ licenses }: { licenses: Entries<LicenseField> }) {
                   <SetupField label="Issued" error={error('issued')}>
                     {(control) => <input {...control} {...bind('issued')} {...DATE_INPUT} />}
                   </SetupField>
-                  <SetupField label="Expires" error={error('expires')}>
+                  <SetupField
+                    label="Expires"
+                    hint="Leave empty if it does not expire"
+                    error={error('expires')}
+                  >
                     {(control) => <input {...control} {...bind('expires')} {...DATE_INPUT} />}
                   </SetupField>
                 </div>

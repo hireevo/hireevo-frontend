@@ -117,9 +117,11 @@ test.describe('account journey', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL('**/client-profile');
 
-    // Signing in lands on the workspace, and the account page is one click from
-    // its header. A click rather than `goto`, so the in-memory access token
-    // survives and the check below is about the token sign-in handed over.
+    // Signing in lands on the client profile, which carries no navigation of its
+    // own, so the workspace is one address away and the account page one click
+    // from its header. That click, rather than a second `goto`, is what keeps
+    // the check below about a token an ordinary request carried.
+    await page.goto('/dashboard');
     await page
       .getByRole('navigation', { name: 'Workspace' })
       .getByRole('link', { name: 'Account' })
@@ -252,6 +254,7 @@ test.describe('account journey', () => {
     await page.getByLabel('Password').fill(newPassword);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForURL('**/client-profile');
+    await page.goto('/dashboard');
     await page
       .getByRole('navigation', { name: 'Workspace' })
       .getByRole('link', { name: 'Account' })

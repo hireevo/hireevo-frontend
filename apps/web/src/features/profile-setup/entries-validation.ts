@@ -21,6 +21,17 @@ export const LICENSE_FIELDS = ['name', 'issuer', 'issued', 'expires'] as const;
 
 export const MAX_YEARS = 60;
 
+/**
+ * The fields an entry may leave empty: a role someone is still in has no end
+ * date, and a license that does not expire has no expiry. Requiring them would
+ * leave those people unable to finish the section at all.
+ */
+export const OPEN_ENDED = {
+  experience: ['endDate'],
+  education: ['endDate'],
+  licenses: ['expires'],
+} as const;
+
 type Items<T extends readonly string[]> = readonly Entry<T[number]>[];
 type Found = Record<string, string>;
 

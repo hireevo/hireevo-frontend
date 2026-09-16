@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ProfileBuilder } from '@/features/profile/profile-builder.tsx';
-import { WorkspaceTopBar } from '@/features/workspace/workspace-top-bar.tsx';
 
 export const metadata: Metadata = {
   title: 'Client profile',
@@ -14,9 +13,6 @@ export const metadata: Metadata = {
 export default function ClientProfilePage() {
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* Signing in lands here, so this page carries the workspace navigation. */}
-      <WorkspaceTopBar />
-
       <main id="main-content" className="mx-auto w-full max-w-[1010px] px-4 pt-8 pb-24 sm:px-6">
         <nav aria-label="Breadcrumb">
           <ol className="flex items-center gap-2 text-sm text-content-subtle">

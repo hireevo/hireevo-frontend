@@ -32,7 +32,18 @@ function withoutKey(errors: EntryErrors, name: string): EntryErrors {
 export function useEntries<F extends string>(
   prefix: string,
   fields: readonly F[],
-  normalise?: (field: F, value: string) => string,
+  {
+    normalise,
+    optional = [],
+  }: {
+    normalise?: (field: F, value: string) => string;
+    /**
+     * Fields an entry may leave empty and still count as finished — an end date
+     * on a role someone still holds, an expiry on a license that never expires.
+     * Everything else has to be filled in.
+     */
+    optional?: readonly F[];
+  } = {},
 ) {
   const next = useRef(1);
   const [items, setItems] = useState<Entry<F>[]>(() => [
@@ -66,7 +77,8 @@ export function useEntries<F extends string>(
     setErrors((current) => withoutKey(current, errorKey(key, field)));
   }
 
-  const filled = (item: Entry<F>) => fields.every((field) => item.values[field].trim() !== '');
+  const filled = (item: Entry<F>) =>
+    fields.every((field) => optional.includes(field) || item.values[field].trim() !== '');
 
   return {
     items,

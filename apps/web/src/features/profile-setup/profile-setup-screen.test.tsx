@@ -551,7 +551,7 @@ describe('Languages and skills', () => {
 });
 
 describe('Experience', () => {
-  it('is locked while the end date is empty, as the design shows', async () => {
+  it('accepts a role with no end date, which is a role someone still holds', async () => {
     const user = renderScreen();
     const experience = await section(/Step 4:\s?Experience/);
 
@@ -560,7 +560,9 @@ describe('Experience', () => {
     await user.type(experience.getByLabelText('Start date'), '2022-02-01');
     await user.type(experience.getByLabelText('Summary'), 'Led discovery.');
 
-    expect(experience.getByText('Complete every field to continue')).toBeInTheDocument();
+    expect(experience.getByText('All fields complete')).toBeInTheDocument();
+    await user.click(experience.getByRole('button', { name: /Save and next/ }));
+    expect(nav.push).toHaveBeenCalledWith('/profile/setup?step=education', { scroll: false });
   });
 
   it('refuses an end date before the start date', async () => {
@@ -605,6 +607,9 @@ describe('Education and licenses', () => {
     expect(education.getByRole('alert')).toHaveTextContent(
       'The expiry date is before the issue date.',
     );
+
+    await user.clear(education.getByLabelText('Expires'));
+    expect(education.getByText('All fields complete')).toBeInTheDocument();
 
     await user.clear(education.getByLabelText('Expires'));
     await user.type(education.getByLabelText('Expires'), '2028-03-10');

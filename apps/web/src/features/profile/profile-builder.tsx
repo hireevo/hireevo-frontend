@@ -10,6 +10,7 @@ import {
   EXPERIENCE_FIELDS,
   LICENSE_FIELDS,
   SKILL_FIELDS,
+  OPEN_ENDED,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
 import { useEntries } from '@/features/profile-setup/use-entries.ts';
@@ -66,10 +67,10 @@ export function ProfileBuilder() {
   const identity = useProfileDraft(
     user === null ? {} : { fallbackDisplayName: displayNameOf(user) },
   );
-  const skills = useEntries('skill', SKILL_FIELDS, normaliseSkill);
-  const experience = useEntries('role', EXPERIENCE_FIELDS);
-  const education = useEntries('institution', EDUCATION_FIELDS);
-  const licenses = useEntries('license', LICENSE_FIELDS);
+  const skills = useEntries('skill', SKILL_FIELDS, { normalise: normaliseSkill });
+  const experience = useEntries('role', EXPERIENCE_FIELDS, { optional: OPEN_ENDED.experience });
+  const education = useEntries('institution', EDUCATION_FIELDS, { optional: OPEN_ENDED.education });
+  const licenses = useEntries('license', LICENSE_FIELDS, { optional: OPEN_ENDED.licenses });
 
   const [draft, setDraft] = useState<ProfileDraft>(STARTING_DRAFT);
   const [open, setOpen] = useState<OpenSection>(null);

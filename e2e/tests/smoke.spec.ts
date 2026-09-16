@@ -54,7 +54,9 @@ test('someone already signed in is taken past sign-in to their workspace', async
   await expect(
     page.getByRole('heading', { name: 'Build a profile that wins briefs', level: 1 }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Account menu for Signed In' })).toBeVisible();
+  // Only where the app sends them: this test answers the auth endpoints alone,
+  // and what the client profile shows of someone's profile is checked in
+  // client-profile-layout.spec.ts, which answers the profile API too.
 });
 
 test('the design system showcase renders', async ({ page }) => {
