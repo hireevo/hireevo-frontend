@@ -694,10 +694,19 @@ export interface components {
                 profilePublic: boolean;
                 /** @enum {string} */
                 locationGranularity: "hidden" | "country" | "region" | "city";
-                showRates: boolean;
-                showCredentials: boolean;
-                showPortfolio: boolean;
-                showScore: boolean;
+                sections: {
+                    nameHeadline: boolean;
+                    biography: boolean;
+                    location: boolean;
+                    languages: boolean;
+                    rate: boolean;
+                    skills: boolean;
+                    experience: boolean;
+                    education: boolean;
+                    licenses: boolean;
+                    availability: boolean;
+                };
+                searchIndexable: boolean;
             };
             publishedAt: string | null;
             updatedAt: string;
@@ -765,22 +774,41 @@ export interface components {
             };
         };
         UpdateVisibilityRequest: {
+            version: number;
             profilePublic: boolean;
             /** @enum {string} */
             locationGranularity: "hidden" | "country" | "region" | "city";
-            showRates: boolean;
-            showCredentials: boolean;
-            showPortfolio: boolean;
-            showScore: boolean;
+            sections: {
+                nameHeadline: boolean;
+                biography: boolean;
+                location: boolean;
+                languages: boolean;
+                rate: boolean;
+                skills: boolean;
+                experience: boolean;
+                education: boolean;
+                licenses: boolean;
+                availability: boolean;
+            };
+            searchIndexable: boolean;
         };
         ProfileVisibilityResponse: {
             profilePublic: boolean;
             /** @enum {string} */
             locationGranularity: "hidden" | "country" | "region" | "city";
-            showRates: boolean;
-            showCredentials: boolean;
-            showPortfolio: boolean;
-            showScore: boolean;
+            sections: {
+                nameHeadline: boolean;
+                biography: boolean;
+                location: boolean;
+                languages: boolean;
+                rate: boolean;
+                skills: boolean;
+                experience: boolean;
+                education: boolean;
+                licenses: boolean;
+                availability: boolean;
+            };
+            searchIndexable: boolean;
         };
         ProfileRevisionList: {
             version: number;
@@ -799,6 +827,34 @@ export interface components {
                 amountMinor: string;
                 currency: string;
             } | null;
+            languages: {
+                name: string;
+                proficiency: string | null;
+            }[];
+            skills: {
+                name: string;
+                proficiency: string | null;
+            }[];
+            experience: {
+                role: string;
+                organization: string | null;
+                startDate: string | null;
+                endDate: string | null;
+                summary: string | null;
+            }[];
+            education: {
+                institution: string;
+                qualification: string | null;
+                fieldOfStudy: string | null;
+                startDate: string | null;
+                endDate: string | null;
+            }[];
+            licenses: {
+                name: string;
+                issuer: string | null;
+                issuedOn: string | null;
+                expiresOn: string | null;
+            }[];
             publishedAt: string | null;
         };
     };
@@ -1523,6 +1579,15 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

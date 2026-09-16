@@ -894,6 +894,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Set what the profile shows publicly",
@@ -2054,27 +2064,59 @@
                 "type": "string",
                 "enum": ["hidden", "country", "region", "city"]
               },
-              "showRates": {
-                "type": "boolean"
+              "sections": {
+                "type": "object",
+                "properties": {
+                  "nameHeadline": {
+                    "type": "boolean"
+                  },
+                  "biography": {
+                    "type": "boolean"
+                  },
+                  "location": {
+                    "type": "boolean"
+                  },
+                  "languages": {
+                    "type": "boolean"
+                  },
+                  "rate": {
+                    "type": "boolean"
+                  },
+                  "skills": {
+                    "type": "boolean"
+                  },
+                  "experience": {
+                    "type": "boolean"
+                  },
+                  "education": {
+                    "type": "boolean"
+                  },
+                  "licenses": {
+                    "type": "boolean"
+                  },
+                  "availability": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "nameHeadline",
+                  "biography",
+                  "location",
+                  "languages",
+                  "rate",
+                  "skills",
+                  "experience",
+                  "education",
+                  "licenses",
+                  "availability"
+                ],
+                "additionalProperties": false
               },
-              "showCredentials": {
-                "type": "boolean"
-              },
-              "showPortfolio": {
-                "type": "boolean"
-              },
-              "showScore": {
+              "searchIndexable": {
                 "type": "boolean"
               }
             },
-            "required": [
-              "profilePublic",
-              "locationGranularity",
-              "showRates",
-              "showCredentials",
-              "showPortfolio",
-              "showScore"
-            ],
+            "required": ["profilePublic", "locationGranularity", "sections", "searchIndexable"],
             "additionalProperties": false
           },
           "publishedAt": {
@@ -2631,6 +2673,11 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
           "profilePublic": {
             "type": "boolean"
           },
@@ -2638,26 +2685,63 @@
             "type": "string",
             "enum": ["hidden", "country", "region", "city"]
           },
-          "showRates": {
-            "type": "boolean"
+          "sections": {
+            "type": "object",
+            "properties": {
+              "nameHeadline": {
+                "type": "boolean"
+              },
+              "biography": {
+                "type": "boolean"
+              },
+              "location": {
+                "type": "boolean"
+              },
+              "languages": {
+                "type": "boolean"
+              },
+              "rate": {
+                "type": "boolean"
+              },
+              "skills": {
+                "type": "boolean"
+              },
+              "experience": {
+                "type": "boolean"
+              },
+              "education": {
+                "type": "boolean"
+              },
+              "licenses": {
+                "type": "boolean"
+              },
+              "availability": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "nameHeadline",
+              "biography",
+              "location",
+              "languages",
+              "rate",
+              "skills",
+              "experience",
+              "education",
+              "licenses",
+              "availability"
+            ]
           },
-          "showCredentials": {
-            "type": "boolean"
-          },
-          "showPortfolio": {
-            "type": "boolean"
-          },
-          "showScore": {
+          "searchIndexable": {
             "type": "boolean"
           }
         },
         "required": [
+          "version",
           "profilePublic",
           "locationGranularity",
-          "showRates",
-          "showCredentials",
-          "showPortfolio",
-          "showScore"
+          "sections",
+          "searchIndexable"
         ]
       },
       "ProfileVisibilityResponse": {
@@ -2671,27 +2755,59 @@
             "type": "string",
             "enum": ["hidden", "country", "region", "city"]
           },
-          "showRates": {
-            "type": "boolean"
+          "sections": {
+            "type": "object",
+            "properties": {
+              "nameHeadline": {
+                "type": "boolean"
+              },
+              "biography": {
+                "type": "boolean"
+              },
+              "location": {
+                "type": "boolean"
+              },
+              "languages": {
+                "type": "boolean"
+              },
+              "rate": {
+                "type": "boolean"
+              },
+              "skills": {
+                "type": "boolean"
+              },
+              "experience": {
+                "type": "boolean"
+              },
+              "education": {
+                "type": "boolean"
+              },
+              "licenses": {
+                "type": "boolean"
+              },
+              "availability": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "nameHeadline",
+              "biography",
+              "location",
+              "languages",
+              "rate",
+              "skills",
+              "experience",
+              "education",
+              "licenses",
+              "availability"
+            ],
+            "additionalProperties": false
           },
-          "showCredentials": {
-            "type": "boolean"
-          },
-          "showPortfolio": {
-            "type": "boolean"
-          },
-          "showScore": {
+          "searchIndexable": {
             "type": "boolean"
           }
         },
-        "required": [
-          "profilePublic",
-          "locationGranularity",
-          "showRates",
-          "showCredentials",
-          "showPortfolio",
-          "showScore"
-        ],
+        "required": ["profilePublic", "locationGranularity", "sections", "searchIndexable"],
         "additionalProperties": false
       },
       "ProfileRevisionList": {
@@ -2769,6 +2885,110 @@
               }
             ]
           },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "proficiency": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "proficiency"],
+              "additionalProperties": false
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "proficiency": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "proficiency"],
+              "additionalProperties": false
+            }
+          },
+          "experience": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "organization": {
+                  "type": ["string", "null"]
+                },
+                "startDate": {
+                  "type": ["string", "null"]
+                },
+                "endDate": {
+                  "type": ["string", "null"]
+                },
+                "summary": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["role", "organization", "startDate", "endDate", "summary"],
+              "additionalProperties": false
+            }
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "institution": {
+                  "type": "string"
+                },
+                "qualification": {
+                  "type": ["string", "null"]
+                },
+                "fieldOfStudy": {
+                  "type": ["string", "null"]
+                },
+                "startDate": {
+                  "type": ["string", "null"]
+                },
+                "endDate": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["institution", "qualification", "fieldOfStudy", "startDate", "endDate"],
+              "additionalProperties": false
+            }
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "issuer": {
+                  "type": ["string", "null"]
+                },
+                "issuedOn": {
+                  "type": ["string", "null"]
+                },
+                "expiresOn": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "issuer", "issuedOn", "expiresOn"],
+              "additionalProperties": false
+            }
+          },
           "publishedAt": {
             "type": ["string", "null"]
           }
@@ -2782,6 +3002,11 @@
           "availability",
           "availabilityNote",
           "rate",
+          "languages",
+          "skills",
+          "experience",
+          "education",
+          "licenses",
           "publishedAt"
         ],
         "additionalProperties": false
