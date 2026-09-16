@@ -582,6 +582,9 @@ export interface components {
             locationCountry: string | null;
             locationRegion: string | null;
             locationCity: string | null;
+            serviceArea: string | null;
+            timezone: string | null;
+            remoteMode: ("remote" | "on_site" | "hybrid") | null;
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
             rateAmountMinor: string | null;
@@ -615,6 +618,9 @@ export interface components {
                 locationCountry?: string | null;
                 locationRegion?: string | null;
                 locationCity?: string | null;
+                serviceArea?: string | null;
+                timezone?: string | null;
+                remoteMode?: ("remote" | "on_site" | "hybrid") | null;
                 availability?: ("available" | "open_to_offers" | "unavailable") | null;
                 availabilityNote?: string | null;
                 rateAmountMinor?: string | null;

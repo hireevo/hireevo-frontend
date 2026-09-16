@@ -196,7 +196,7 @@
     },
     "/api/v1/auth/username-available": {
       "get": {
-        "description": "Public because a username is a public identifier \u2014 confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
+        "description": "Public because a username is a public identifier — confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
         "operationId": "RegistrationController_usernameAvailable_v1",
         "parameters": [
           {
@@ -226,7 +226,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do \u2014 the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.",
+        "description": "Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do — the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.",
         "operationId": "RegistrationController_register_v1",
         "parameters": [],
         "requestBody": {
@@ -451,7 +451,7 @@
             }
           }
         },
-        "summary": "List the caller\u2019s active sessions",
+        "summary": "List the caller’s active sessions",
         "tags": ["auth"]
       },
       "delete": {
@@ -468,7 +468,7 @@
     },
     "/api/v1/auth/sessions/{id}": {
       "delete": {
-        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user\u2019s session id would be enough to sign them out.",
+        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user’s session id would be enough to sign them out.",
         "operationId": "SessionController_revokeSession_v1",
         "parameters": [
           {
@@ -486,7 +486,7 @@
             "description": ""
           }
         },
-        "summary": "Revoke one of the caller\u2019s sessions",
+        "summary": "Revoke one of the caller’s sessions",
         "tags": ["auth"]
       }
     },
@@ -616,7 +616,7 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless \u2014 this list draws the interface, it does not decide access.",
+        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless — this list draws the interface, it does not decide access.",
         "operationId": "AccountController_me_v1",
         "parameters": [],
         "responses": {
@@ -650,7 +650,7 @@
     },
     "/api/v1/profiles": {
       "post": {
-        "description": "One profile per account. A second attempt \u2014 including several sent at once \u2014 answers 409 with code CONFLICT.",
+        "description": "One profile per account. A second attempt — including several sent at once — answers 409 with code CONFLICT.",
         "operationId": "ProfilesController_create_v1",
         "parameters": [],
         "responses": {
@@ -695,7 +695,7 @@
             }
           }
         },
-        "summary": "Create the caller\u2019s profile draft",
+        "summary": "Create the caller’s profile draft",
         "tags": ["profiles"]
       }
     },
@@ -746,11 +746,11 @@
             }
           }
         },
-        "summary": "The caller\u2019s own profile, including contact details",
+        "summary": "The caller’s own profile, including contact details",
         "tags": ["profiles"]
       },
       "patch": {
-        "description": "Every request states the version it was editing. A mismatch answers 409 with code VERSION_CONFLICT and `details.currentVersion`, so the client can offer a reload \u2014 a later edit is never silently overwritten. A field sent as null is cleared; a field left out is kept.",
+        "description": "Every request states the version it was editing. A mismatch answers 409 with code VERSION_CONFLICT and `details.currentVersion`, so the client can offer a reload — a later edit is never silently overwritten. A field sent as null is cleared; a field left out is kept.",
         "operationId": "ProfilesController_update_v1",
         "parameters": [],
         "requestBody": {
@@ -1078,13 +1078,13 @@
             }
           }
         },
-        "summary": "Version history of the caller\u2019s profile",
+        "summary": "Version history of the caller’s profile",
         "tags": ["profiles"]
       }
     },
     "/api/v1/profiles/{slug}": {
       "get": {
-        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed \u2014 identically. A 403 would confirm the profile is real and merely hidden.",
+        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed — identically. A 403 would confirm the profile is real and merely hidden.",
         "operationId": "ProfilesController_getPublic_v1",
         "parameters": [
           {
@@ -1642,6 +1642,23 @@
           "locationCity": {
             "type": ["string", "null"]
           },
+          "serviceArea": {
+            "type": ["string", "null"]
+          },
+          "timezone": {
+            "type": ["string", "null"]
+          },
+          "remoteMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["remote", "on_site", "hybrid"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "availability": {
             "anyOf": [
               {
@@ -1746,6 +1763,9 @@
           "locationCountry",
           "locationRegion",
           "locationCity",
+          "serviceArea",
+          "timezone",
+          "remoteMode",
           "availability",
           "availabilityNote",
           "rateAmountMinor",
@@ -1830,6 +1850,39 @@
                   {
                     "type": "string",
                     "maxLength": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "serviceArea": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "remoteMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["remote", "on_site", "hybrid"]
                   },
                   {
                     "type": "null"
