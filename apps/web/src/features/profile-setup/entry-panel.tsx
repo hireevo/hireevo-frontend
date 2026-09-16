@@ -97,7 +97,12 @@ export function EntryPanel({
           type="button"
           onClick={onRemove}
           aria-label={removeLabel}
-          className={cn(QUIET_ACTION, 'text-content-warning')}
+          // Quiet until it is reached for: removing an entry is ordinary work,
+          // and a row of orange makes a list of them look like a list of faults.
+          className={cn(
+            QUIET_ACTION,
+            'text-content-subtle hover:text-content-danger focus-visible:text-content-danger',
+          )}
         >
           <LuTrash2 aria-hidden="true" className="size-3.5" />
           Remove

@@ -57,6 +57,8 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   // The client profile's completion card (features/profile/completion-card.tsx).
   ['content-muted', 'surface-accent-subtle', 'body'],
   ['content-subtle', 'surface-accent-subtle', 'body'],
+  // "Remove" on an entry panel, once it is hovered or focused.
+  ['content-danger', 'surface-subtle', 'body'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
