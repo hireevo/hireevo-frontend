@@ -10,9 +10,10 @@ export const metadata: Metadata = {
 /**
  * Where the recovery email lands.
  *
- * Copy follows the frame, with one word changed: the mock reads "previous used
- * passwords", which is a slip rather than a decision. A visible typo in shipped
- * text costs more than a one-word departure from the file.
+ * Copy states what the API actually enforces: the new password must differ
+ * from the current one. The mock's "previously used passwords" promised a
+ * password history we do not keep; claiming a rule we do not enforce is worse
+ * than a smaller, true one.
  *
  * The frame does not mention that resetting signs the account out everywhere.
  * That is deliberate rather than missing — the recovery email says it before
@@ -36,7 +37,7 @@ export default async function ResetPasswordPage({
         <p className="mt-3 text-lg leading-[1.5] text-content">
           {token === ''
             ? 'This reset has expired. Start again from the recovery page to get a new code.'
-            : 'Your new password must be different from previously used passwords.'}
+            : 'Your new password must be different from your current password.'}
         </p>
       </div>
 

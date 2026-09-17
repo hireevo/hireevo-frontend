@@ -7,6 +7,7 @@ import { Button, Checkbox, PasswordField, TextField } from '@hireevo/ui-web';
 import { isUsernameAvailable, signUp } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordRules } from './password-rules.tsx';
+import { preloadRecaptcha, recaptchaEnabled } from './recaptcha.ts';
 import { signUpSchema } from './schemas.ts';
 import { useAuthForm } from './use-auth-form.ts';
 
@@ -25,6 +26,13 @@ export function SignUpForm() {
     const field = form.current?.elements.namedItem('password');
     if (field instanceof HTMLInputElement && field.value !== '') setPassword(field.value);
   }, []);
+
+  // Warm the reCAPTCHA script up front, so the token is ready when the button is
+  // pressed rather than adding a wait to the submit. A no-op when protection is off.
+  useEffect(() => {
+    preloadRecaptcha();
+  }, []);
+
   const [usernameTaken, setUsernameTaken] = useState<string | null>(null);
 
   /**
@@ -53,6 +61,18 @@ export function SignUpForm() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // The blur check already knows this name is taken, so the form stops here
+    // rather than sending a sign-up that will only bounce off the server's 409.
+    // The server is still the real gate — this just spares the round trip and
+    // keeps the person on the form where the error is, instead of moving them to
+    // the code screen and back.
+    if (usernameTaken !== null) {
+      const field = form.current?.elements.namedItem('username');
+      if (field instanceof HTMLInputElement) field.focus();
+      return;
+    }
+
     const data = new FormData(event.currentTarget);
     void run({
       firstName: data.get('firstName'),
@@ -61,7 +81,7 @@ export function SignUpForm() {
       username: data.get('username'),
       password: data.get('password'),
       confirmPassword: data.get('confirmPassword'),
-      remember: data.get('remember') === 'on',
+      terms: data.get('terms') === 'on',
     });
   }
 
@@ -76,9 +96,9 @@ export function SignUpForm() {
       ref={form}
       onSubmit={handleSubmit}
       noValidate
-      className="mt-[calc(12px+0.08*var(--fit))] flex flex-col"
+      className="mt-[calc(8px+0.06*var(--fit))] flex flex-col"
     >
-      <div className="flex flex-col gap-[calc(10px+0.05*var(--fit))]">
+      <div className="flex flex-col gap-[calc(8px+0.04*var(--fit))]">
         {/* 244 / 270 with a 16px gutter, straight from the design's 530px column. */}
         <div className="grid grid-cols-1 gap-[15px] sm:grid-cols-[244fr_270fr] sm:gap-4 [&>*]:min-w-0">
           <TextField
@@ -148,14 +168,34 @@ export function SignUpForm() {
         />
       </div>
 
-      <div className="mt-[calc(10px+0.05*var(--fit))] flex items-center justify-between gap-4">
-        <Checkbox name="remember">Remember me</Checkbox>
-        <Link
-          href="/recover"
-          className="text-base font-medium text-content-link underline underline-offset-2"
-        >
-          Forgot Password?
-        </Link>
+      {/* Consent, required before an account can be created. The links open the
+          Terms and the Privacy Policy; clicking one navigates without toggling
+          the box it sits inside — a click on a link inside a label would
+          otherwise do both. */}
+      <div className="mt-[calc(8px+0.04*var(--fit))]">
+        <Checkbox name="terms" onChange={() => clearField('terms')}>
+          I agree to the{' '}
+          <Link
+            href="/terms"
+            onClick={(event) => event.stopPropagation()}
+            className="font-medium text-content-link underline underline-offset-2"
+          >
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link
+            href="/privacy"
+            onClick={(event) => event.stopPropagation()}
+            className="font-medium text-content-link underline underline-offset-2"
+          >
+            Privacy Policy
+          </Link>
+        </Checkbox>
+        {fieldErrors.terms === undefined ? null : (
+          <p role="alert" className="mt-1.5 pl-6 text-sm text-content-warning">
+            {fieldErrors.terms}
+          </p>
+        )}
       </div>
 
       {formError === null ? null : (
@@ -169,10 +209,46 @@ export function SignUpForm() {
         size="xl"
         fullWidth
         loading={pending}
-        className="mt-[calc(20px+0.2*var(--fit))]"
+        className="mt-[calc(14px+0.14*var(--fit))]"
       >
         Create Account
       </Button>
+
+      {/* reCAPTCHA's terms require this notice whenever the badge is hidden, and
+          it is harmless when it is not. Rendered only when protection is on. */}
+      {recaptchaEnabled ? (
+        <p className="mt-3 text-xs leading-4 text-content-subtle">
+          This site is protected by reCAPTCHA and the Google{' '}
+          <a
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2"
+          >
+            Privacy Policy
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://policies.google.com/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2"
+          >
+            Terms of Service
+          </a>{' '}
+          apply.
+        </p>
+      ) : null}
+
+      <p className="mt-[calc(10px+0.1*var(--fit))] text-center text-base text-content-subtle">
+        Already have an account?{' '}
+        <Link
+          href="/sign-in"
+          className="font-medium text-content-link underline underline-offset-2"
+        >
+          Sign in
+        </Link>
+      </p>
     </form>
   );
 }

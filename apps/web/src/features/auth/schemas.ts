@@ -41,14 +41,19 @@ export const signUpSchema = z
       .regex(/^[a-z0-9_]+$/i, { message: 'Letters, numbers and underscores only.' }),
     password,
     confirmPassword: z.string(),
-    remember: z.boolean(),
+    // Consent is required, so this must be true rather than merely present. The
+    // checkbox is unchecked by default: agreement has to be an action the person
+    // took, not one the form took for them.
+    terms: z.literal(true, {
+      message: 'Please accept the Terms of Service and Privacy Policy to continue.',
+    }),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: 'Both passwords must match.',
     path: ['confirmPassword'],
   });
 
-export const recoverSchema = z.object({ email, remember: z.boolean() });
+export const recoverSchema = z.object({ email });
 
 export const confirmEmailSchema = z.object({
   // The address travels with the code because a code is only meaningful against

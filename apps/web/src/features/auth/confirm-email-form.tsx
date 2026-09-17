@@ -11,6 +11,36 @@ import { useAuthForm } from './use-auth-form.ts';
 const RESEND_SECONDS = 60;
 
 /**
+ * When the resend countdown may next reach zero, kept per address so a refresh
+ * resumes it instead of restarting it at sixty. A page reload was giving anyone
+ * who fat-fingered it a fresh minute; the deadline is the truth, the on-screen
+ * number just ticks towards it.
+ */
+function resendKey(purpose: CodePurpose, email: string): string {
+  return `hireevo:resend:${purpose}:${email}`;
+}
+
+function readDeadline(key: string): number | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null;
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDeadline(key: string, deadline: number): void {
+  try {
+    localStorage.setItem(key, String(deadline));
+  } catch {
+    // Private mode, or storage disabled. The countdown still works this session;
+    // it just will not survive a refresh, which is no worse than before.
+  }
+}
+
+/**
  * Which flow the code belongs to. The screen is drawn identically for both —
  * the design repeats the same frame in the sign-up and the recovery columns —
  * so only what the code is spent on differs.
@@ -59,22 +89,48 @@ export function ConfirmEmailForm({
     flow.submit,
   );
   const [code, setCode] = useState('');
+  // Starts at the full minute for the server render and the first client render
+  // — matching, so hydration is quiet — then reconciles with the stored deadline.
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [resending, setResending] = useState(false);
 
+  const storageKey = resendKey(purpose, email);
+
   useEffect(() => {
-    if (seconds === 0) return;
-    const timer = setTimeout(() => setSeconds((current) => current - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [seconds]);
+    // The deadline is the truth; the on-screen number only ticks towards it, so
+    // a refresh resumes the time actually left instead of restarting at a full
+    // minute. A deadline already in the past leaves resend enabled.
+    let deadline = readDeadline(storageKey);
+    if (deadline === null) {
+      // First time on this screen for this address: a code was just sent.
+      deadline = Date.now() + RESEND_SECONDS * 1000;
+      writeDeadline(storageKey, deadline);
+    }
+    const ends = deadline;
+
+    // Set from a timer callback, never synchronously in the effect body: the
+    // first paint keeps its value for a quiet hydration, and the real time left
+    // lands on the very next tick. Once it reaches zero the value stops
+    // changing, so React re-renders nothing further; the interval is cleared on
+    // unmount.
+    const tick = () => setSeconds(Math.max(0, Math.ceil((ends - Date.now()) / 1000)));
+    const initial = setTimeout(tick, 0);
+    const interval = setInterval(tick, 1000);
+
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [storageKey]);
 
   const handleResend = useCallback(() => {
     setResending(true);
     void flow.resend(email).finally(() => {
       setResending(false);
+      writeDeadline(storageKey, Date.now() + RESEND_SECONDS * 1000);
       setSeconds(RESEND_SECONDS);
     });
-  }, [email, flow]);
+  }, [email, flow, storageKey]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import type { ZodType } from 'zod';
-import type { AuthResult } from './api.ts';
+import { UNREACHABLE, type AuthResult } from './api.ts';
 import { useSession } from './session.tsx';
 
 export type FieldErrors = Record<string, string>;
@@ -57,7 +57,18 @@ export function useAuthForm<Values>(
       setFieldErrors({});
       setFormError(null);
       setPending(true);
-      const result = await submit(parsed.data);
+
+      let result: AuthResult;
+      try {
+        result = await submit(parsed.data);
+      } catch {
+        // The submit threw rather than returning a failure — a dropped
+        // connection or a backend that is down. The inputs keep what was typed,
+        // so the person only has to press the button again once it is back.
+        setPending(false);
+        setFormError(UNREACHABLE);
+        return false;
+      }
 
       if (!result.ok) {
         setPending(false);

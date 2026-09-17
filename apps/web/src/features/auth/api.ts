@@ -1,6 +1,7 @@
 import type { Route } from 'next';
 import { toApiError, toFieldIssues, type AuthenticatedUser } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
+import { executeRecaptcha } from './recaptcha.ts';
 import type {
   ConfirmEmailValues,
   RecoverValues,
@@ -19,7 +20,7 @@ export type AuthResult =
   | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 /** Shown when the request never reached the API, or came back unrecognisable. */
-const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
+export const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
 
 /**
  * Turns a failed call into something a form can render.
@@ -69,6 +70,11 @@ export async function signIn(values: SignInValues): Promise<AuthResult> {
 }
 
 export async function signUp(values: SignUpValues): Promise<AuthResult> {
+  // A reCAPTCHA v3 token when protection is on, null otherwise. It rides as a
+  // header rather than in the body, so the generated request type — and the
+  // published contract — does not have to carry a field only bot-scoring uses.
+  const captchaToken = await executeRecaptcha('signup');
+
   const { error } = await api.POST('/api/v1/auth/register', {
     body: {
       firstName: values.firstName,
@@ -78,6 +84,7 @@ export async function signUp(values: SignUpValues): Promise<AuthResult> {
       password: values.password,
       confirmPassword: values.confirmPassword,
     },
+    ...(captchaToken === null ? {} : { headers: { 'x-captcha-token': captchaToken } }),
   });
 
   if (error !== undefined) return toResult(error);
@@ -111,8 +118,12 @@ export async function requestRecovery(values: RecoverValues): Promise<AuthResult
 
 /** Sends a fresh recovery code; the screen's own countdown decides when it may. */
 export async function resendResetCode(email: string): Promise<AuthResult> {
-  const { error } = await api.POST('/api/v1/auth/password/forgot', { body: { email } });
-  if (error !== undefined) return toResult(error);
+  try {
+    const { error } = await api.POST('/api/v1/auth/password/forgot', { body: { email } });
+    if (error !== undefined) return toResult(error);
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
   return { ok: true };
 }
 
@@ -153,8 +164,12 @@ export async function confirmEmail(
 }
 
 export async function resendCode(email: string): Promise<AuthResult> {
-  const { error } = await api.POST('/api/v1/auth/resend-verification', { body: { email } });
-  if (error !== undefined) return toResult(error);
+  try {
+    const { error } = await api.POST('/api/v1/auth/resend-verification', { body: { email } });
+    if (error !== undefined) return toResult(error);
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
   return { ok: true };
 }
 
@@ -195,9 +210,17 @@ export type UsernameVerdict =
   | { status: 'unknown' };
 
 export async function isUsernameAvailable(username: string): Promise<UsernameVerdict> {
-  const { data, error } = await api.GET('/api/v1/auth/username-available', {
-    params: { query: { username } },
-  });
+  let data;
+  let error: unknown;
+  try {
+    ({ data, error } = await api.GET('/api/v1/auth/username-available', {
+      params: { query: { username } },
+    }));
+  } catch {
+    // The request never reached the API. Say nothing rather than claim a name
+    // is unavailable because the network dropped.
+    return { status: 'unknown' };
+  }
 
   if (error !== undefined) {
     const issue = toFieldIssues(error).find((candidate) => candidate.path === 'username');

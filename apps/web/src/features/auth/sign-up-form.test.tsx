@@ -49,6 +49,7 @@ const fill = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.type(screen.getByLabelText('Last Name'), 'Lovelace');
   await user.type(screen.getByLabelText('E-mail'), 'ada@example.com');
   await user.type(screen.getByLabelText('User Name'), 'ada_l');
+  await user.click(screen.getByRole('checkbox', { name: /i agree/i }));
 };
 
 describe('SignUpForm', () => {
@@ -143,6 +144,32 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Create Account' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i);
+  });
+
+  it('will not submit a username the blur check already flagged as taken', async () => {
+    // Bug: the field showed "already taken" but pressing the button still moved
+    // the person to the code screen. The form must stop at the field instead.
+    availabilityMock.mockResolvedValue({ status: 'taken' });
+    signUpMock.mockClear();
+    push.mockClear();
+
+    const user = userEvent.setup();
+    render(<SignUpForm />);
+
+    // `fill` leaves the username field (to click the consent box), which is the
+    // blur that runs the check and marks the name taken.
+    await fill(user);
+    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    expect(await screen.findByText('User name is already taken')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    expect(signUpMock).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+
+    // Restore the default so later cases see an available handle.
+    availabilityMock.mockResolvedValue({ status: 'available' });
   });
 
   it('sends the person on to confirmation once the account is accepted', async () => {

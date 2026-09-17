@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ConfirmEmailForm, type CodePurpose } from './confirm-email-form.tsx';
 import { DevMailboxNote } from './dev-mailbox-note.tsx';
 
@@ -14,6 +15,7 @@ import { DevMailboxNote } from './dev-mailbox-note.tsx';
 export function ConfirmCodeScreen({ address, purpose }: { address: string; purpose: CodePurpose }) {
   const block = purpose === 'recovery' ? 'mx-auto w-full max-w-[441px]' : 'w-full';
   const copy = purpose === 'recovery' ? 'max-w-[369px]' : '';
+  const backHref = purpose === 'recovery' ? '/recover' : '/sign-up';
 
   return (
     <div className="flex flex-col lg:relative lg:left-[-15px]">
@@ -33,6 +35,14 @@ export function ConfirmCodeScreen({ address, purpose }: { address: string; purpo
             <br />
             Please enter it below
           </p>
+          {/* A way out of the flow: entering the wrong address should not be a
+              dead end. Returns to the screen the address was typed on. */}
+          <Link
+            href={backHref}
+            className="mt-3 inline-flex items-center gap-1.5 text-base font-medium text-content-link underline underline-offset-2"
+          >
+            <span aria-hidden="true">&larr;</span> Use a different email
+          </Link>
         </div>
         <DevMailboxNote />
       </div>

@@ -18,6 +18,44 @@ export type Session = {
 
 const SessionContext = createContext<Session | null>(null);
 
+type RestoredSession = { accessToken: string; user: AuthenticatedUser } | null;
+
+/**
+ * The one refresh a page load is allowed to make, shared by everyone who asks.
+ *
+ * React Strict Mode mounts, unmounts and remounts in development, firing the
+ * restore effect twice; the same thing happens for real when two components
+ * mount together. Two refreshes of one cookie is a replay to the API, and
+ * revoking the family over it is how a plain page refresh signed the user out.
+ * Holding the in-flight promise at module scope means the second caller waits on
+ * the first request rather than sending its own, so exactly one refresh leaves
+ * the tab. It is cleared once settled, so a later navigation can restore again.
+ */
+let restoreInFlight: Promise<RestoredSession> | null = null;
+
+function restoreSession(): Promise<RestoredSession> {
+  if (restoreInFlight !== null) return restoreInFlight;
+
+  restoreInFlight = (async (): Promise<RestoredSession> => {
+    try {
+      const { data } = await api.POST('/api/v1/auth/refresh', { body: {} });
+      if (data?.accessToken !== undefined && data.user !== undefined) {
+        return { accessToken: data.accessToken, user: data.user };
+      }
+    } catch {
+      // The API was unreachable. That is not a signed-in state, but it is not a
+      // reason to crash either — the visitor is treated as anonymous.
+    }
+    return null;
+  })();
+
+  void restoreInFlight.finally(() => {
+    restoreInFlight = null;
+  });
+
+  return restoreInFlight;
+}
+
 /**
  * Who is signed in, for the lifetime of this tab.
  *
@@ -49,21 +87,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
 
-    void (async () => {
-      const { data } = await api.POST('/api/v1/auth/refresh', { body: {} });
-      if (cancelled) return;
-
-      if (data?.accessToken !== undefined && data.user !== undefined) {
-        adopt(data.accessToken, data.user);
-      } else {
-        setStatus('anonymous');
-      }
-    })();
+    void restoreSession().then((restored) => {
+      if (!active) return;
+      if (restored !== null) adopt(restored.accessToken, restored.user);
+      else setStatus('anonymous');
+    });
 
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [adopt]);
 

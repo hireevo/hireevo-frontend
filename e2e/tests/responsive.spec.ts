@@ -148,6 +148,17 @@ for (const screen of SCREENS) {
         // skeleton has neither a button nor a panel to measure.
         await page.locator('#main-content button[type="submit"]').last().waitFor();
         await page.evaluate(() => document.fonts.ready);
+        // The panel is sized in `dvh`; for a frame right after a viewport change
+        // Chromium under load reports that as zero — a not-yet-laid-out reading,
+        // not a collapsed panel (which the resolution sweep would catch). Wait
+        // for a real height before measuring, so the transient is never asserted.
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () => document.querySelector('aside')?.getBoundingClientRect().height ?? 0,
+            ),
+          )
+          .toBeGreaterThan(0);
         // One pass inside the page, for the same remount reason as the panel spec.
         const fit = await page.evaluate(() => {
           const buttons = document.querySelectorAll('#main-content button[type="submit"]');

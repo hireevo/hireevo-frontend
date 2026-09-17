@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import type { FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Checkbox, PasswordField } from '@hireevo/ui-web';
+import { Button, PasswordField } from '@hireevo/ui-web';
 import { resetPassword } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordChangedDialog } from './password-changed-dialog.tsx';
@@ -79,24 +78,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
             error={fieldErrors.confirmPassword}
             onChange={() => clearField('confirmPassword')}
           />
-        </div>
-
-        {/* The same row sign-in, sign-up and recover carry, drawn the same way
-          here.
-
-          The checkbox is inert on all four screens today: `remember` is read
-          from the form and handed to the submit call, and nothing downstream
-          sends it. That is worth fixing, but it is one gap across the flow
-          rather than something to solve on this screen alone — leaving it out
-          here would only make this the odd screen out. */}
-        <div className="mt-[calc(8px+0.05*var(--fit))] flex items-center justify-between gap-4">
-          <Checkbox name="remember">Remember me</Checkbox>
-          <Link
-            href="/recover"
-            className="text-base font-medium text-content-link underline underline-offset-2"
-          >
-            Forgot Password?
-          </Link>
         </div>
 
         {formError === null ? null : (

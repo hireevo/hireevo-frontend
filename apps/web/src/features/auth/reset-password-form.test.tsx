@@ -35,17 +35,16 @@ describe('the reset password form', () => {
     expect(screen.getByLabelText('New Password')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reset password' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot Password?' })).toHaveAttribute(
-      'href',
-      '/recover',
-    );
   });
 
-  it('carries the same row as the other auth screens', () => {
+  it('does not carry the misplaced Forgot Password link or Remember me box', () => {
+    // You are already inside the recovery flow here, so a "Forgot Password?"
+    // link is misleading, and a "Remember me" box does nothing on a reset. Both
+    // were removed.
     render(<ResetPasswordForm token="a-token" />);
 
-    expect(screen.getByRole('checkbox', { name: /remember me/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot Password?' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Forgot Password?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /remember me/i })).not.toBeInTheDocument();
   });
 
   it('marks each rule as met only once the password satisfies it', async () => {
