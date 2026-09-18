@@ -12,9 +12,13 @@ const schema = z.object({
    *
    * The version prefix belongs to the published contract, not to configuration:
    * every path in the generated client already carries `/api/v1`, so putting it
-   * here too would produce `/api/v1/api/v1/...`.
+   * here too would produce `/api/v1/api/v1/...`. The refine enforces that — a
+   * value with a path fails the build instead of shipping the doubled prefix,
+   * which CI once did while the e2e URL globs quietly matched it.
    */
-  NEXT_PUBLIC_API_URL: z.url(),
+  NEXT_PUBLIC_API_URL: z.url().refine((value) => new URL(value).pathname === '/', {
+    message: 'NEXT_PUBLIC_API_URL must be an origin with no path (the /api/v1 prefix is built in).',
+  }),
   /**
    * The app's own public origin. Canonical URLs, the sitemap and Open Graph
    * tags are absolute, so a wrong value here is an SEO incident rather than a

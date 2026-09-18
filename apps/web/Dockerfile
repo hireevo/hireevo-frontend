@@ -21,6 +21,9 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/tokens/package.json packages/tokens/
 COPY packages/ui-web/package.json packages/ui-web/
+# apps/web depends on @hireevo/api-client: without its manifest here, a frozen
+# install cannot resolve the workspace dependency and the image never builds.
+COPY packages/api-client/package.json packages/api-client/
 COPY e2e/package.json e2e/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts
@@ -38,6 +41,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/tokens/node_modules ./packages/tokens/node_modules
 COPY --from=deps /app/packages/ui-web/node_modules ./packages/ui-web/node_modules
+COPY --from=deps /app/packages/api-client/node_modules ./packages/api-client/node_modules
 COPY . .
 RUN pnpm --filter @hireevo/tokens build && pnpm --filter @hireevo/web build
 
@@ -55,6 +59,9 @@ RUN addgroup --system --gid 1001 nodejs \
 # runtime image carries no workspace, no pnpm store and no dev dependencies.
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Standalone tracing does not include public/, so the brand and panel assets it
+# holds would 404 in the image without this.
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
 USER nextjs
 EXPOSE 3100
