@@ -44,7 +44,7 @@ vi.mock('./api.ts', async (importOriginal) => ({
 
 const fillValid = async (
   user: ReturnType<typeof userEvent.setup>,
-  { password = 'Str0ngPass', confirmPassword = 'Str0ngPass' } = {},
+  { password = 'Str0ngPass!', confirmPassword = 'Str0ngPass!' } = {},
 ) => {
   await user.type(screen.getByLabelText('First Name'), 'Ada');
   await user.type(screen.getByLabelText('Last Name'), 'Lovelace');

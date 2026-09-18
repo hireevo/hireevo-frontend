@@ -34,7 +34,7 @@ import { expect, test, type Page } from '@playwright/test';
  */
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000';
 const MAIL = process.env.E2E_MAILBOX_URL ?? 'http://localhost:8025';
-const PASSWORD = 'Passw0rd';
+const PASSWORD = 'Passw0rd!';
 
 async function reachable(url: string): Promise<boolean> {
   try {
@@ -174,7 +174,7 @@ test.describe('account journey', () => {
   test('recover a forgotten password by code, and sign in with the new one', async ({ page }) => {
     const stamp = `${Date.now()}${process.env.TEST_PARALLEL_INDEX ?? ''}`;
     const email = `recover${stamp}@example.com`;
-    const newPassword = 'Rec0veredPass';
+    const newPassword = 'Rec0veredPass!';
 
     // A confirmed account first: this journey is about the ordinary case.
     await signUp(page, email, `recover${stamp}`);

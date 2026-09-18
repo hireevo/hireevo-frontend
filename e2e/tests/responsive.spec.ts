@@ -260,7 +260,7 @@ for (const screen of [
     name: 'reset password',
     path: '/reset-password?token=example',
     seenByIndicator: async (page: Page) => {
-      await expect(page.getByRole('listitem').filter({ hasText: /— met$/ })).toHaveCount(4);
+      await expect(page.getByRole('listitem').filter({ hasText: /— met$/ })).toHaveCount(5);
     },
   },
 ]) {

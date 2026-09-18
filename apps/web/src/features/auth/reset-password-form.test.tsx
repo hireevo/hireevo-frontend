@@ -52,16 +52,15 @@ describe('the reset password form', () => {
     render(<ResetPasswordForm token="a-token" />);
 
     const notMet = () => screen.queryAllByText('— not met yet').length;
-    expect(notMet()).toBe(4);
+    expect(notMet()).toBe(5);
 
-    // Punctuation only, so it satisfies the length rule and nothing else —
-    // letters would quietly satisfy the lowercase rule too and make this
-    // assertion about two rules while claiming to be about one.
+    // Eight symbols satisfy the length and special-character rules and no
+    // others, leaving the three character-class rules unmet.
     await user.type(screen.getByLabelText('New Password'), '!!!!!!!!');
     expect(notMet()).toBe(3);
 
     await user.clear(screen.getByLabelText('New Password'));
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
     expect(notMet()).toBe(0);
   });
 
@@ -70,19 +69,19 @@ describe('the reset password form', () => {
     // colour-blind user does not get.
     render(<ResetPasswordForm token="a-token" />);
 
-    expect(screen.getAllByText(/— (met|not met yet)/)).toHaveLength(4);
+    expect(screen.getAllByText(/— (met|not met yet)/)).toHaveLength(5);
   });
 
   it('sends the token it was given along with the new password', async () => {
     const user = userEvent.setup();
     render(<ResetPasswordForm token="the-emailed-token" />);
 
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
-    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
+    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rd!sh');
     await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(resetMock).toHaveBeenCalledWith(
-      expect.objectContaining({ token: 'the-emailed-token', password: 'Passw0rdish' }),
+      expect.objectContaining({ token: 'the-emailed-token', password: 'Passw0rd!sh' }),
     );
   });
 
@@ -91,7 +90,7 @@ describe('the reset password form', () => {
     render(<ResetPasswordForm token="a-token" />);
     resetMock.mockClear();
 
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
     await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdother');
     await user.click(screen.getByRole('button', { name: 'Change' }));
 
@@ -109,8 +108,8 @@ describe('the reset password form', () => {
 
     expect(screen.queryByRole('dialog', { name: 'Password Changed!' })).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
-    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
+    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rd!sh');
     await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(await screen.findByRole('dialog', { name: 'Password Changed!' })).toBeInTheDocument();

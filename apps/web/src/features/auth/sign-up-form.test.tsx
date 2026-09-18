@@ -95,8 +95,8 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdz');
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!z');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(screen.getByLabelText('Re-Password')).toHaveAccessibleDescription(
@@ -115,8 +115,8 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     // On the field it can be fixed: a banner alone leaves the user to work out
@@ -137,8 +137,8 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i);
@@ -157,8 +157,8 @@ describe('SignUpForm', () => {
     // `fill` leaves the username field (to click the consent box), which is the
     // blur that runs the check and marks the name taken.
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
     expect(await screen.findByText('User name is already taken')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -177,8 +177,8 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/confirm-email?email=a%40b.com');
