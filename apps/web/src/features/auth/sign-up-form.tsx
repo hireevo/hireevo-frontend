@@ -82,10 +82,13 @@ export function SignUpForm() {
       username: data.get('username'),
       password: data.get('password'),
       confirmPassword: data.get('confirmPassword'),
-    }).then((ok) => {
-      // A reCAPTCHA token is single-use; whatever the outcome, a stayed-on-page
-      // form needs the box ticked again before the next attempt.
-      if (!ok) {
+    }).then((outcome) => {
+      // A reCAPTCHA token is spent the moment the server verifies it, so a
+      // request that reached the server needs a fresh tick before the next try.
+      // A client-side validation failure never sent the token, so the solved
+      // checkbox is kept — correcting a field typo must not cost the person
+      // another "I'm not a robot" challenge.
+      if (outcome === 'failed') {
         captcha.current?.reset();
         captchaTokenRef.current = null;
       }
