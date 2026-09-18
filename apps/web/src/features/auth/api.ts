@@ -49,9 +49,16 @@ function toResult(error: unknown, fieldMap: Record<string, string> = {}): AuthRe
     : { ok: false, message };
 }
 
-export async function signIn(values: SignInValues): Promise<AuthResult> {
+export async function signIn(
+  values: SignInValues,
+  captchaToken?: string | null,
+): Promise<AuthResult> {
   const { data, error } = await api.POST('/api/v1/auth/login', {
     body: { email: values.email, password: values.password },
+    // The reCAPTCHA token from the checkbox rides as a header, so the request
+    // body — and the published contract — stays the shape every client sends.
+    // Null when protection is off.
+    ...(captchaToken ? { headers: { 'x-captcha-token': captchaToken } } : {}),
   });
 
   if (error !== undefined || data === undefined) {
