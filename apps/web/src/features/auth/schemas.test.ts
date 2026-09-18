@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   PASSWORD_RULES,
@@ -16,6 +18,49 @@ const validSignUp = {
   confirmPassword: 'Passw0rdy',
   remember: false,
 };
+
+describe('client validation matches the API contract', () => {
+  // §6.1: the client rules are checked against openapi.json, the single source
+  // of truth, rather than trusted to have been copied faithfully. The username
+  // rule had drifted — this is what catches the next drift.
+  // Vitest runs from the package directory (apps/web), so the contract sits two
+  // levels up. Read at run time rather than imported, so the test always sees
+  // the committed spec, not a bundler's cached copy.
+  const spec = JSON.parse(
+    readFileSync(join(process.cwd(), '../../packages/api-client/openapi.json'), 'utf8'),
+  ) as {
+    components: {
+      schemas: Record<
+        string,
+        { properties: Record<string, { pattern?: string; minLength?: number; maxLength?: number }> }
+      >;
+    };
+  };
+  const username = spec.components.schemas.RegisterRequest?.properties.username;
+  if (username === undefined) {
+    throw new Error('openapi.json is missing RegisterRequest.username');
+  }
+  const contractRe = new RegExp(username.pattern ?? '');
+  const min = username.minLength ?? 0;
+  const max = username.maxLength ?? Infinity;
+
+  const accepts = (value: string) =>
+    signUpSchema.safeParse({ ...validSignUp, username: value }).success;
+
+  it.each(['ada_l', 'ada-l', '_ada', '1ada', 'ada.l', 'Ada99'])(
+    'agrees with the contract on the username %s',
+    (value) => {
+      const contractOk = contractRe.test(value) && value.length >= min && value.length <= max;
+      expect(accepts(value)).toBe(contractOk);
+    },
+  );
+
+  it('enforces the contract length bounds on the username', () => {
+    expect(accepts('a'.repeat(max))).toBe(true);
+    expect(accepts('a'.repeat(max + 1))).toBe(false);
+    expect(accepts('a'.repeat(min - 1))).toBe(false);
+  });
+});
 
 describe('password rules', () => {
   it('states the four rules the sign-up screen lists', () => {
