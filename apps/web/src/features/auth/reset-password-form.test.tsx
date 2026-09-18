@@ -34,7 +34,7 @@ describe('the reset password form', () => {
 
     expect(screen.getByLabelText('New Password')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset password' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
   });
 
   it('does not carry the misplaced Forgot Password link or Remember me box', () => {
@@ -79,7 +79,7 @@ describe('the reset password form', () => {
 
     await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
     await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdish');
-    await user.click(screen.getByRole('button', { name: 'Reset password' }));
+    await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(resetMock).toHaveBeenCalledWith(
       expect.objectContaining({ token: 'the-emailed-token', password: 'Passw0rdish' }),
@@ -93,8 +93,26 @@ describe('the reset password form', () => {
 
     await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
     await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdother');
-    await user.click(screen.getByRole('button', { name: 'Reset password' }));
+    await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(resetMock).not.toHaveBeenCalled();
+    // A submit that never reached the server must not open the "Password
+    // Changed!" dialog — the outcome the form reads is a string, and every
+    // string is truthy, so the check has to be for success specifically.
+    expect(screen.queryByRole('dialog', { name: 'Password Changed!' })).not.toBeInTheDocument();
+  });
+
+  it('opens the confirmation dialog only once the server has accepted the reset', async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm token="a-token" />);
+    resetMock.mockClear();
+
+    expect(screen.queryByRole('dialog', { name: 'Password Changed!' })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdish');
+    await user.click(screen.getByRole('button', { name: 'Change' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Password Changed!' })).toBeInTheDocument();
   });
 });

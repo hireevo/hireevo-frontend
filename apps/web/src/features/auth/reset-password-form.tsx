@@ -35,8 +35,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
       token,
       password: data.get('password'),
       confirmPassword: data.get('confirmPassword'),
-    }).then((ok) => {
-      if (ok) setChanged(true);
+    }).then((outcome) => {
+      // Only a reset the server actually accepted opens the confirmation dialog.
+      // `run` reports 'invalid' (client-side) and 'failed' (server rejected) too,
+      // both of which are truthy strings — so this must test for 'ok', not truthiness.
+      if (outcome === 'ok') setChanged(true);
     });
   }
 
@@ -93,7 +96,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           loading={pending}
           className="mt-[calc(20px+0.19*var(--fit))]"
         >
-          Reset password
+          Change
         </Button>
       </form>
       {changed ? <PasswordChangedDialog /> : null}

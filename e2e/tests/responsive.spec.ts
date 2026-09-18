@@ -204,7 +204,7 @@ test('the password changed dialog can be read and closed at every size', async (
   await page.goto('/reset-password?token=example');
   await page.getByLabel('New Password', { exact: true }).fill('Brand-New-Pass-7');
   await page.getByLabel('Confirm New Password').fill('Brand-New-Pass-7');
-  await page.getByRole('button', { name: 'Reset password' }).click();
+  await page.getByRole('button', { name: 'Change' }).click();
   await expect(page.getByRole('dialog', { name: 'Password Changed!' })).toBeVisible();
 
   for (const size of SIZES) {

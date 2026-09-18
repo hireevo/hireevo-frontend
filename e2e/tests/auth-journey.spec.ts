@@ -81,7 +81,7 @@ async function confirmByCode(page: Page, email: string): Promise<void> {
   for (const [index, digit] of [...code].entries()) {
     await digits.nth(index).fill(digit);
   }
-  await page.getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('button', { name: 'Verify' }).click();
 }
 
 test.describe('account journey', () => {
@@ -184,7 +184,7 @@ test.describe('account journey', () => {
 
     await page.goto('/recover');
     await page.getByLabel('E-mail').fill(email);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Reset password' }).click();
 
     // On to the code screen for every address, known or not. The API answers
     // identically either way, so the page moves on identically.
@@ -194,12 +194,12 @@ test.describe('account journey', () => {
     for (const [index, digit] of [...code].entries()) {
       await digits.nth(index).fill(digit);
     }
-    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.getByRole('button', { name: 'Verify' }).click();
 
     await page.waitForURL('**/reset-password**');
     await page.getByLabel('New Password', { exact: true }).fill(newPassword);
     await page.getByLabel('Confirm New Password').fill(newPassword);
-    await page.getByRole('button', { name: 'Reset password' }).click();
+    await page.getByRole('button', { name: 'Change' }).click();
 
     // The design's confirmation, not a silent redirect.
     const dialog = page.getByRole('dialog', { name: 'Password Changed!' });
@@ -216,7 +216,7 @@ test.describe('account journey', () => {
     for (const [index, digit] of [...code].entries()) {
       await again.nth(index).fill(digit);
     }
-    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByText(/invalid or has expired/i)).toBeVisible();
 
     await page.goto('/sign-in');

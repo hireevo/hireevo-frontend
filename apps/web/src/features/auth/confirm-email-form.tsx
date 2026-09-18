@@ -1,7 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import type { Route } from 'next';
 import { Button, OtpInput } from '@hireevo/ui-web';
 import { confirmEmail, resendCode, resendResetCode, verifyResetCode } from './api.ts';
 import { FormMessage } from './form-message.tsx';
@@ -78,10 +80,14 @@ const FLOWS = {
 export function ConfirmEmailForm({
   email,
   purpose = 'signup',
+  backHref,
 }: {
   email: string;
   purpose?: CodePurpose;
+  /** Where the design's "Back" button returns to — the screen the address was typed on. */
+  backHref: Route;
 }) {
+  const router = useRouter();
   const flow = FLOWS[purpose];
   const layout = LAYOUT[purpose];
   const { fieldErrors, formError, pending, run, clearField } = useAuthForm(
@@ -172,23 +178,22 @@ export function ConfirmEmailForm({
           )}
         </div>
 
-        {/* The file greys "Resend code" out to #c3d6e7, which is 1.4:1 on the
-            page — unreadable rather than merely quiet. It is drawn that way
-            because the countdown is running, so the state is expressed by
-            disabling the control instead of by a colour nobody can read. */}
-        <div className={`${layout.resend} flex flex-col items-center text-sm leading-[1.5]`}>
-          <p className="text-content-accent">
-            Didn&rsquo;t receive a code?{seconds > 0 ? ` within (${seconds}s)` : ''}
-          </p>
+        {/* The design's line: "Check your spam folder or Resend code". The
+            countdown is kept as a gate on the resend — a page reload used to
+            hand anyone who fat-fingered it a fresh minute — and, since the
+            control is disabled while it runs, the seconds are shown on the
+            control itself rather than as an unreadable grey. */}
+        <p className={`${layout.resend} text-center text-sm leading-[1.5] text-content-accent`}>
+          Didn&rsquo;t receive a code? Check your spam folder or{' '}
           <button
             type="button"
             onClick={handleResend}
             disabled={seconds > 0 || resending}
-            className="inline-flex min-h-6 items-center text-content-subtle underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+            className="inline-flex min-h-6 items-center text-content-link underline underline-offset-2 disabled:cursor-not-allowed disabled:text-content-subtle disabled:no-underline"
           >
-            Resend code
+            Resend code{seconds > 0 ? ` (${seconds}s)` : ''}
           </button>
-        </div>
+        </p>
       </div>
 
       {formError === null ? null : (
@@ -197,9 +202,22 @@ export function ConfirmEmailForm({
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className={layout.submit}>
-        Submit
-      </Button>
+      {/* The design pairs a "Back" button with "Verify": Back leaves the flow
+          the way "use a different email" did, Verify submits the code. */}
+      <div className={`${layout.submit} grid grid-cols-2 gap-4`}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="xl"
+          fullWidth
+          onClick={() => router.push(backHref)}
+        >
+          Back
+        </Button>
+        <Button type="submit" variant="primary" size="xl" fullWidth loading={pending}>
+          Verify
+        </Button>
+      </div>
     </form>
   );
 }

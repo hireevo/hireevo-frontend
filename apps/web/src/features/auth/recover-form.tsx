@@ -54,7 +54,7 @@ export function RecoverForm() {
         loading={pending}
         className="mt-[calc(20px+0.16*var(--fit))]"
       >
-        Continue
+        Reset password
       </Button>
     </form>
   );

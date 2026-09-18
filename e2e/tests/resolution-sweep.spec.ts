@@ -49,13 +49,13 @@ const SCREENS: Array<{ name: string; path: string; submitFirst?: string }> = [
   { name: 'sign up with every error', path: '/sign-up', submitFirst: 'Continue' },
   { name: 'confirm email', path: `/confirm-email?email=${LONG_ADDRESS}` },
   { name: 'recover', path: '/recover' },
-  { name: 'recover with every error', path: '/recover', submitFirst: 'Continue' },
+  { name: 'recover with every error', path: '/recover', submitFirst: 'Reset password' },
   { name: 'recovery code', path: `/recover/verify?email=${LONG_ADDRESS}` },
   { name: 'reset password', path: '/reset-password?token=example' },
   {
     name: 'reset password with every error',
     path: '/reset-password?token=example',
-    submitFirst: 'Reset password',
+    submitFirst: 'Change',
   },
 ];
 
