@@ -25,8 +25,9 @@ cp apps/web/.env.example apps/web/.env.local
 pnpm dev
 ```
 
-The web app starts on <http://localhost:3100>. `/design-system` renders the live
-token palette and every component state.
+The web app starts on <http://localhost:3100>, which opens the sign-in screen —
+the root redirects there, and on to `/account` for someone already signed in.
+`/design-system` renders the live token palette and every component state.
 
 The sign-up and sign-in screens call the API, so `hireevo-backend` needs to be
 running for them to do anything — see its README. Everything else, including the

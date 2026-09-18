@@ -29,7 +29,7 @@ export function RecoverForm() {
       method="post"
       onSubmit={handleSubmit}
       noValidate
-      className="mt-[39px] flex flex-col lg:-mr-[5px]"
+      className="mt-[calc(20px+0.19*var(--fit))] flex flex-col lg:-mr-[5px]"
     >
       <TextField
         label="E-mail"
@@ -41,7 +41,7 @@ export function RecoverForm() {
         onChange={() => clearField('email')}
       />
 
-      <Checkbox name="remember" className="mt-[22px] self-start">
+      <Checkbox name="remember" className="mt-[calc(12px+0.1*var(--fit))] self-start">
         Remember me
       </Checkbox>
 
@@ -51,7 +51,13 @@ export function RecoverForm() {
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className="mt-[36px]">
+      <Button
+        type="submit"
+        size="xl"
+        fullWidth
+        loading={pending}
+        className="mt-[calc(20px+0.16*var(--fit))]"
+      >
         Continue
       </Button>
     </form>

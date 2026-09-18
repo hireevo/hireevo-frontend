@@ -12,7 +12,40 @@
    control with no height and square corners. */
 @source '../../../../packages/ui-web/src';
 
+/* Windows too short for sign-up's password rules to stay one column and still
+   leave the button on screen. Below this the four rules wrap side by side. */
+@custom-variant short (@media (max-height: 709px));
+
+/* The auth screens' controls follow the same curve as their spacing (see
+   `--fit`): the design's 54px fields and 60px buttons on a 1024px-tall window,
+   44px and 48px — still comfortable touch targets — on a short laptop. The
+   components fall back to the design's values, so outside the auth shell they
+   stay exactly as drawn. */
+@utility auth-rhythm {
+  --field-label-inset: calc(0.1 * var(--fit));
+  --field-label-gap: calc(8px + 0.06 * var(--fit));
+  --field-height: calc(44px + 0.1 * var(--fit));
+  --button-xl-height: calc(48px + 0.12 * var(--fit));
+}
+
 @layer base {
+  /* How much of the design's height the window can afford, as a length from
+     0px to 100px: 0px on a window 640px tall or shorter — a laptop browser —
+     and 100px on the design's 1024px frame or taller, easing in between.
+
+     The design is one 1440x1024 frame, and at its spacing sign-in needed 860px
+     and sign-up 976px, so on a 1366x768 laptop the button sat below the fold.
+     Vertical spacing is written as its compact value plus a share of this, so a
+     gap drawn at 49px that can shrink to 24px is `calc(24px + 0.25 * var(--fit))`:
+     exactly the file's 49px at 1024px, 24px at 640px. Only heights use it —
+     widths and horizontal offsets are the file's at every window height.
+
+     A length rather than a unitless ratio because dividing one length by
+     another is not yet supported in every browser this app targets. */
+  :root {
+    --fit: clamp(0px, (100dvh - 640px) / 3.84, 100px);
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
   }

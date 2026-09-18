@@ -124,6 +124,51 @@ for (const screen of SCREENS) {
   });
 }
 
+/**
+ * Browser windows rather than screens: a 1366x768 laptop leaves about 633px
+ * once the tabs, the address bar and the taskbar have taken theirs. At the
+ * design's 1024px spacing sign-in put its button below that, and the panel —
+ * stretched to the form's height rather than the window's — cut its photograph
+ * off wherever the window ended.
+ */
+const WINDOWS = [
+  { width: 1366, height: 633, note: 'a 1366x768 laptop' },
+  { width: 1536, height: 730, note: 'a 1080p laptop at 125%' },
+  { width: 1440, height: 790, note: 'a 13-inch MacBook' },
+  { width: 1920, height: 945, note: 'a 1080p desktop' },
+];
+
+for (const screen of SCREENS) {
+  test(`${screen.name} keeps its button on screen in a laptop browser`, async ({ page }) => {
+    for (const size of WINDOWS) {
+      await test.step(`${size.width}x${size.height} (${size.note})`, async () => {
+        await page.setViewportSize({ width: size.width, height: size.height });
+        await page.goto(screen.path);
+        // The root loading skeleton can still be up when `goto` resolves, and a
+        // skeleton has neither a button nor a panel to measure.
+        await page.locator('#main-content button[type="submit"]').last().waitFor();
+        await page.evaluate(() => document.fonts.ready);
+        // One pass inside the page, for the same remount reason as the panel spec.
+        const fit = await page.evaluate(() => {
+          const buttons = document.querySelectorAll('#main-content button[type="submit"]');
+          const button = buttons[buttons.length - 1];
+          return {
+            buttonBottom: button?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY,
+            panelHeight: document.querySelector('aside')?.getBoundingClientRect().height ?? 0,
+          };
+        });
+
+        expect
+          .soft(fit.buttonBottom, `${screen.name}'s button is below the fold`)
+          .toBeLessThanOrEqual(size.height);
+        expect
+          .soft(Math.round(fit.panelHeight), `the panel is not the window's height`)
+          .toBe(size.height);
+      });
+    }
+  });
+}
+
 test('the password changed dialog can be read and closed at every size', async ({ page }) => {
   // Answered here rather than by an API: this is about where the dialog lands,
   // and it must be checkable without the accounts stack running.

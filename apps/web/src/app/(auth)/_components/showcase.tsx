@@ -23,6 +23,10 @@ import { ShowcaseAccents } from './showcase-accents.tsx';
  * them is the page behind. `panel.svg` is that shape, which is why the element
  * under it carries the page colour rather than the brand navy.
  *
+ * On the split the panel is pinned to the window's height, not stretched to the
+ * form's. Stretched, a form taller than the window made the panel taller too, and
+ * the window cut the composition off wherever it happened to end.
+ *
  * The panel is decorative: it is hidden below `lg` and carries nothing a user
  * needs in order to sign in. Layer order follows the file — the photograph sits
  * over the headline, and the rule and pill sit over the photograph.
@@ -34,7 +38,7 @@ export function Showcase() {
     // is a grid cell with a definite height, so containing its size costs nothing.
     <aside
       aria-hidden="true"
-      className="relative hidden overflow-hidden bg-surface-subtle select-none [container-type:size] lg:block"
+      className="relative hidden overflow-hidden bg-surface-subtle select-none [container-type:size] lg:sticky lg:top-0 lg:block lg:h-dvh"
     >
       <Image
         src="/auth/panel.svg"
@@ -78,13 +82,22 @@ export function Showcase() {
         <span className="mt-[min(1.172cqh,1.566cqw)] block">Your success</span>
       </p>
 
+      {/* Sized by whichever axis is tighter, like the type. By width alone a
+          short, wide panel got the 1024px frame's photograph and cut it off at
+          the knees; capped by height it ends at the panel's foot, as drawn.
+
+          Anchored by its foot (11px past the panel's bottom edge, as in the
+          file) and its centre, not its top. In a tall, narrow panel it is width
+          that runs out, and a top-anchored photograph ended halfway down with
+          empty blue beneath it. At 766 x 1024 every term is the file's: 574px
+          wide, 123px in, 174px down. */}
       <Image
         src="/auth/workspace.png"
         alt=""
         width={574}
         height={861}
         priority
-        className="absolute top-[16.99%] left-[16.06%] w-[74.93%]"
+        className="absolute -bottom-[1.074%] left-[53.525%] w-[min(74.93cqw,56.05cqh)] -translate-x-1/2"
       />
 
       {/* Absent on the sign-in and recovery frames; see ShowcaseAccents. */}

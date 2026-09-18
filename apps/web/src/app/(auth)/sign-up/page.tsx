@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function SignUpPage() {
   return (
     <>
-      <h1 className="text-5xl leading-none font-bold tracking-tight text-content-accent">
+      <h1 className="text-[length:calc(34px+0.14*var(--fit))] leading-none font-bold tracking-tight text-content-accent">
         Sign up
       </h1>
       <SignUpForm />
