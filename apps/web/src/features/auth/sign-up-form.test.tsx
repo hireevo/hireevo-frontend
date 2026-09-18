@@ -49,23 +49,21 @@ const fill = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.type(screen.getByLabelText('Last Name'), 'Lovelace');
   await user.type(screen.getByLabelText('E-mail'), 'ada@example.com');
   await user.type(screen.getByLabelText('User Name'), 'ada_l');
-  await user.click(screen.getByRole('checkbox', { name: /i agree/i }));
 };
 
 describe('SignUpForm', () => {
-  it('ticks each password rule as the password satisfies it', async () => {
+  it('shows the password getting stronger as it is typed', async () => {
     const user = userEvent.setup();
     render(<SignUpForm />);
 
-    expect(screen.getByText('At least 8 characters').textContent).toContain('not met yet');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: empty');
 
-    await user.type(screen.getByLabelText('Password'), 'abcdefgh');
-    expect(screen.getByText('At least 8 characters').textContent).toContain('— met');
-    expect(screen.getByText('At least 1 uppercase letter').textContent).toContain('not met yet');
+    await user.type(screen.getByLabelText('Password'), 'ab');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: Weak');
 
-    await user.type(screen.getByLabelText('Password'), 'A1');
-    expect(screen.getByText('At least 1 uppercase letter').textContent).toContain('— met');
-    expect(screen.getByText('At least 1 number').textContent).toContain('— met');
+    // length, upper + lower, a digit and a symbol — the strongest step.
+    await user.type(screen.getByLabelText('Password'), 'Cdefg1!!');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: Strong');
   });
 
   it('does not complain until the form is submitted', async () => {
@@ -75,7 +73,7 @@ describe('SignUpForm', () => {
     await user.type(screen.getByLabelText('E-mail'), 'not-an-address');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByLabelText('E-mail')).toHaveAccessibleDescription(
       'Enter a valid email address.',
     );
@@ -85,7 +83,7 @@ describe('SignUpForm', () => {
     const user = userEvent.setup();
     render(<SignUpForm />);
 
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByLabelText('First Name')).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(screen.getByLabelText('First Name'), 'A');
@@ -99,7 +97,7 @@ describe('SignUpForm', () => {
     await fill(user);
     await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdz');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(screen.getByLabelText('Re-Password')).toHaveAccessibleDescription(
       'Both passwords must match.',
@@ -119,7 +117,7 @@ describe('SignUpForm', () => {
     await fill(user);
     await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     // On the field it can be fixed: a banner alone leaves the user to work out
     // which of six inputs the complaint is about.
@@ -141,7 +139,7 @@ describe('SignUpForm', () => {
     await fill(user);
     await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i);
   });
@@ -163,7 +161,7 @@ describe('SignUpForm', () => {
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
     expect(await screen.findByText('User name is already taken')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(signUpMock).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
@@ -181,7 +179,7 @@ describe('SignUpForm', () => {
     await fill(user);
     await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
     await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/confirm-email?email=a%40b.com');
   });

@@ -247,8 +247,22 @@ test('the password changed dialog can be read and closed at every size', async (
 });
 
 for (const screen of [
-  { name: 'sign up', path: '/sign-up' },
-  { name: 'reset password', path: '/reset-password?token=example' },
+  // Sign-up draws a strength meter; reset-password still lists the four rules.
+  // Each checks its own indicator saw the value that survived hydration.
+  {
+    name: 'sign up',
+    path: '/sign-up',
+    seenByIndicator: async (page: Page) => {
+      await expect(page.getByRole('status')).toHaveText('Password strength: Strong');
+    },
+  },
+  {
+    name: 'reset password',
+    path: '/reset-password?token=example',
+    seenByIndicator: async (page: Page) => {
+      await expect(page.getByRole('listitem').filter({ hasText: /— met$/ })).toHaveCount(4);
+    },
+  },
 ]) {
   test(`a password typed before ${screen.name} finishes loading is kept`, async ({ page }) => {
     // WebKit reset a controlled field to its server-rendered empty value during
@@ -261,8 +275,8 @@ for (const screen of [
     await page.waitForLoadState('networkidle');
 
     await expect(field).toHaveValue('Brand-New-Pass-7');
-    // And the rules saw it too, not just the input.
-    await expect(page.getByRole('listitem').filter({ hasText: /— met$/ })).toHaveCount(4);
+    // And the indicator saw it too, not just the input.
+    await screen.seenByIndicator(page);
   });
 }
 

@@ -3,84 +3,81 @@
 import { env } from '@/env';
 
 /**
- * Google reCAPTCHA v3, loaded only when a site key is configured.
+ * Google reCAPTCHA v2 — the "I'm not a robot" checkbox — loaded only when a site
+ * key is configured.
  *
- * v3 is invisible: there is no checkbox. The script runs in the background and,
- * on an action we ask for, returns a token that the API forwards to Google to
- * score. When no site key is set — local development, CI — every function here
- * is a no-op and the token is null, so the form works exactly as before and the
- * API, which also skips verification when its secret is unset, accepts it.
+ * v2 is a visible widget: the person ticks a box (and occasionally solves an
+ * image challenge), which yields a single-use token the API forwards to Google.
+ * With no site key set every export here is inert and the token is null, so
+ * local development, CI and the tests run without a Google account — and the API,
+ * which also skips verification when its secret is unset, accepts the sign-up.
  */
-const SITE_KEY = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+export const recaptchaSiteKey = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+export const recaptchaEnabled = recaptchaSiteKey !== undefined;
 
-/** The slice of the reCAPTCHA global we use. */
-interface Grecaptcha {
-  ready: (cb: () => void) => void;
-  execute: (siteKey: string, options: { action: string }) => Promise<string>;
+/** The slice of the v2 API we use (explicit render). */
+export interface GrecaptchaV2 {
+  render: (
+    container: HTMLElement,
+    params: {
+      sitekey: string;
+      callback: (token: string) => void;
+      'expired-callback': () => void;
+      'error-callback': () => void;
+    },
+  ) => number;
+  getResponse: (widgetId?: number) => string;
+  reset: (widgetId?: number) => void;
 }
 
 declare global {
   interface Window {
-    grecaptcha?: Grecaptcha;
+    grecaptcha?: GrecaptchaV2;
   }
 }
 
 let scriptPromise: Promise<void> | null = null;
 
-/** Loads the reCAPTCHA script once, and resolves when its global is ready. */
-function load(siteKey: string): Promise<void> {
+/**
+ * Loads the reCAPTCHA v2 script once and resolves when `grecaptcha.render` is
+ * ready. `render=explicit` keeps Google from auto-scanning the page, so React
+ * stays in control of when and where the widget mounts.
+ */
+export function loadRecaptcha(): Promise<void> {
+  if (recaptchaSiteKey === undefined) return Promise.resolve();
   if (scriptPromise !== null) return scriptPromise;
 
   scriptPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-recaptcha]');
-    if (existing !== null) {
+    if (typeof window.grecaptcha?.render === 'function') {
       resolve();
+      return;
+    }
+    const existing = document.querySelector<HTMLScriptElement>('script[data-recaptcha]');
+    const onReady = () => {
+      // The script's load event can fire a beat before `render` is attached.
+      const wait = (tries: number) => {
+        if (typeof window.grecaptcha?.render === 'function') resolve();
+        else if (tries > 0) setTimeout(() => wait(tries - 1), 100);
+        else reject(new Error('reCAPTCHA loaded without a render function'));
+      };
+      wait(30);
+    };
+
+    if (existing !== null) {
+      existing.addEventListener('load', onReady);
+      onReady();
       return;
     }
 
     const script = document.createElement('script');
-    script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
+    script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
     script.async = true;
     script.defer = true;
     script.dataset.recaptcha = 'true';
-    script.addEventListener('load', () => resolve());
+    script.addEventListener('load', onReady);
     script.addEventListener('error', () => reject(new Error('reCAPTCHA failed to load')));
     document.head.appendChild(script);
   });
 
   return scriptPromise;
-}
-
-/** Whether bot protection is switched on for this build. */
-export const recaptchaEnabled = SITE_KEY !== undefined;
-
-/**
- * A fresh reCAPTCHA token for an action, or null when protection is off.
- *
- * Never throws: if the script cannot load or score, it returns null rather than
- * blocking a real person from signing up. The API decides whether a missing or
- * low-scoring token is acceptable — the form's job is only to attach one when it
- * can.
- */
-export async function executeRecaptcha(action: string): Promise<string | null> {
-  if (SITE_KEY === undefined) return null;
-
-  try {
-    await load(SITE_KEY);
-    const grecaptcha = window.grecaptcha;
-    if (grecaptcha === undefined) return null;
-
-    await new Promise<void>((resolve) => grecaptcha.ready(() => resolve()));
-    return await grecaptcha.execute(SITE_KEY, { action });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Starts loading the script ahead of the first submit, so the token is ready
- * when the person presses the button rather than adding a wait to it.
- */
-export function preloadRecaptcha(): void {
-  if (SITE_KEY !== undefined) void load(SITE_KEY);
 }

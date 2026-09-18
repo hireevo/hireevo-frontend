@@ -71,7 +71,7 @@ async function signUp(page: Page, email: string, username: string): Promise<void
   await page.getByLabel('User Name').fill(username);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByLabel('Re-Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 /** Reads the emailed code and types it into the six boxes the design draws. */

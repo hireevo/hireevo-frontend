@@ -46,7 +46,7 @@ const SCREENS: Array<{ name: string; path: string; submitFirst?: string }> = [
   { name: 'sign in', path: '/sign-in' },
   { name: 'sign in with every error', path: '/sign-in', submitFirst: 'Sign in' },
   { name: 'sign up', path: '/sign-up' },
-  { name: 'sign up with every error', path: '/sign-up', submitFirst: 'Create Account' },
+  { name: 'sign up with every error', path: '/sign-up', submitFirst: 'Continue' },
   { name: 'confirm email', path: `/confirm-email?email=${LONG_ADDRESS}` },
   { name: 'recover', path: '/recover' },
   { name: 'recover with every error', path: '/recover', submitFirst: 'Continue' },

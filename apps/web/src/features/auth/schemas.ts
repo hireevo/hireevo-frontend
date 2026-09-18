@@ -15,7 +15,7 @@ export const PASSWORD_RULES = [
 export const password = z
   .string()
   .refine((value) => PASSWORD_RULES.every((rule) => rule.test(value)), {
-    message: 'Password does not meet all four requirements.',
+    message: 'Use 8+ characters with upper and lower case and a number.',
   });
 
 const email = z.email({ message: 'Enter a valid email address.' });
@@ -41,12 +41,6 @@ export const signUpSchema = z
       .regex(/^[a-z0-9_]+$/i, { message: 'Letters, numbers and underscores only.' }),
     password,
     confirmPassword: z.string(),
-    // Consent is required, so this must be true rather than merely present. The
-    // checkbox is unchecked by default: agreement has to be an action the person
-    // took, not one the form took for them.
-    terms: z.literal(true, {
-      message: 'Please accept the Terms of Service and Privacy Policy to continue.',
-    }),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: 'Both passwords must match.',

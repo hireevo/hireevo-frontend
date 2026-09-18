@@ -1,7 +1,6 @@
 import type { Route } from 'next';
 import { toApiError, toFieldIssues, type AuthenticatedUser } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
-import { executeRecaptcha } from './recaptcha.ts';
 import type {
   ConfirmEmailValues,
   RecoverValues,
@@ -69,12 +68,13 @@ export async function signIn(values: SignInValues): Promise<AuthResult> {
   };
 }
 
-export async function signUp(values: SignUpValues): Promise<AuthResult> {
-  // A reCAPTCHA v3 token when protection is on, null otherwise. It rides as a
-  // header rather than in the body, so the generated request type — and the
-  // published contract — does not have to carry a field only bot-scoring uses.
-  const captchaToken = await executeRecaptcha('signup');
-
+export async function signUp(
+  values: SignUpValues,
+  captchaToken?: string | null,
+): Promise<AuthResult> {
+  // The reCAPTCHA token from the checkbox rides as a header, so the request body
+  // — and the published contract — does not have to carry a field only
+  // bot-verification uses. Null when protection is off.
   const { error } = await api.POST('/api/v1/auth/register', {
     body: {
       firstName: values.firstName,
@@ -84,7 +84,7 @@ export async function signUp(values: SignUpValues): Promise<AuthResult> {
       password: values.password,
       confirmPassword: values.confirmPassword,
     },
-    ...(captchaToken === null ? {} : { headers: { 'x-captcha-token': captchaToken } }),
+    ...(captchaToken ? { headers: { 'x-captcha-token': captchaToken } } : {}),
   });
 
   if (error !== undefined) return toResult(error);

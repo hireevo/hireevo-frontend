@@ -14,7 +14,6 @@ const validSignUp = {
   username: 'ada_l',
   password: 'Passw0rdy',
   confirmPassword: 'Passw0rdy',
-  terms: true,
 };
 
 describe('password rules', () => {
@@ -69,12 +68,6 @@ describe('signUpSchema', () => {
 
   it('rejects a username containing punctuation', () => {
     expect(signUpSchema.safeParse({ ...validSignUp, username: 'ada.l' }).success).toBe(false);
-  });
-
-  it('will not accept a sign-up that has not agreed to the terms', () => {
-    const result = signUpSchema.safeParse({ ...validSignUp, terms: false });
-    expect(result.success).toBe(false);
-    expect(result.error?.issues.some((issue) => issue.path[0] === 'terms')).toBe(true);
   });
 });
 
