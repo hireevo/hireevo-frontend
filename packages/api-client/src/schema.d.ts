@@ -52,7 +52,7 @@ export interface paths {
         put?: never;
         /**
          * Create an account
-         * @description Answers 202 whether or not the address was already registered, so the endpoint cannot be used to discover which addresses have accounts — the owner of the address learns what happened from the email they receive. An address that is registered but never confirmed is sent a fresh confirmation code, because it is almost always someone who did not receive the first one. A taken username answers 409, because a username is a public identifier.
+         * @description Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do — the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.
          */
         post: operations["RegistrationController_register_v1"];
         delete?: never;
@@ -72,7 +72,7 @@ export interface paths {
         put?: never;
         /**
          * Send a fresh confirmation code
-         * @description Answers 202 for an unknown address, an already-confirmed account and a successful send alike. Any outstanding code for the address is retired first, so only the newest one works.
+         * @description Answers 202 for an unknown address, an existing account and a waiting sign-up alike. Only a sign-up still waiting is sent a code, and the new code replaces the previous one.
          */
         post: operations["RegistrationController_resendVerification_v1"];
         delete?: never;
@@ -91,8 +91,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm an email address using the emailed token
-         * @description Does not sign the person in. Once confirmed they sign in with their email address and password, which keeps a forwarded code from becoming a session. Limited per address as well as per IP: the code belongs to an account, so the guessing budget has to be spent per account too.
+         * Confirm the address and create the account
+         * @description Creates the account from the waiting sign-up. Wrong, expired and unknown all answer the same 400, and five wrong guesses retire the code. Does not sign the person in: they sign in with their email address and password, which keeps a forwarded code from becoming a session. Limited per address as well as per IP, so rotating IPs buys no extra guesses.
          */
         post: operations["RegistrationController_verifyEmail_v1"];
         delete?: never;
@@ -204,7 +204,7 @@ export interface paths {
         put?: never;
         /**
          * Start password recovery
-         * @description Emails a six-digit recovery code. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
+         * @description Emails a six-digit recovery code. An address whose sign-up was never confirmed has no password to reset, and is sent a reminder to sign up again instead. Answers 202 for every address, known or not: a reset endpoint that only responds for real accounts is a membership oracle that needs no password to query.
          */
         post: operations["PasswordController_forgot_v1"];
         delete?: never;
