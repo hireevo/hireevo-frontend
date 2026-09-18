@@ -79,7 +79,10 @@ const config: NextConfig = {
   reactStrictMode: true,
   // Workspace packages ship TypeScript source rather than a build output, so a
   // token or primitive change hot-reloads instead of needing a rebuild first.
-  transpilePackages: ['@hireevo/tokens', '@hireevo/ui-web'],
+  // @hireevo/api-client ships TypeScript source (its export is ./src/index.ts),
+  // so it must be transpiled like the other workspace packages rather than
+  // relied on to work only because a symlink happens to resolve.
+  transpilePackages: ['@hireevo/tokens', '@hireevo/ui-web', '@hireevo/api-client'],
   typedRoutes: true,
   poweredByHeader: false,
   // Emits a self-contained server bundle so the runtime image carries the app
