@@ -33,6 +33,46 @@ test('the production policy carries none of the development loosening', async ({
   expect(csp).not.toMatch(/\bwss?:/);
 });
 
+test('script-src is nonce-based, not unsafe-inline', async ({ request }) => {
+  const csp = (await request.get('/')).headers()['content-security-policy'] ?? '';
+  const scriptSrc = csp
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive.startsWith('script-src'));
+
+  // A fresh nonce every request, and strict-dynamic so a nonced script's own
+  // imports inherit the trust — which is what lets script-src drop the inline
+  // allowance a static policy had to keep. [F-13, §6.10]
+  expect(scriptSrc, 'script-src directive is missing').toBeTruthy();
+  expect(scriptSrc).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
+  expect(scriptSrc).toContain("'strict-dynamic'");
+  expect(scriptSrc).not.toContain("'unsafe-inline'");
+});
+
+test('the nonce differs from one request to the next', async ({ request }) => {
+  const nonceOf = async (): Promise<string> => {
+    const csp = (await request.get('/')).headers()['content-security-policy'] ?? '';
+    return /'nonce-([A-Za-z0-9+/=]+)'/.exec(csp)?.[1] ?? '';
+  };
+  const [first, second] = await Promise.all([nonceOf(), nonceOf()]);
+  expect(first).not.toEqual('');
+  expect(first).not.toEqual(second);
+});
+
+test('the page runs its scripts under the policy and hydrates', async ({ page }) => {
+  // If the nonce were not stamped onto Next's own script tags, strict-dynamic
+  // would block them and the app would never hydrate. Interacting with a
+  // client control proves the scripts ran under the policy.
+  const violations: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().includes('Content Security Policy')) violations.push(message.text());
+  });
+  await page.goto('/sign-in');
+  await page.getByLabel(/password/i).fill('hydration-probe');
+  await expect(page.getByLabel(/password/i)).toHaveValue('hydration-probe');
+  expect(violations, violations.join('\n')).toEqual([]);
+});
+
 test('the development mailbox note is not in the production build', async ({ page }) => {
   // Locally these screens point at the mail catcher, because that is where the
   // mail actually goes. In production the mail goes to the address on screen,
