@@ -34,7 +34,7 @@ import { expect, test, type Page } from '@playwright/test';
  */
 const API = process.env.E2E_API_URL ?? 'http://localhost:3000';
 const MAIL = process.env.E2E_MAILBOX_URL ?? 'http://localhost:8025';
-const PASSWORD = 'Passw0rd';
+const PASSWORD = 'Passw0rd!';
 
 async function reachable(url: string): Promise<boolean> {
   try {
@@ -71,7 +71,7 @@ async function signUp(page: Page, email: string, username: string): Promise<void
   await page.getByLabel('User Name').fill(username);
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByLabel('Re-Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 /** Reads the emailed code and types it into the six boxes the design draws. */
@@ -81,7 +81,7 @@ async function confirmByCode(page: Page, email: string): Promise<void> {
   for (const [index, digit] of [...code].entries()) {
     await digits.nth(index).fill(digit);
   }
-  await page.getByRole('button', { name: 'Submit' }).click();
+  await page.getByRole('button', { name: 'Verify' }).click();
 }
 
 test.describe('account journey', () => {
@@ -174,7 +174,7 @@ test.describe('account journey', () => {
   test('recover a forgotten password by code, and sign in with the new one', async ({ page }) => {
     const stamp = `${Date.now()}${process.env.TEST_PARALLEL_INDEX ?? ''}`;
     const email = `recover${stamp}@example.com`;
-    const newPassword = 'Rec0veredPass';
+    const newPassword = 'Rec0veredPass!';
 
     // A confirmed account first: this journey is about the ordinary case.
     await signUp(page, email, `recover${stamp}`);
@@ -184,7 +184,7 @@ test.describe('account journey', () => {
 
     await page.goto('/recover');
     await page.getByLabel('E-mail').fill(email);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Reset password' }).click();
 
     // On to the code screen for every address, known or not. The API answers
     // identically either way, so the page moves on identically.
@@ -194,12 +194,12 @@ test.describe('account journey', () => {
     for (const [index, digit] of [...code].entries()) {
       await digits.nth(index).fill(digit);
     }
-    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.getByRole('button', { name: 'Verify' }).click();
 
     await page.waitForURL('**/reset-password**');
     await page.getByLabel('New Password', { exact: true }).fill(newPassword);
     await page.getByLabel('Confirm New Password').fill(newPassword);
-    await page.getByRole('button', { name: 'Reset password' }).click();
+    await page.getByRole('button', { name: 'Change' }).click();
 
     // The design's confirmation, not a silent redirect.
     const dialog = page.getByRole('dialog', { name: 'Password Changed!' });
@@ -216,7 +216,7 @@ test.describe('account journey', () => {
     for (const [index, digit] of [...code].entries()) {
       await again.nth(index).fill(digit);
     }
-    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByText(/invalid or has expired/i)).toBeVisible();
 
     await page.goto('/sign-in');

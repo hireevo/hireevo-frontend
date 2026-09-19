@@ -34,18 +34,17 @@ describe('the reset password form', () => {
 
     expect(screen.getByLabelText('New Password')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirm New Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset password' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot Password?' })).toHaveAttribute(
-      'href',
-      '/recover',
-    );
+    expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
   });
 
-  it('carries the same row as the other auth screens', () => {
+  it('does not carry the misplaced Forgot Password link or Remember me box', () => {
+    // You are already inside the recovery flow here, so a "Forgot Password?"
+    // link is misleading, and a "Remember me" box does nothing on a reset. Both
+    // were removed.
     render(<ResetPasswordForm token="a-token" />);
 
-    expect(screen.getByRole('checkbox', { name: /remember me/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Forgot Password?' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Forgot Password?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /remember me/i })).not.toBeInTheDocument();
   });
 
   it('marks each rule as met only once the password satisfies it', async () => {
@@ -53,16 +52,15 @@ describe('the reset password form', () => {
     render(<ResetPasswordForm token="a-token" />);
 
     const notMet = () => screen.queryAllByText('— not met yet').length;
-    expect(notMet()).toBe(4);
+    expect(notMet()).toBe(5);
 
-    // Punctuation only, so it satisfies the length rule and nothing else —
-    // letters would quietly satisfy the lowercase rule too and make this
-    // assertion about two rules while claiming to be about one.
+    // Eight symbols satisfy the length and special-character rules and no
+    // others, leaving the three character-class rules unmet.
     await user.type(screen.getByLabelText('New Password'), '!!!!!!!!');
     expect(notMet()).toBe(3);
 
     await user.clear(screen.getByLabelText('New Password'));
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
     expect(notMet()).toBe(0);
   });
 
@@ -71,19 +69,19 @@ describe('the reset password form', () => {
     // colour-blind user does not get.
     render(<ResetPasswordForm token="a-token" />);
 
-    expect(screen.getAllByText(/— (met|not met yet)/)).toHaveLength(4);
+    expect(screen.getAllByText(/— (met|not met yet)/)).toHaveLength(5);
   });
 
   it('sends the token it was given along with the new password', async () => {
     const user = userEvent.setup();
     render(<ResetPasswordForm token="the-emailed-token" />);
 
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
-    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdish');
-    await user.click(screen.getByRole('button', { name: 'Reset password' }));
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
+    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rd!sh');
+    await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(resetMock).toHaveBeenCalledWith(
-      expect.objectContaining({ token: 'the-emailed-token', password: 'Passw0rdish' }),
+      expect.objectContaining({ token: 'the-emailed-token', password: 'Passw0rd!sh' }),
     );
   });
 
@@ -92,10 +90,28 @@ describe('the reset password form', () => {
     render(<ResetPasswordForm token="a-token" />);
     resetMock.mockClear();
 
-    await user.type(screen.getByLabelText('New Password'), 'Passw0rdish');
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
     await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rdother');
-    await user.click(screen.getByRole('button', { name: 'Reset password' }));
+    await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(resetMock).not.toHaveBeenCalled();
+    // A submit that never reached the server must not open the "Password
+    // Changed!" dialog — the outcome the form reads is a string, and every
+    // string is truthy, so the check has to be for success specifically.
+    expect(screen.queryByRole('dialog', { name: 'Password Changed!' })).not.toBeInTheDocument();
+  });
+
+  it('opens the confirmation dialog only once the server has accepted the reset', async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm token="a-token" />);
+    resetMock.mockClear();
+
+    expect(screen.queryByRole('dialog', { name: 'Password Changed!' })).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('New Password'), 'Passw0rd!sh');
+    await user.type(screen.getByLabelText('Confirm New Password'), 'Passw0rd!sh');
+    await user.click(screen.getByRole('button', { name: 'Change' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Password Changed!' })).toBeInTheDocument();
   });
 });

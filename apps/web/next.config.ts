@@ -6,6 +6,15 @@ import { env } from './src/env.ts';
 // rather than the first request after a deploy.
 const apiOrigin = new URL(env.NEXT_PUBLIC_API_URL).origin;
 
+// reCAPTCHA loads a script and a badge iframe from Google, so its hosts are
+// allowed in the policy only when bot protection is switched on. With no site
+// key the policy stays exactly as tight as before.
+const recaptchaEnabled = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
+const recaptchaScriptSrc = recaptchaEnabled
+  ? ' https://www.google.com https://www.gstatic.com'
+  : '';
+const recaptchaConnectSrc = recaptchaEnabled ? ' https://www.google.com' : '';
+
 /**
  * Content Security Policy.
  *
@@ -41,12 +50,14 @@ const csp = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${developmentOnly.script}`,
+  `script-src 'self' 'unsafe-inline'${developmentOnly.script}${recaptchaScriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin}${developmentOnly.connect}`,
+  `connect-src 'self' ${apiOrigin}${developmentOnly.connect}${recaptchaConnectSrc}`,
   "manifest-src 'self'",
+  // Only present when reCAPTCHA is on; its badge is an iframe from google.com.
+  ...(recaptchaEnabled ? ['frame-src https://www.google.com'] : []),
   // Production only. Safari applies this to `http://localhost` too, rewriting
   // every stylesheet, script and image to an `https` address the dev server
   // does not answer — so in development the page renders unstyled, with broken

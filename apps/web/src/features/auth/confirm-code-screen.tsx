@@ -1,3 +1,4 @@
+import type { Route } from 'next';
 import { ConfirmEmailForm, type CodePurpose } from './confirm-email-form.tsx';
 import { DevMailboxNote } from './dev-mailbox-note.tsx';
 
@@ -14,6 +15,7 @@ import { DevMailboxNote } from './dev-mailbox-note.tsx';
 export function ConfirmCodeScreen({ address, purpose }: { address: string; purpose: CodePurpose }) {
   const block = purpose === 'recovery' ? 'mx-auto w-full max-w-[441px]' : 'w-full';
   const copy = purpose === 'recovery' ? 'max-w-[369px]' : '';
+  const backHref: Route = purpose === 'recovery' ? '/recover' : '/sign-up';
 
   return (
     <div className="flex flex-col lg:relative lg:left-[-15px]">
@@ -36,7 +38,9 @@ export function ConfirmCodeScreen({ address, purpose }: { address: string; purpo
         </div>
         <DevMailboxNote />
       </div>
-      <ConfirmEmailForm email={address} purpose={purpose} />
+      {/* The design's "Back" button, in the form below, is the way out of the
+          flow — it returns to the screen the address was typed on. */}
+      <ConfirmEmailForm email={address} purpose={purpose} backHref={backHref} />
     </div>
   );
 }

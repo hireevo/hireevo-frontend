@@ -12,26 +12,27 @@ const validSignUp = {
   lastName: 'Lovelace',
   email: 'ada@example.com',
   username: 'ada_l',
-  password: 'Passw0rdy',
-  confirmPassword: 'Passw0rdy',
-  remember: false,
+  password: 'Passw0rd!y',
+  confirmPassword: 'Passw0rd!y',
 };
 
 describe('password rules', () => {
-  it('states the four rules the sign-up screen lists', () => {
+  it('states the rules the reset screen lists', () => {
     expect(PASSWORD_RULES.map((rule) => rule.label)).toEqual([
       'At least 8 characters',
       'At least 1 uppercase letter',
       'At least 1 lowercase letter',
       'At least 1 number',
+      'At least 1 special character',
     ]);
   });
 
   it.each([
-    ['Sh0rt', 'length'],
-    ['nouppercase1', 'upper'],
-    ['NOLOWERCASE1', 'lower'],
-    ['NoDigitsHere', 'number'],
+    ['Sh0rt!', 'length'],
+    ['nouppercase1!', 'upper'],
+    ['NOLOWERCASE1!', 'lower'],
+    ['NoDigitsHere!', 'number'],
+    ['NoSpecials1', 'special'],
   ])('marks %s as failing the %s rule', (value, id) => {
     const rule = PASSWORD_RULES.find((candidate) => candidate.id === id);
     expect(rule?.test(value)).toBe(false);
@@ -74,9 +75,13 @@ describe('signUpSchema', () => {
 
 describe('recoverSchema', () => {
   it('needs only a valid address', () => {
-    expect(recoverSchema.safeParse({ email: 'ada@example.com', remember: false }).success).toBe(
-      true,
-    );
+    expect(recoverSchema.safeParse({ email: 'ada@example.com' }).success).toBe(true);
+  });
+
+  it('no longer carries a remember-me field', () => {
+    // The control was removed from the recovery screen; the schema should not
+    // still describe it.
+    expect('remember' in recoverSchema.shape).toBe(false);
   });
 });
 

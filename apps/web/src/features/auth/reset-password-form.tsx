@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import type { FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Checkbox, PasswordField } from '@hireevo/ui-web';
+import { Button, PasswordField } from '@hireevo/ui-web';
 import { resetPassword } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordChangedDialog } from './password-changed-dialog.tsx';
@@ -36,8 +35,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
       token,
       password: data.get('password'),
       confirmPassword: data.get('confirmPassword'),
-    }).then((ok) => {
-      if (ok) setChanged(true);
+    }).then((outcome) => {
+      // Only a reset the server actually accepted opens the confirmation dialog.
+      // `run` reports 'invalid' (client-side) and 'failed' (server rejected) too,
+      // both of which are truthy strings — so this must test for 'ok', not truthiness.
+      if (outcome === 'ok') setChanged(true);
     });
   }
 
@@ -81,24 +83,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
           />
         </div>
 
-        {/* The same row sign-in, sign-up and recover carry, drawn the same way
-          here.
-
-          The checkbox is inert on all four screens today: `remember` is read
-          from the form and handed to the submit call, and nothing downstream
-          sends it. That is worth fixing, but it is one gap across the flow
-          rather than something to solve on this screen alone — leaving it out
-          here would only make this the odd screen out. */}
-        <div className="mt-[calc(8px+0.05*var(--fit))] flex items-center justify-between gap-4">
-          <Checkbox name="remember">Remember me</Checkbox>
-          <Link
-            href="/recover"
-            className="text-base font-medium text-content-link underline underline-offset-2"
-          >
-            Forgot Password?
-          </Link>
-        </div>
-
         {formError === null ? null : (
           <div className="mt-6">
             <FormMessage>{formError}</FormMessage>
@@ -112,7 +96,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           loading={pending}
           className="mt-[calc(20px+0.19*var(--fit))]"
         >
-          Reset password
+          Change
         </Button>
       </form>
       {changed ? <PasswordChangedDialog /> : null}
