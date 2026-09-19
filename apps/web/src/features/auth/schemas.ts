@@ -1,15 +1,22 @@
 import { z } from 'zod';
 
 /**
- * The four rules the sign-up screen lists under the password field. They are
- * data rather than one regular expression because the screen has to say which
- * of them a password currently satisfies, not just whether it passes.
+ * The rules the reset screen lists under the password field, and the ones the
+ * sign-up strength meter is measured against. They are data rather than one
+ * regular expression because the screen has to say which of them a password
+ * currently satisfies, not just whether it passes. They mirror the backend's
+ * PasswordSchema exactly; the shared-password-rule test keeps the two in step.
  */
 export const PASSWORD_RULES = [
   { id: 'length', label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
   { id: 'upper', label: 'At least 1 uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
   { id: 'lower', label: 'At least 1 lowercase letter', test: (v: string) => /[a-z]/.test(v) },
   { id: 'number', label: 'At least 1 number', test: (v: string) => /\d/.test(v) },
+  {
+    id: 'special',
+    label: 'At least 1 special character',
+    test: (v: string) => /[^A-Za-z0-9]/.test(v),
+  },
 ] as const;
 
 export const password = z
@@ -19,7 +26,7 @@ export const password = z
   // drift test in schemas.test.ts.
   .max(256, { message: 'Use 256 characters or fewer.' })
   .refine((value) => PASSWORD_RULES.every((rule) => rule.test(value)), {
-    message: 'Password does not meet all four requirements.',
+    message: 'Use 8+ characters with upper and lower case, a number and a special character.',
   });
 
 const email = z
@@ -62,14 +69,13 @@ export const signUpSchema = z
       }),
     password,
     confirmPassword: z.string(),
-    remember: z.boolean(),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: 'Both passwords must match.',
     path: ['confirmPassword'],
   });
 
-export const recoverSchema = z.object({ email, remember: z.boolean() });
+export const recoverSchema = z.object({ email });
 
 export const confirmEmailSchema = z.object({
   // The address travels with the code because a code is only meaningful against

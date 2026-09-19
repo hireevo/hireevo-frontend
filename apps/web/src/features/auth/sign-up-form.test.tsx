@@ -52,19 +52,18 @@ const fill = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe('SignUpForm', () => {
-  it('ticks each password rule as the password satisfies it', async () => {
+  it('shows the password getting stronger as it is typed', async () => {
     const user = userEvent.setup();
     render(<SignUpForm />);
 
-    expect(screen.getByText('At least 8 characters').textContent).toContain('not met yet');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: empty');
 
-    await user.type(screen.getByLabelText('Password'), 'abcdefgh');
-    expect(screen.getByText('At least 8 characters').textContent).toContain('— met');
-    expect(screen.getByText('At least 1 uppercase letter').textContent).toContain('not met yet');
+    await user.type(screen.getByLabelText('Password'), 'ab');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: Weak');
 
-    await user.type(screen.getByLabelText('Password'), 'A1');
-    expect(screen.getByText('At least 1 uppercase letter').textContent).toContain('— met');
-    expect(screen.getByText('At least 1 number').textContent).toContain('— met');
+    // length, upper + lower, a digit and a symbol — the strongest step.
+    await user.type(screen.getByLabelText('Password'), 'Cdefg1!!');
+    expect(screen.getByRole('status')).toHaveTextContent('Password strength: Strong');
   });
 
   it('does not complain until the form is submitted', async () => {
@@ -74,7 +73,7 @@ describe('SignUpForm', () => {
     await user.type(screen.getByLabelText('E-mail'), 'not-an-address');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByLabelText('E-mail')).toHaveAccessibleDescription(
       'Enter a valid email address.',
     );
@@ -84,7 +83,7 @@ describe('SignUpForm', () => {
     const user = userEvent.setup();
     render(<SignUpForm />);
 
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByLabelText('First Name')).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(screen.getByLabelText('First Name'), 'A');
@@ -96,9 +95,9 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdz');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!z');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(screen.getByLabelText('Re-Password')).toHaveAccessibleDescription(
       'Both passwords must match.',
@@ -116,9 +115,9 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     // On the field it can be fixed: a banner alone leaves the user to work out
     // which of six inputs the complaint is about.
@@ -138,11 +137,37 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i);
+  });
+
+  it('will not submit a username the blur check already flagged as taken', async () => {
+    // Bug: the field showed "already taken" but pressing the button still moved
+    // the person to the code screen. The form must stop at the field instead.
+    availabilityMock.mockResolvedValue({ status: 'taken' });
+    signUpMock.mockClear();
+    push.mockClear();
+
+    const user = userEvent.setup();
+    render(<SignUpForm />);
+
+    // `fill` leaves the username field (to click the consent box), which is the
+    // blur that runs the check and marks the name taken.
+    await fill(user);
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
+    expect(await screen.findByText('User name is already taken')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(signUpMock).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+
+    // Restore the default so later cases see an available handle.
+    availabilityMock.mockResolvedValue({ status: 'available' });
   });
 
   it('sends the person on to confirmation once the account is accepted', async () => {
@@ -152,9 +177,9 @@ describe('SignUpForm', () => {
     render(<SignUpForm />);
 
     await fill(user);
-    await user.type(screen.getByLabelText('Password'), 'Passw0rdy');
-    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rdy');
-    await user.click(screen.getByRole('button', { name: 'Create Account' }));
+    await user.type(screen.getByLabelText('Password'), 'Passw0rd!y');
+    await user.type(screen.getByLabelText('Re-Password'), 'Passw0rd!y');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     await expect.poll(() => push.mock.calls.at(-1)?.[0]).toBe('/confirm-email?email=a%40b.com');
   });

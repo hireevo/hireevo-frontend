@@ -35,6 +35,15 @@ const schema = z.object({
    * Unset in production, where the sentence is simply true.
    */
   NEXT_PUBLIC_DEV_MAILBOX_URL: z.url().optional(),
+  /**
+   * The Google reCAPTCHA v3 site key, when bot protection is enabled.
+   *
+   * Optional so local development and CI run without it: the sign-up form loads
+   * the reCAPTCHA script and attaches a token only when this is set, and the API
+   * verifies a token only when its matching secret is set. Set both together, in
+   * production, to turn the protection on.
+   */
+  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: z.string().min(1).optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -45,6 +54,7 @@ const parsed = schema.safeParse({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL,
+  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY,
   NODE_ENV: process.env.NODE_ENV,
 });
 

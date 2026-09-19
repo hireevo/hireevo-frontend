@@ -44,7 +44,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
           <main
             id="main-content"
-            className="flex flex-col pt-[calc(20px+0.26*var(--fit))] pb-10 lg:ml-[4.072%] lg:pb-0 lg:w-[86.32%] lg:max-w-[530px] min-[2000px]:ml-[25px] min-[2000px]:w-[530px]"
+            className="flex flex-1 flex-col pt-[calc(20px+0.26*var(--fit))] pb-10 lg:ml-[4.072%] lg:pb-0 lg:w-[86.32%] lg:max-w-[530px] min-[2000px]:ml-[25px] min-[2000px]:w-[530px]"
           >
             {children}
           </main>

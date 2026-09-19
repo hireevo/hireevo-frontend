@@ -1,15 +1,17 @@
 import Link from 'next/link';
 
 /**
- * The shell the legal pages share: a plain header with a way back to sign-in
- * and a centred reading column. Deliberately not the split auth shell — these
- * pages are public reference documents, not a step in a flow.
+ * The reading shell for the legal pages.
+ *
+ * Deliberately not the auth split: these are documents to be read top to
+ * bottom, so they get a single measured column, a quiet header that leads back
+ * to the app, and nothing competing for attention beside them.
  */
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-subtle">
-      <header className="border-b border-border-strong/40">
-        <div className="mx-auto flex w-full max-w-[760px] items-center justify-between px-6 py-5">
+    <div className="min-h-dvh bg-surface-subtle">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <Link
             href="/sign-in"
             className="text-lg font-extrabold tracking-tight text-content-accent"
@@ -24,7 +26,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
       </header>
-      <main id="main-content" className="mx-auto w-full max-w-[760px] flex-1 px-6 py-12">
+      <main id="main-content" className="mx-auto max-w-3xl px-6 py-12 sm:py-16">
         {children}
       </main>
     </div>

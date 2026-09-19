@@ -59,6 +59,29 @@ test('the nonce differs from one request to the next', async ({ request }) => {
   expect(first).not.toEqual(second);
 });
 
+// Runs only when a reCAPTCHA site key is configured for the build (the CI job
+// and local `pnpm e2e` leave it unset). With Google's public test key it proves
+// the widget loads and renders under the strict, nonce-based policy — the exact
+// interaction that breaks if the CSP forgets google.com.
+const recaptchaConfigured = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
+
+test('the reCAPTCHA widget renders under the CSP without a violation', async ({ page }) => {
+  test.skip(!recaptchaConfigured, 'no reCAPTCHA site key configured for this build');
+
+  const violations: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().includes('Content Security Policy')) violations.push(message.text());
+  });
+
+  await page.goto('/sign-in');
+
+  // The v2 checkbox is an iframe served from google.com; if frame-src (or the
+  // script/connect entries) were missing it would never appear.
+  const widget = page.locator('iframe[src*="google.com/recaptcha"]');
+  await expect(widget.first()).toBeVisible({ timeout: 15_000 });
+  expect(violations, violations.join('\n')).toEqual([]);
+});
+
 test('the page runs its scripts under the policy and hydrates', async ({ page }) => {
   // If the nonce were not stamped onto Next's own script tags, strict-dynamic
   // would block them and the app would never hydrate. Interacting with a

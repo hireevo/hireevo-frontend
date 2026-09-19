@@ -27,6 +27,20 @@ export function buildContentSecurityPolicy(nonce: string): string {
     connect: isProduction ? '' : ' ws: wss:',
   };
 
+  // reCAPTCHA v2, only when a site key is configured (mirrors the API, which
+  // skips verification when its secret is unset). Its widget is a google.com
+  // iframe that makes its own requests, so a frame-src and connect-src are
+  // required — `'strict-dynamic'` governs script-src alone and does not reach
+  // frames or fetches. The google/gstatic entries in script-src are a fallback
+  // for engines without strict-dynamic: the widget's own script is injected by
+  // the app's already-trusted bundle (`loadRecaptcha` appends a <script>), so a
+  // strict-dynamic browser trusts it by propagation and ignores the host list.
+  const recaptchaEnabled = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
+  const recaptcha = {
+    script: recaptchaEnabled ? ' https://www.google.com https://www.gstatic.com' : '',
+    connect: recaptchaEnabled ? ' https://www.google.com' : '',
+  };
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -37,15 +51,18 @@ export function buildContentSecurityPolicy(nonce: string): string {
     // understand it ignore `'self'` and any host list and trust only what a
     // nonced script loads, so no `'unsafe-inline'` is needed for scripts;
     // `'self'` stays as a fallback for older engines.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentOnly.script}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentOnly.script}${recaptcha.script}`,
     // Styles still allow inline: Next ships critical CSS and styled-jsx inline
     // without a nonce, and injecting a stylesheet is not script execution.
     // Tightening this is a separate change in how styles are delivered.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin}${developmentOnly.connect}`,
+    `connect-src 'self' ${apiOrigin}${developmentOnly.connect}${recaptcha.connect}`,
     "manifest-src 'self'",
+    // Only present when reCAPTCHA is on; the checkbox and any challenge render
+    // in an iframe from google.com.
+    ...(recaptchaEnabled ? ['frame-src https://www.google.com'] : []),
     // Production only. Safari applies this to `http://localhost` too, rewriting
     // every asset to an `https` address the dev server does not answer, so the
     // page renders unstyled in Safari and nowhere else. Production is served
