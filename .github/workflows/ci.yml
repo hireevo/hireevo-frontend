@@ -12,8 +12,10 @@ concurrency:
 
 env:
   # Build-time values for the checks below. Production values are configured on
-  # the deployment, not here.
-  NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+  # the deployment, not here. The API URL is the origin only — the /api/v1
+  # prefix is part of the generated client, and env.ts now rejects a path, so a
+  # doubled prefix fails the build instead of being masked by the e2e mocks.
+  NEXT_PUBLIC_API_URL: http://localhost:3000
   NEXT_PUBLIC_SITE_URL: http://localhost:3100
 
 jobs:

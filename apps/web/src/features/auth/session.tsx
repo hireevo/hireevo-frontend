@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import { getAccessToken, setAccessToken } from '@/lib/access-token.ts';
 import { api } from '@/lib/api.ts';
+import { onSessionEnded, refreshSession } from '@/lib/session-refresh.ts';
 
 export type SessionStatus = 'restoring' | 'authenticated' | 'anonymous';
 
@@ -17,44 +18,6 @@ export type Session = {
 };
 
 const SessionContext = createContext<Session | null>(null);
-
-type RestoredSession = { accessToken: string; user: AuthenticatedUser } | null;
-
-/**
- * The one refresh a page load is allowed to make, shared by everyone who asks.
- *
- * React Strict Mode mounts, unmounts and remounts in development, firing the
- * restore effect twice; the same thing happens for real when two components
- * mount together. Two refreshes of one cookie is a replay to the API, and
- * revoking the family over it is how a plain page refresh signed the user out.
- * Holding the in-flight promise at module scope means the second caller waits on
- * the first request rather than sending its own, so exactly one refresh leaves
- * the tab. It is cleared once settled, so a later navigation can restore again.
- */
-let restoreInFlight: Promise<RestoredSession> | null = null;
-
-function restoreSession(): Promise<RestoredSession> {
-  if (restoreInFlight !== null) return restoreInFlight;
-
-  restoreInFlight = (async (): Promise<RestoredSession> => {
-    try {
-      const { data } = await api.POST('/api/v1/auth/refresh', { body: {} });
-      if (data?.accessToken !== undefined && data.user !== undefined) {
-        return { accessToken: data.accessToken, user: data.user };
-      }
-    } catch {
-      // The API was unreachable. That is not a signed-in state, but it is not a
-      // reason to crash either — the visitor is treated as anonymous.
-    }
-    return null;
-  })();
-
-  void restoreInFlight.finally(() => {
-    restoreInFlight = null;
-  });
-
-  return restoreInFlight;
-}
 
 /**
  * Who is signed in, for the lifetime of this tab.
@@ -87,16 +50,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
 
-    void restoreSession().then((restored) => {
-      if (!active) return;
-      if (restored !== null) adopt(restored.accessToken, restored.user);
-      else setStatus('anonymous');
+    // One shared refresh, so StrictMode's double mount and any concurrent 401
+    // do not each spend the single-use token and revoke the family.
+    void refreshSession().then((result) => {
+      if (cancelled) return;
+      if (result !== null) {
+        adopt(result.accessToken, result.user);
+      } else {
+        setStatus('anonymous');
+      }
+    });
+
+    // When a later 401-retry finds the session has genuinely ended, the API
+    // client calls this so the UI turns anonymous instead of appearing signed in.
+    const stopListening = onSessionEnded(() => {
+      if (cancelled) return;
+      setAccessToken(null);
+      setUser(null);
+      setStatus('anonymous');
     });
 
     return () => {
-      active = false;
+      cancelled = true;
+      stopListening();
     };
   }, [adopt]);
 

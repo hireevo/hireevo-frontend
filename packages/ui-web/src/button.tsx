@@ -8,8 +8,10 @@ const button = cva(
     'font-medium transition-colors',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
     // A disabled control must still be readable — greying it into the
-    // background is what makes forms unusable for low-vision users.
+    // background is what makes forms unusable for low-vision users. Both the
+    // real disabled state and the aria-disabled loading state are dimmed.
     'disabled:cursor-not-allowed disabled:opacity-60',
+    'aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
   ],
   {
     variants: {
@@ -56,14 +58,35 @@ export function Button({
   loadingLabel = 'Loading',
   disabled,
   children,
+  onClick,
   ...props
 }: ButtonProps) {
   return (
     <button
       type="button"
       {...props}
-      disabled={disabled === true || loading}
+      // A genuinely disabled button uses the attribute; a *loading* one stays
+      // focusable and announces busy through aria-disabled, so a keyboard user's
+      // focus is not thrown to <body> the moment they submit. Clicks are guarded
+      // while loading so the action cannot fire twice.
+      disabled={disabled === true}
+      aria-disabled={loading || undefined}
       aria-busy={loading || undefined}
+      // Only wrap a handler that was actually passed: attaching one
+      // unconditionally would make a server-rendered Button (one with no
+      // onClick) fail to prerender, since a server component cannot carry an
+      // event handler.
+      onClick={
+        onClick === undefined
+          ? undefined
+          : (event) => {
+              if (loading) {
+                event.preventDefault();
+                return;
+              }
+              onClick(event);
+            }
+      }
       className={cn(button({ variant, size, fullWidth }), className)}
     >
       {loading ? (

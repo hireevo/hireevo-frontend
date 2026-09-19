@@ -64,7 +64,12 @@ export default defineConfig({
   webServer: {
     // The production build, not the dev server: security headers, static
     // rendering and the real bundle are exactly what these tests are about.
-    command: `pnpm --filter @hireevo/web build && pnpm --filter @hireevo/web exec next start --port ${PORT}`,
+    // `@hireevo/tokens` is built first: globals.css imports its dist stylesheet,
+    // which is gitignored, so a fresh checkout (or a local `pnpm e2e`) that
+    // skipped it built an unstyled app and the layout suite failed for the wrong
+    // reason. Building the web app alone does not build it — Turbo's `^build`
+    // does, but this command does not go through Turbo.
+    command: `pnpm --filter @hireevo/tokens build && pnpm --filter @hireevo/web build && pnpm --filter @hireevo/web exec next start --port ${PORT}`,
     cwd: '..',
     url: `${baseURL}/api/health`,
     // Never reuse: anything already on this port would be another run's server,

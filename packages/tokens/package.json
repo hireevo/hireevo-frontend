@@ -13,6 +13,7 @@
     "build": "node scripts/build-css.ts",
     "contrast": "node scripts/check-contrast.ts",
     "test": "node scripts/check-contrast.ts",
+    "test:coverage": "node scripts/check-contrast.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts"
   },

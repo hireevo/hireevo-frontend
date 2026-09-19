@@ -3,73 +3,22 @@ import type { NextConfig } from 'next';
 import { env } from './src/env.ts';
 
 // Importing the schema here is what makes a bad environment fail the build
-// rather than the first request after a deploy.
-const apiOrigin = new URL(env.NEXT_PUBLIC_API_URL).origin;
-
-// reCAPTCHA loads a script and a badge iframe from Google, so its hosts are
-// allowed in the policy only when bot protection is switched on. With no site
-// key the policy stays exactly as tight as before.
-const recaptchaEnabled = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
-const recaptchaScriptSrc = recaptchaEnabled
-  ? ' https://www.google.com https://www.gstatic.com'
-  : '';
-const recaptchaConnectSrc = recaptchaEnabled ? ' https://www.google.com' : '';
+// rather than the first request after a deploy. The value is validated for its
+// own sake; the CSP that used to read it now lives in the middleware, where the
+// per-request nonce is available.
+new URL(env.NEXT_PUBLIC_API_URL);
 
 /**
- * Content Security Policy.
+ * The Content-Security-Policy is not here.
  *
- * The strict form of this policy uses a per-request nonce, which means every
- * page is rendered dynamically — Next cannot prerender HTML containing a value
- * that has to differ on each response. The public marketing pages and profile
- * routes are the ones this product is found through, so trading their static
- * rendering away is not free, and the decision belongs with those pages rather
- * than with a scaffold.
- *
- * What is enforced below therefore omits the nonce and keeps `'unsafe-inline'`
- * for scripts, which is the one real gap. Everything else a CSP buys is here
- * and costs nothing: no third-party script origin, no plugins, no framing, no
- * form posting to another host, no `<base>` hijack. Tightening `script-src`
- * means adding the nonce middleware and accepting dynamic rendering, and is
- * tracked as its own change.
+ * It carries a per-request nonce on `script-src`, so it is built in
+ * `src/middleware.ts` (see `src/lib/csp.ts`), which is the only place a
+ * per-request value can be set. The static headers below never change between
+ * requests, so they stay in the config where Next applies them to every route.
  */
-const isProduction = process.env.NODE_ENV === 'production';
-
-// React's development build calls `eval()` to rebuild a callstack that crossed
-// an environment boundary, and the dev server talks to the browser over a
-// websocket. Neither exists in a production bundle, so both are allowed only
-// while NODE_ENV is not production — and a test below asserts that the shipped
-// policy really does omit them.
-const developmentOnly = {
-  script: isProduction ? '' : " 'unsafe-eval'",
-  connect: isProduction ? '' : ' ws: wss:',
-};
-
-const csp = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${developmentOnly.script}${recaptchaScriptSrc}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data: https:",
-  "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin}${developmentOnly.connect}${recaptchaConnectSrc}`,
-  "manifest-src 'self'",
-  // Only present when reCAPTCHA is on; its badge is an iframe from google.com.
-  ...(recaptchaEnabled ? ['frame-src https://www.google.com'] : []),
-  // Production only. Safari applies this to `http://localhost` too, rewriting
-  // every stylesheet, script and image to an `https` address the dev server
-  // does not answer — so in development the page renders unstyled, with broken
-  // images, in Safari and nowhere else. Production is served over TLS, where the
-  // directive does its job.
-  ...(isProduction ? ['upgrade-insecure-requests'] : []),
-].join('; ');
-
 const securityHeaders = [
-  { key: 'Content-Security-Policy', value: csp },
-  // Redundant with `frame-ancestors` for modern browsers, and the only thing
-  // older ones understand.
+  // Redundant with the CSP's `frame-ancestors 'none'` for modern browsers, and
+  // the only thing older ones understand.
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -90,7 +39,10 @@ const config: NextConfig = {
   reactStrictMode: true,
   // Workspace packages ship TypeScript source rather than a build output, so a
   // token or primitive change hot-reloads instead of needing a rebuild first.
-  transpilePackages: ['@hireevo/tokens', '@hireevo/ui-web'],
+  // @hireevo/api-client ships TypeScript source (its export is ./src/index.ts),
+  // so it must be transpiled like the other workspace packages rather than
+  // relied on to work only because a symlink happens to resolve.
+  transpilePackages: ['@hireevo/tokens', '@hireevo/ui-web', '@hireevo/api-client'],
   typedRoutes: true,
   poweredByHeader: false,
   // Emits a self-contained server bundle so the runtime image carries the app
