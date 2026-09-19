@@ -83,9 +83,12 @@ describe('workspaceSnapshot', () => {
     // An action with no screen behind it carries `href: null` and is drawn
     // without a link; every href that is set must be a real route.
     const snapshot = workspaceSnapshot(user());
+    const strength = snapshot.strength.action;
     const hrefs = [
       snapshot.editProfile.href,
-      snapshot.strength.action.href,
+      // The card's button either goes somewhere or acts in place; only the one
+      // that goes somewhere has a route to check.
+      'href' in strength ? strength.href : null,
       snapshot.seller?.upgrade?.href ?? null,
       ...snapshot.cards.map((card) => card.action?.href ?? null),
       ...snapshot.nav.flatMap((item) =>

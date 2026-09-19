@@ -32,6 +32,14 @@ export type WorkspaceCard = {
 };
 
 export type StrengthItem = { label: string; done: boolean };
+
+/**
+ * What the card's button does. On the dashboard it goes to the profile; on the
+ * profile itself there is nowhere to go, so it turns that page's sections on
+ * for editing instead.
+ */
+export type StrengthAction = LinkAction | { label: string; onClick: () => void };
+
 export type ProfileStrength = {
   percent: number;
   done: number;
@@ -39,7 +47,7 @@ export type ProfileStrength = {
   label: string | null;
   headline: string;
   items: StrengthItem[];
-  action: LinkAction;
+  action: StrengthAction;
 };
 
 export type SellerStatus = {

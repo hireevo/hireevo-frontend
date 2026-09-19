@@ -1,7 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LuAward, LuBriefcaseBusiness, LuGraduationCap, LuStar, LuUser } from 'react-icons/lu';
+import {
+  LuAward,
+  LuBriefcaseBusiness,
+  LuCircleDollarSign,
+  LuGraduationCap,
+  LuShieldCheck,
+  LuStar,
+  LuUser,
+  LuVideo,
+} from 'react-icons/lu';
 import { Button, Card } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
@@ -13,11 +22,16 @@ import {
   SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
-import { countryByCode, countryByName } from '@/features/profile-setup/location-options.ts';
+import {
+  countryByCode,
+  countryByName,
+  formatRate,
+} from '@/features/profile-setup/location-options.ts';
 import { fromSavedSections, toSectionsPayload } from '@/features/profile-setup/sections-payload.ts';
 import { PROFICIENCIES as SKILL_PROFICIENCIES } from '@/features/profile-setup/skill-options.ts';
 import { useEntries } from '@/features/profile-setup/use-entries.ts';
 import { useProfileDraft } from '@/features/profile-setup/use-profile-draft.ts';
+import { ProfileStrengthCard } from '@/features/workspace/profile-strength-card.tsx';
 import { displayNameOf } from '@/features/workspace/snapshot.ts';
 import { AddButton } from './add-button.tsx';
 import {
@@ -27,14 +41,15 @@ import {
   writeDraft,
   type DraftContents,
 } from './client-profile-draft.ts';
-import { CompletionCard } from './completion-card.tsx';
 import {
   EMPTY_DRAFT,
   PROFICIENCIES,
   completionOf,
   type ProfileDraft,
   type Proficiency,
+  type SectionsFilled,
 } from './draft.ts';
+import { EditButton } from './edit-button.tsx';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { RecordSection } from './record-section.tsx';
 import { RECORD_SPECS } from './record-specs.tsx';
@@ -44,11 +59,24 @@ import {
   ExperienceEditor,
   IdentityEditor,
   LicenseEditor,
+  RatesEditor,
   SkillsEditor,
+  VideoIntroEditor,
+  VisibilityEditor,
 } from './section-editors.tsx';
+import { SkillChips, SummaryList, joined, rangeOf } from './section-summaries.tsx';
 
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
-type OpenSection = 'about' | 'skills' | 'experience' | 'education' | 'certifications' | null;
+type OpenSection =
+  | 'about'
+  | 'skills'
+  | 'experience'
+  | 'education'
+  | 'certifications'
+  | 'video'
+  | 'visibility'
+  | 'rates'
+  | null;
 
 /** How long to wait after a keystroke before writing the draft to this browser. */
 const DRAFT_DELAY = 400;
@@ -60,14 +88,16 @@ const asProficiency = (value: string): Proficiency =>
 /**
  * The client profile: everything a buyer sees, and the way in to each part of it.
  *
- * Signing in lands here, and the form is filled in a section at a time with one
- * Save at the end of it — so nothing is sent while someone is still thinking.
- * That Save sends the whole profile, fields and lists together, in the one
- * request the API takes.
+ * Signing in lands here. The page reads as the profile itself rather than as a
+ * form: a section that has something in it shows it, and the pencil that opens
+ * it appears only once "Complete your profile" turns editing on. A section that
+ * is still empty always offers its way in, because there is nothing to read
+ * there yet.
  *
- * Nothing typed is lost while it waits: every keystroke goes into a draft in
- * this browser, and opening the page again starts from it rather than from what
- * was last saved. The draft is cleared once the save it was protecting lands.
+ * Everything except visibility is saved by the one button at the foot of the
+ * page, in the single request the profile API takes. Nothing typed is lost in
+ * the meantime: every keystroke goes into a draft in this browser, cleared once
+ * the save it was protecting lands.
  *
  * Each section's editor is fetched when that section is opened rather than
  * shipped with the page: see section-editors.tsx.
@@ -106,10 +136,13 @@ export function ProfileBuilder() {
           ...EMPTY_DRAFT,
           country: stored.country,
           languages: stored.languages,
+          videoIntroUrl: stored.videoIntroUrl,
           records: { ...EMPTY_DRAFT.records, portfolio: stored.portfolio },
         },
   );
   const [open, setOpen] = useState<OpenSection>(null);
+  /** Turned on by "Complete your profile": every filled section grows a pencil. */
+  const [editMode, setEditMode] = useState(false);
 
   const languages = draft.languages;
   const portfolio = draft.records.portfolio;
@@ -213,6 +246,7 @@ export function ProfileBuilder() {
         identity: values,
         country: draft.country,
         languages: draft.languages,
+        videoIntroUrl: draft.videoIntroUrl,
         skills: entries.skills,
         experience: entries.experience,
         education: entries.education,
@@ -279,8 +313,21 @@ export function ProfileBuilder() {
   const namedSkills = skills.items
     .map((item) => item.values.name.trim())
     .filter((name) => name !== '');
+  const roles = experience.items.filter((item) => item.values.role.trim() !== '');
+  const courses = education.items.filter((item) => item.values.institution.trim() !== '');
+  const certificates = licenses.items.filter((item) => item.values.name.trim() !== '');
+  const rate = formatRate(values.rateAmountMinor, values.rateCurrency);
 
-  const completion = completionOf({ ...headerDraft, about: values.overview, skills: namedSkills });
+  const filled: SectionsFilled = {
+    about: values.overview.trim() !== '',
+    skills: namedSkills.length > 0,
+    experience: roles.length > 0,
+    education: courses.length > 0,
+    certifications: certificates.length > 0,
+    portfolio: draft.records.portfolio.length > 0,
+    videoIntro: draft.videoIntroUrl.trim() !== '',
+  };
+  const completion = completionOf(filled);
 
   const saveStatus = {
     saved: 'All changes saved',
@@ -305,18 +352,51 @@ export function ProfileBuilder() {
     </Button>
   );
 
+  /**
+   * The control in a section's corner: a way in while it is empty, a pencil once
+   * it holds something and editing is on, and nothing at all otherwise.
+   */
+  function actionFor(
+    section: Exclude<OpenSection, null>,
+    done: boolean,
+    addLabel: string,
+    name: string,
+  ) {
+    if (open === section) return close;
+    if (!done) return <AddButton onClick={() => toggle(section)}>{addLabel}</AddButton>;
+    return editMode ? <EditButton section={name} onClick={() => toggle(section)} /> : null;
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {/* `minmax(0,1fr)` on the single-column track too: a grid track sized
           `auto` takes its content’s minimum width, which pushed these cards
           wider than a 320px screen. */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-stretch">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
         <ProfileHeaderCard
           draft={headerDraft}
           username={user?.username ?? null}
           onChange={patchHeader}
         />
-        <CompletionCard completion={completion} />
+        <ProfileStrengthCard
+          strength={{
+            percent: completion.percent,
+            done: completion.done,
+            total: completion.total,
+            label: completion.label,
+            headline: completion.headline,
+            items: completion.items,
+            action: editMode
+              ? {
+                  label: 'Done editing',
+                  onClick: () => {
+                    setEditMode(false);
+                    setOpen(null);
+                  },
+                }
+              : { label: 'Complete your profile', onClick: () => setEditMode(true) },
+          }}
+        />
       </div>
 
       <SectionCard
@@ -324,15 +404,7 @@ export function ProfileBuilder() {
         description="Share some details about yourself, your expertise, and what you offer."
         icon={<LuUser />}
         editing={open === 'about'}
-        action={
-          open === 'about' ? (
-            close
-          ) : (
-            <AddButton onClick={() => toggle('about')}>
-              {values.overview === '' ? 'Add details' : 'Edit details'}
-            </AddButton>
-          )
-        }
+        action={actionFor('about', filled.about, 'Add details', 'About')}
       >
         {open === 'about' ? (
           <IdentityEditor
@@ -340,11 +412,11 @@ export function ProfileBuilder() {
             fieldErrors={identity.fieldErrors}
             onChange={identity.change}
           />
-        ) : values.overview === '' ? undefined : (
+        ) : filled.about ? (
           <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
             {values.overview}
           </p>
-        )}
+        ) : undefined}
       </SectionCard>
 
       <SectionCard
@@ -352,21 +424,18 @@ export function ProfileBuilder() {
         description="Attract relevant clients by sharing your strengths and abilities."
         icon={<LuStar />}
         editing={open === 'skills'}
-        action={
-          open === 'skills' ? (
-            close
-          ) : (
-            <AddButton onClick={() => toggle('skills')}>
-              {namedSkills.length === 0 ? 'Add skills and expertise' : 'Edit skills and expertise'}
-            </AddButton>
-          )
-        }
+        action={actionFor(
+          'skills',
+          filled.skills,
+          'Add skills and expertise',
+          'skills and expertise',
+        )}
       >
         {open === 'skills' ? (
           <SkillsEditor skills={skills} heading={false} />
-        ) : namedSkills.length === 0 ? undefined : (
-          <p className="text-sm text-content-muted">{namedSkills.join(' · ')}</p>
-        )}
+        ) : filled.skills ? (
+          <SkillChips names={namedSkills} />
+        ) : undefined}
       </SectionCard>
 
       <SectionCard
@@ -375,16 +444,27 @@ export function ProfileBuilder() {
         description="Add your job history and achievements to give clients insight into your expertise."
         icon={<LuBriefcaseBusiness />}
         editing={open === 'experience'}
-        action={
-          open === 'experience' ? (
-            close
-          ) : (
-            <AddButton onClick={() => toggle('experience')}>Add work experience</AddButton>
-          )
-        }
+        action={actionFor(
+          'experience',
+          filled.experience,
+          'Add work experience',
+          'work experience',
+        )}
       >
         {open === 'experience' ? (
           <ExperienceEditor experience={experience} heading={false} />
+        ) : filled.experience ? (
+          <SummaryList
+            rows={roles.map((item) => ({
+              key: item.key,
+              primary: item.values.role,
+              secondary: joined(
+                item.values.organization,
+                rangeOf(item.values.startDate, item.values.endDate),
+              ),
+              body: item.values.summary,
+            }))}
+          />
         ) : undefined}
       </SectionCard>
 
@@ -398,16 +478,22 @@ export function ProfileBuilder() {
           icon={<LuGraduationCap />}
           className={open === 'education' ? 'lg:col-span-2' : ''}
           editing={open === 'education'}
-          action={
-            open === 'education' ? (
-              close
-            ) : (
-              <AddButton onClick={() => toggle('education')}>Add education</AddButton>
-            )
-          }
+          action={actionFor('education', filled.education, 'Add education', 'education')}
         >
           {open === 'education' ? (
             <EducationEditor education={education} heading={false} />
+          ) : filled.education ? (
+            <SummaryList
+              rows={courses.map((item) => ({
+                key: item.key,
+                primary: item.values.institution,
+                secondary: joined(
+                  item.values.qualification,
+                  item.values.fieldOfStudy,
+                  rangeOf(item.values.startDate, item.values.endDate),
+                ),
+              }))}
+            />
           ) : undefined}
         </SectionCard>
 
@@ -418,16 +504,23 @@ export function ProfileBuilder() {
           icon={<LuAward />}
           className={open === 'certifications' ? 'lg:col-span-2' : ''}
           editing={open === 'certifications'}
-          action={
-            open === 'certifications' ? (
-              close
-            ) : (
-              <AddButton onClick={() => toggle('certifications')}>Add certifications</AddButton>
-            )
-          }
+          action={actionFor(
+            'certifications',
+            filled.certifications,
+            'Add certifications',
+            'certifications',
+          )}
         >
           {open === 'certifications' ? (
             <LicenseEditor licenses={licenses} heading={false} />
+          ) : filled.certifications ? (
+            <SummaryList
+              rows={certificates.map((item) => ({
+                key: item.key,
+                primary: item.values.name,
+                secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+              }))}
+            />
           ) : undefined}
         </SectionCard>
       </div>
@@ -443,6 +536,74 @@ export function ProfileBuilder() {
           }))
         }
       />
+
+      <SectionCard
+        title="Video intro"
+        optional
+        description="Record a short video to introduce yourself and make a great first impression."
+        icon={<LuVideo />}
+        editing={open === 'video'}
+        action={actionFor('video', filled.videoIntro, 'Add video intro', 'video intro')}
+      >
+        {open === 'video' ? (
+          <VideoIntroEditor
+            url={draft.videoIntroUrl}
+            onChange={(videoIntroUrl) => setDraft((current) => ({ ...current, videoIntroUrl }))}
+          />
+        ) : filled.videoIntro ? (
+          <p className="truncate text-sm text-content-muted">{draft.videoIntroUrl}</p>
+        ) : undefined}
+      </SectionCard>
+
+      <SectionCard
+        title="Visibility"
+        description="Control who can see your profile and manage your online presence."
+        icon={<LuShieldCheck />}
+        editing={open === 'visibility'}
+        action={
+          open === 'visibility' ? (
+            close
+          ) : (
+            <AddButton onClick={() => toggle('visibility')}>Manage visibility</AddButton>
+          )
+        }
+      >
+        {open === 'visibility' ? (
+          <VisibilityEditor draft={identity} />
+        ) : (
+          <p className="text-sm text-content-muted">
+            {identity.profile?.visibility.profilePublic === true
+              ? 'Public once published, showing only the sections you chose.'
+              : 'Private. Nothing is shown publicly until you choose to publish.'}
+          </p>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="Expected rates"
+        description="Set the hourly rate buyers see, in the currency you bill in."
+        icon={<LuCircleDollarSign />}
+        editing={open === 'rates'}
+        action={
+          open === 'rates' ? (
+            close
+          ) : (
+            <AddButton onClick={() => toggle('rates')}>Manage rates</AddButton>
+          )
+        }
+      >
+        {open === 'rates' ? (
+          <RatesEditor
+            values={values}
+            fieldErrors={identity.fieldErrors}
+            onChange={identity.change}
+          />
+        ) : (
+          <p className="text-sm text-content-muted">
+            {rate === null ? 'No rate set yet.' : `${rate} per hour`}
+          </p>
+        )}
+      </SectionCard>
 
       {/* One save, at the end of the form, for the whole of it. */}
       <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">

@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProfileField, ProfileValues } from './api.ts';
-import { countryByCode, countryByName, isCurrency, isTimezone } from './location-options.ts';
+import {
+  asCurrencyCode,
+  asMinorAmount,
+  countryByCode,
+  countryByName,
+  isCurrency,
+  isTimezone,
+} from './location-options.ts';
 
 export const LOCATION_FIELDS = [
   'country',
@@ -57,12 +64,8 @@ export function validateLocation(values: LocationValues): LocationErrors {
 
 /** Keeps the two constrained fields in shape as they are typed. */
 function normalise(field: LocationField, value: string): string {
-  if (field === 'rateCurrency')
-    return value
-      .replace(/[^a-z]/gi, '')
-      .toUpperCase()
-      .slice(0, 3);
-  if (field === 'rateAmountMinor') return value.replace(/\D/g, '').slice(0, 15);
+  if (field === 'rateCurrency') return asCurrencyCode(value);
+  if (field === 'rateAmountMinor') return asMinorAmount(value);
   return value;
 }
 

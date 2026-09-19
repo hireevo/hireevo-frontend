@@ -48,3 +48,18 @@ export const LicenseEditor = dynamic(
   () => import('@/features/profile-setup/education-lists.tsx').then((module) => module.LicenseList),
   { loading: Opening },
 );
+
+export const RatesEditor = dynamic(
+  () => import('./rates-editor.tsx').then((module) => module.RatesEditor),
+  { loading: Opening },
+);
+
+export const VisibilityEditor = dynamic(
+  () => import('./visibility-editor.tsx').then((module) => module.VisibilityEditor),
+  { loading: Opening },
+);
+
+export const VideoIntroEditor = dynamic(
+  () => import('./video-intro-editor.tsx').then((module) => module.VideoIntroEditor),
+  { loading: Opening },
+);

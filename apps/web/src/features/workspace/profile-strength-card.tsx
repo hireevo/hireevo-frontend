@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { useId } from 'react';
 import { LuArrowRight, LuCheck, LuPlus, LuZap } from 'react-icons/lu';
-import { Badge, Card, ProgressRing, buttonVariants, cn } from '@hireevo/ui-web';
+import { Badge, Button, Card, ProgressRing, buttonVariants, cn } from '@hireevo/ui-web';
 import { EYEBROW } from './layout.ts';
 import type { ProfileStrength } from './types.ts';
+
+/** The button at the foot of the card, whether it navigates or acts in place. */
+const ACTION = 'mt-6 h-11 rounded-lg font-semibold';
 
 export function ProfileStrengthCard({ strength }: { strength: ProfileStrength }) {
   const headingId = useId();
@@ -79,16 +82,23 @@ export function ProfileStrengthCard({ strength }: { strength: ProfileStrength })
         ))}
       </ul>
 
-      <Link
-        href={strength.action.href}
-        className={cn(
-          buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }),
-          'mt-6 h-11 rounded-lg font-semibold',
-        )}
-      >
-        {strength.action.label}
-        <LuArrowRight aria-hidden="true" className="size-4" />
-      </Link>
+      {'href' in strength.action ? (
+        <Link
+          href={strength.action.href}
+          className={cn(
+            buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }),
+            ACTION,
+          )}
+        >
+          {strength.action.label}
+          <LuArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      ) : (
+        <Button type="button" fullWidth onClick={strength.action.onClick} className={ACTION}>
+          {strength.action.label}
+          <LuArrowRight aria-hidden="true" className="size-4" />
+        </Button>
+      )}
     </Card>
   );
 }

@@ -77,6 +77,24 @@ export function isCurrency(value: string): boolean {
   return /^[A-Z]{3}$/.test(value) && currencyOptions().includes(value);
 }
 
+/**
+ * The shape a rate is typed in, wherever it is typed.
+ *
+ * A currency is three letters and nothing else; an amount is whole minor units,
+ * because that is what the API stores. Fifteen digits stay below 2^53, so the
+ * figure is never rounded on its way to being shown.
+ */
+export function asCurrencyCode(value: string): string {
+  return value
+    .replace(/[^a-z]/gi, '')
+    .toUpperCase()
+    .slice(0, 3);
+}
+
+export function asMinorAmount(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 15);
+}
+
 export const REMOTE_MODES = [
   { value: 'remote', label: 'Available remotely' },
   { value: 'on_site', label: 'On-site only' },

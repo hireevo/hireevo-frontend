@@ -86,17 +86,17 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     ...overrides,
   }) as OwnProfile;
 
-/** A profile with the one language the completion counts as a first key step. */
+/** A profile with a language on it, for the chips beside the person's name. */
 const withLanguage = () =>
   stored({ sections: { ...NO_SECTIONS, languages: [{ name: 'English', proficiency: null }] } });
 
-const bar = () => screen.getByRole('progressbar', { name: 'Profile completion' });
+const bar = () => screen.getByRole('progressbar', { name: 'Profile strength' });
 const section = (name: RegExp) => within(screen.getByRole('region', { name }));
 
 const open = async () => {
   render(<ProfileBuilder />);
   const user = userEvent.setup();
-  await screen.findByRole('progressbar', { name: 'Profile completion' });
+  await screen.findByRole('progressbar', { name: 'Profile strength' });
   return user;
 };
 
@@ -128,7 +128,7 @@ describe('ProfileBuilder', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
-    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 5 key steps');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -197,7 +197,9 @@ describe('ProfileBuilder', () => {
       }),
     );
     expect(await screen.findByText('All changes saved')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    // About is one of the four sections worth ten; skills, work experience and
+    // portfolio are the three worth twenty.
+    expect(bar()).toHaveAttribute('aria-valuenow', '10');
   });
 
   it('sends every section in the one request the profile takes', async () => {
@@ -287,27 +289,63 @@ describe('ProfileBuilder', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('needs a name and a title together for the identity step', async () => {
+  it('counts what a buyer decides on more heavily than the rest', async () => {
     const user = await open();
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
-    await user.click(screen.getByRole('button', { name: 'Add title' }));
-    await user.keyboard('Product Designer{Enter}');
-
+    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
+
+    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'I build things.');
+    expect(bar()).toHaveAttribute('aria-valuenow', '30');
   });
 
   it('removes a language from the header', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: withLanguage() });
     const user = await open();
     expect(await screen.findByRole('button', { name: 'Remove English' })).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
 
     await user.click(screen.getByRole('button', { name: 'Remove English' }));
 
     expect(screen.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '0');
     expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
+  });
+
+  it('keeps the pencils away until Complete your profile asks for them', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({ displayName: 'Sophie', overview: 'I map difficult journeys.' }),
+    });
+    const user = await open();
+
+    // A section with something in it reads as the profile, not as a form.
+    expect(section(/About/).getByText('I map difficult journeys.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit About' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    expect(await section(/About/).findByLabelText('Biography')).toHaveValue(
+      'I map difficult journeys.',
+    );
+  });
+
+  it('shows the sections the design draws below the portfolio', async () => {
+    const user = await open();
+
+    expect(screen.getByRole('region', { name: /Video intro/ })).toBeInTheDocument();
+    expect(section(/Visibility/).getByText(/Private/)).toBeInTheDocument();
+    expect(section(/Expected rates/).getByText('No rate set yet.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Manage rates' }));
+    const rates = section(/Expected rates/);
+    await user.type(await rates.findByLabelText('Rate currency (3 letters)'), 'eur');
+    await user.type(rates.getByLabelText('Hourly rate in smallest currency unit'), '14000');
+
+    expect(rates.getByLabelText('Rate currency (3 letters)')).toHaveValue('EUR');
+    expect(rates.getByText('€140.00 per hour')).toBeInTheDocument();
   });
 
   it('explains a profile that could not be loaded, and tries again', async () => {
@@ -318,7 +356,7 @@ describe('ProfileBuilder', () => {
     expect(await screen.findByText('Could not reach HireEvo.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(
-      await screen.findByRole('progressbar', { name: 'Profile completion' }),
+      await screen.findByRole('progressbar', { name: 'Profile strength' }),
     ).toBeInTheDocument();
   });
 });

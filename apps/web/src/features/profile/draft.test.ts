@@ -1,56 +1,72 @@
 import { describe, expect, it } from 'vitest';
-import { completionOf, EMPTY_DRAFT, KEY_STEPS, type ProfileDraft } from './draft.ts';
+import { NOTHING_FILLED, SECTION_WEIGHTS, completionOf, type SectionsFilled } from './draft.ts';
 
-const withLanguage: ProfileDraft = {
-  ...EMPTY_DRAFT,
-  languages: [{ name: 'English', proficiency: 'Conversational' }],
-};
+const filled = (...sections: (keyof SectionsFilled)[]): SectionsFilled => ({
+  ...NOTHING_FILLED,
+  ...Object.fromEntries(sections.map((section) => [section, true])),
+});
 
 describe('completionOf', () => {
   it('counts an untouched profile as nothing', () => {
-    expect(completionOf(EMPTY_DRAFT)).toEqual({ done: 0, total: 5, percent: 0 });
+    const completion = completionOf(NOTHING_FILLED);
+    expect(completion.percent).toBe(0);
+    expect(completion.done).toBe(0);
+    expect(completion.total).toBe(6);
   });
 
   it('matches the state the design draws', () => {
-    // The frame shows one language, nothing else, "1 of 5 key steps" and
-    // "20% complete". If those three ever disagree, this is where it shows.
-    expect(completionOf(withLanguage)).toEqual({ done: 1, total: 5, percent: 20 });
+    // The frame shows About, skills and work experience done, the other three
+    // rows to do, and "50% complete". If those ever disagree, it shows here.
+    const completion = completionOf(filled('about', 'skills', 'experience'));
+    expect(completion.percent).toBe(50);
+    expect(completion.done).toBe(3);
+    expect(completion.label).toBe('Strong');
+    expect(completion.items.map((item) => [item.label, item.done])).toEqual([
+      ['About section', true],
+      ['Skills & expertise', true],
+      ['Work experience', true],
+      ['Education & certifications', false],
+      ['Portfolio', false],
+      ['Add a video intro', false],
+    ]);
   });
 
-  it('needs both halves of a name before the identity step counts', () => {
-    const named = { ...withLanguage, displayName: 'Ayesha Khan' };
-    expect(completionOf(named).done).toBe(1);
-    expect(completionOf({ ...named, title: 'Product Designer' }).done).toBe(2);
+  it('is worth twenty for what a buyer decides on, and ten for the rest', () => {
+    for (const section of ['skills', 'experience', 'portfolio'] as const) {
+      expect(completionOf(filled(section)).percent).toBe(20);
+    }
+    for (const section of ['about', 'education', 'certifications', 'videoIntro'] as const) {
+      expect(completionOf(filled(section)).percent).toBe(10);
+    }
   });
 
-  it('does not count whitespace as an answer', () => {
-    expect(completionOf({ ...withLanguage, about: '   \n ' }).done).toBe(1);
-    expect(completionOf({ ...withLanguage, about: 'I build things.' }).done).toBe(2);
+  it('adds up to exactly a hundred, so a finished profile is never 99%', () => {
+    const total = Object.values(SECTION_WEIGHTS).reduce((sum, weight) => sum + weight, 0);
+    expect(total).toBe(100);
+
+    const everything = completionOf(filled(...(Object.keys(SECTION_WEIGHTS) as 'about'[])));
+    expect(everything.percent).toBe(100);
+    expect(everything.done).toBe(everything.total);
+    expect(everything.label).toBe('Complete');
   });
 
-  it('ignores the optional sections entirely', () => {
-    // They are marked "(Optional)" in the design and are not among the five,
-    // so filling one must not move the bar.
-    const withRecords: ProfileDraft = {
-      ...withLanguage,
-      records: {
-        ...withLanguage.records,
-        workExperience: [{ id: 'a', fields: { role: 'Designer' } }],
-        portfolio: [{ id: 'b', fields: { title: 'A case study' } }],
-      },
-    };
-    expect(completionOf(withRecords)).toEqual({ done: 1, total: 5, percent: 20 });
+  it('counts education and certifications separately, and lists them together', () => {
+    const half = completionOf(filled('education'));
+    expect(half.percent).toBe(10);
+    // The row the design draws is one row, and it is not finished yet.
+    expect(half.items.find((item) => item.label === 'Education & certifications')?.done).toBe(
+      false,
+    );
+
+    const both = completionOf(filled('education', 'certifications'));
+    expect(both.percent).toBe(20);
+    expect(both.items.find((item) => item.label === 'Education & certifications')?.done).toBe(true);
   });
 
-  it('reaches 100 when every key step is answered', () => {
-    const full: ProfileDraft = {
-      ...withLanguage,
-      avatarUrl: 'blob:photo',
-      displayName: 'Ayesha Khan',
-      title: 'Product Designer',
-      about: 'I build things.',
-      skills: ['Figma'],
-    };
-    expect(completionOf(full)).toEqual({ done: KEY_STEPS.length, total: 5, percent: 100 });
+  it('does not count visibility or rates, which are settings rather than profile', () => {
+    // There is no section for either: a profile does not become more complete
+    // by being hidden, and this is the list that says so.
+    expect(Object.keys(SECTION_WEIGHTS)).not.toContain('visibility');
+    expect(Object.keys(SECTION_WEIGHTS)).not.toContain('rates');
   });
 });
