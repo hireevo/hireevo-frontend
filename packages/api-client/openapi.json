@@ -1945,6 +1945,12 @@
           "rateAmountMinor": {
             "type": ["string", "null"]
           },
+          "rateWeeklyAmountMinor": {
+            "type": ["string", "null"]
+          },
+          "rateMonthlyAmountMinor": {
+            "type": ["string", "null"]
+          },
           "rateCurrency": {
             "type": ["string", "null"]
           },
@@ -2249,6 +2255,8 @@
           "availability",
           "availabilityNote",
           "rateAmountMinor",
+          "rateWeeklyAmountMinor",
+          "rateMonthlyAmountMinor",
           "rateCurrency",
           "contact",
           "sections",
@@ -2415,6 +2423,28 @@
                 ]
               },
               "rateAmountMinor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{1,15}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rateWeeklyAmountMinor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{1,15}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rateMonthlyAmountMinor": {
                 "anyOf": [
                   {
                     "type": "string",
@@ -3058,14 +3088,20 @@
               {
                 "type": "object",
                 "properties": {
-                  "amountMinor": {
-                    "type": "string"
-                  },
                   "currency": {
                     "type": "string"
+                  },
+                  "hourlyMinor": {
+                    "type": ["string", "null"]
+                  },
+                  "weeklyMinor": {
+                    "type": ["string", "null"]
+                  },
+                  "monthlyMinor": {
+                    "type": ["string", "null"]
                   }
                 },
-                "required": ["amountMinor", "currency"],
+                "required": ["currency", "hourlyMinor", "weeklyMinor", "monthlyMinor"],
                 "additionalProperties": false
               },
               {

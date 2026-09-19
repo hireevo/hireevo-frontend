@@ -315,7 +315,17 @@ export function ProfileBuilder() {
   const roles = experience.items.filter((item) => item.values.role.trim() !== '');
   const courses = education.items.filter((item) => item.values.institution.trim() !== '');
   const certificates = licenses.items.filter((item) => item.values.name.trim() !== '');
-  const rate = formatRate(values.rateAmountMinor, values.rateCurrency);
+  /** Only the periods that were priced; an empty one is unpriced, not free. */
+  const rates = (
+    [
+      ['rateAmountMinor', 'per hour'],
+      ['rateWeeklyAmountMinor', 'per week'],
+      ['rateMonthlyAmountMinor', 'per month'],
+    ] as const
+  ).flatMap(([field, per]) => {
+    const shown = formatRate(values[field], values.rateCurrency);
+    return shown === null ? [] : [`${shown} ${per}`];
+  });
 
   const filled: SectionsFilled = {
     about: values.overview.trim() !== '',
@@ -603,7 +613,7 @@ export function ProfileBuilder() {
           />
         ) : (
           <p className="text-sm text-content-muted">
-            {rate === null ? 'No rate set yet.' : `${rate} per hour`}
+            {rates.length === 0 ? 'No rates set yet.' : rates.join(' · ')}
           </p>
         )}
       </SectionCard>

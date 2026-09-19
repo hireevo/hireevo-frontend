@@ -30,6 +30,8 @@ export const PROFILE_FIELDS = [
   'timezone',
   'remoteMode',
   'rateAmountMinor',
+  'rateWeeklyAmountMinor',
+  'rateMonthlyAmountMinor',
   'rateCurrency',
   'avatarKey',
 ] as const;
@@ -83,6 +85,8 @@ export function valuesOf(profile: OwnProfile): ProfileValues {
     timezone: shown(profile.timezone),
     remoteMode: shown(profile.remoteMode),
     rateAmountMinor: shown(profile.rateAmountMinor),
+    rateWeeklyAmountMinor: shown(profile.rateWeeklyAmountMinor),
+    rateMonthlyAmountMinor: shown(profile.rateMonthlyAmountMinor),
     rateCurrency: shown(profile.rateCurrency),
     // Never sent back as a key: the response carries the URL it is served from,
     // and a claim only happens when a new photo has just been uploaded.
@@ -107,6 +111,8 @@ export function toPayload(values: ProfileValues) {
     timezone: clear(values.timezone),
     remoteMode: clear(values.remoteMode) as 'remote' | 'on_site' | 'hybrid' | null,
     rateAmountMinor: clear(values.rateAmountMinor),
+    rateWeeklyAmountMinor: clear(values.rateWeeklyAmountMinor),
+    rateMonthlyAmountMinor: clear(values.rateMonthlyAmountMinor),
     rateCurrency: clear(values.rateCurrency),
     // Absent unless a photo was just claimed: sending null would clear the one
     // already on the profile every time anything else was saved.

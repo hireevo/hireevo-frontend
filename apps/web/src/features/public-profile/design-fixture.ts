@@ -21,7 +21,14 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
   location: 'Lahore, Punjab, PK',
   availability: 'open_to_offers',
   availabilityNote: 'Open to one discovery engagement starting October 2026, remote or in Lahore',
-  rate: { amountMinor: '999999999999999', currency: 'PKR' },
+  rate: {
+    currency: 'PKR',
+    hourlyMinor: '999999999999999',
+    weeklyMinor: '18000000',
+    // Priced by the hour and the week, not by the month — the widest the row
+    // gets is three of these, and the honest state is that one is missing.
+    monthlyMinor: null,
+  },
   videoIntroUrl: 'https://vimeo.com/123456789',
   languages: [
     { name: 'Urdu', proficiency: 'native' },

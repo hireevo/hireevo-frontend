@@ -376,15 +376,38 @@ describe('ProfileBuilder', () => {
 
     expect(screen.getByRole('region', { name: /Video intro/ })).toBeInTheDocument();
     expect(section(/Visibility/).getByText(/Private/)).toBeInTheDocument();
-    expect(section(/Expected rates/).getByText('No rate set yet.')).toBeInTheDocument();
+    expect(section(/Expected rates/).getByText('No rates set yet.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Manage rates' }));
     const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Rate currency (3 letters)'), 'eur');
-    await user.type(rates.getByLabelText('Hourly rate in smallest currency unit'), '14000');
+    await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
+    await user.type(rates.getByLabelText('Hourly Rate'), '14000');
+    await user.type(rates.getByLabelText('Weekly Rate'), '500000');
 
-    expect(rates.getByLabelText('Rate currency (3 letters)')).toHaveValue('EUR');
+    expect(rates.getByLabelText('Currency (3 letters)')).toHaveValue('EUR');
+    // Each amount reads back in the currency, from what was typed.
     expect(rates.getByText('€140.00 per hour')).toBeInTheDocument();
+    expect(rates.getByText('€5,000.00 per week')).toBeInTheDocument();
+    // A period nobody priced stays unpriced rather than showing as nothing.
+    expect(rates.queryByText(/per month/)).not.toBeInTheDocument();
+  });
+
+  it('sends all three rates with the profile', async () => {
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Manage rates' }));
+    const rates = section(/Expected rates/);
+    await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
+    await user.type(rates.getByLabelText('Monthly Rate'), '2000000');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+        rateCurrency: 'EUR',
+        rateMonthlyAmountMinor: '2000000',
+        rateAmountMinor: '',
+      }),
+    );
   });
 
   it('explains a profile that could not be loaded, and tries again', async () => {

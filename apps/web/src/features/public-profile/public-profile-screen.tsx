@@ -1,19 +1,31 @@
 import { LuMapPin, LuUser, LuVideo } from 'react-icons/lu';
 import { Card } from '@hireevo/ui-web';
+import { formatRate } from '@/features/profile-setup/location-options.ts';
 import { SkillChips, SummaryList, joined, rangeOf } from '@/features/profile/section-summaries.tsx';
 import type { PublicProfile } from './api.ts';
 
-/** "PKR 5,000.00", from minor units the API sends as a string. */
-function readableRate(rate: PublicProfile['rate']): string | null {
-  if (rate === null) return null;
-  try {
-    const format = new Intl.NumberFormat('en', { style: 'currency', currency: rate.currency });
-    const digits = format.resolvedOptions().maximumFractionDigits ?? 2;
-    return format.format(Number(rate.amountMinor) / 10 ** digits);
-  } catch {
+/**
+ * Every period the freelancer priced, as "PKR 5,000.00 per hour".
+ *
+ * Only the ones they priced: somebody who sells by the month has no hourly
+ * rate, and inventing one by division would quote a price they never named.
+ */
+function readableRates(rate: PublicProfile['rate']): string[] {
+  if (rate === null) return [];
+
+  return (
+    [
+      ['hourlyMinor', 'per hour'],
+      ['weeklyMinor', 'per week'],
+      ['monthlyMinor', 'per month'],
+    ] as const
+  ).flatMap(([period, per]) => {
+    const amount = rate[period];
+    if (amount === null) return [];
     // An unknown currency code is still worth showing as a number.
-    return `${rate.amountMinor} ${rate.currency}`;
-  }
+    const shown = formatRate(amount, rate.currency) ?? `${amount} ${rate.currency}`;
+    return [`${shown} ${per}`];
+  });
 }
 
 const AVAILABILITY: Record<string, string> = {
@@ -41,7 +53,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * looks broken.
  */
 export function PublicProfileScreen({ profile }: { profile: PublicProfile }) {
-  const rate = readableRate(profile.rate);
+  const rates = readableRates(profile.rate);
   const availability =
     profile.availability === null ? null : (AVAILABILITY[profile.availability] ?? null);
 
@@ -50,7 +62,7 @@ export function PublicProfileScreen({ profile }: { profile: PublicProfile }) {
     profile.overview !== null ||
     profile.location !== null ||
     profile.videoIntroUrl !== null ||
-    rate !== null ||
+    rates.length > 0 ||
     availability !== null ||
     profile.languages.length +
       profile.skills.length +
@@ -90,7 +102,9 @@ export function PublicProfileScreen({ profile }: { profile: PublicProfile }) {
               </span>
             )}
             {availability === null ? null : <span>{availability}</span>}
-            {rate === null ? null : <span>{rate} per hour</span>}
+            {rates.map((rate) => (
+              <span key={rate}>{rate}</span>
+            ))}
           </div>
 
           {profile.availabilityNote === null ? null : (

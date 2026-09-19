@@ -810,7 +810,7 @@ describe('Visibility and publication', () => {
       expect(visibility.getByRole('checkbox', { name: 'Name and headline' })).toHaveFocus(),
     );
 
-    await user.click(visibility.getByRole('checkbox', { name: 'Biography' }));
+    await user.click(visibility.getByRole('checkbox', { name: 'About' }));
     expect(visibility.queryByRole('alert')).not.toBeInTheDocument();
     await user.click(visibility.getByRole('button', { name: 'Save section' }));
 
@@ -843,7 +843,7 @@ describe('Visibility and publication', () => {
     const visibility = await section(/Visibility and publication/);
     calls.load.mockResolvedValue({ ok: true, profile: stored({ version: 9 }) });
 
-    await user.click(visibility.getByRole('checkbox', { name: 'Biography' }));
+    await user.click(visibility.getByRole('checkbox', { name: 'About' }));
     await user.click(visibility.getByRole('button', { name: 'Save section' }));
     await waitFor(() => expect(calls.visibility).toHaveBeenCalled());
 
@@ -862,11 +862,11 @@ describe('Visibility and publication', () => {
     const user = renderScreen();
     const visibility = await section(/Visibility and publication/);
 
-    await user.click(visibility.getByRole('checkbox', { name: 'Biography' }));
+    await user.click(visibility.getByRole('checkbox', { name: 'About' }));
     await user.click(visibility.getByRole('button', { name: 'Save section' }));
 
     expect(await visibility.findByRole('alert')).toHaveTextContent('Could not reach HireEvo.');
-    expect(visibility.getByRole('checkbox', { name: 'Biography' })).toBeChecked();
+    expect(visibility.getByRole('checkbox', { name: 'About' })).toBeChecked();
     expect(
       screen.queryByRole('link', { name: 'Visibility & publication, complete' }),
     ).not.toBeInTheDocument();
@@ -890,7 +890,7 @@ describe('Visibility and publication', () => {
     await waitFor(() =>
       expect(visibility.getByRole('radio', { name: 'Public after publishing' })).toBeChecked(),
     );
-    expect(visibility.getByRole('checkbox', { name: 'Skills' })).toBeChecked();
+    expect(visibility.getByRole('checkbox', { name: 'Skills and expertise' })).toBeChecked();
     expect(visibility.getByRole('checkbox', { name: /index the public profile/ })).toBeChecked();
   });
 });

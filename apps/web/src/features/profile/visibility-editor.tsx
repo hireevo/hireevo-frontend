@@ -1,8 +1,9 @@
 'use client';
 
 import { useId } from 'react';
-import { Button, Checkbox, cn } from '@hireevo/ui-web';
+import { Checkbox, cn } from '@hireevo/ui-web';
 import type { OwnProfile } from '@/features/profile-setup/api.ts';
+import { StepFooter } from '@/features/profile-setup/step-footer.tsx';
 import {
   PUBLIC_SECTIONS,
   useVisibilityDraft,
@@ -100,7 +101,7 @@ export function VisibilityEditor({
         )}
       </fieldset>
 
-      <div className="mt-6">
+      <div className="mt-6 border-t border-border-subtle pt-5">
         <Checkbox
           name="indexable"
           checked={values.indexable}
@@ -111,20 +112,21 @@ export function VisibilityEditor({
         </Checkbox>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border-subtle pt-5">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void visibility.save()}
-          loading={visibility.saving}
-          loadingLabel="Saving"
-        >
-          Save visibility
-        </Button>
-        <p role="status" aria-live="polite" className="text-xs text-content-subtle">
-          {visibility.saved ? 'Visibility saved.' : ''}
-        </p>
-      </div>
+      {/* The design draws no confirmation, but a save with no sign of having
+          happened is one people press twice. */}
+      <p role="status" aria-live="polite" className="mt-4 text-xs text-content-subtle">
+        {visibility.saved ? 'Visibility saved.' : ''}
+      </p>
+
+      {/* The same footer the setup step uses: this is the same decision, drawn
+          the same way. */}
+      <StepFooter
+        complete
+        onContinue={() => void visibility.save()}
+        loading={visibility.saving}
+        label="Save section"
+        arrow={false}
+      />
     </div>
   );
 }

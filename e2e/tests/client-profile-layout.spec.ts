@@ -44,6 +44,8 @@ const PROFILE = {
   availability: null,
   availabilityNote: null,
   rateAmountMinor: null,
+  rateWeeklyAmountMinor: null,
+  rateMonthlyAmountMinor: null,
   rateCurrency: null,
   contact: {
     phoneE164: null,
@@ -238,6 +240,25 @@ test('the client profile holds its layout at every window size, open and closed'
   await page.getByRole('button', { name: 'Add details' }).click();
   await expect(page.getByRole('region', { name: /About/ }).getByLabel('Biography')).toBeVisible();
   await sweep(page, 'client profile with the About editor open');
+});
+
+test('the rates and visibility editors hold their layout at every window size', async ({
+  page,
+}) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await open(page);
+
+  // A row of four — the label and three periods — is the widest thing on this
+  // page, and the one most likely to be unusable on a phone.
+  await page.getByRole('button', { name: 'Manage rates' }).click();
+  const rates = page.getByRole('region', { name: /Expected rates/ });
+  await expect(rates.getByLabel('Hourly Rate')).toBeVisible();
+  await sweep(page, 'client profile with the rates editor open');
+
+  await page.getByRole('button', { name: 'Manage visibility' }).click();
+  const visibility = page.getByRole('region', { name: /Visibility/ });
+  await expect(visibility.getByRole('button', { name: 'Save section' })).toBeVisible();
+  await sweep(page, 'client profile with the visibility editor open');
 });
 
 test('the client profile has no automatically detectable accessibility violations', async ({

@@ -6,14 +6,16 @@ import { loadOrCreateProfile, saveVisibility, type OwnProfile } from './api.ts';
 /** In the order the design lists them, row by row across its two columns. */
 export const PUBLIC_SECTIONS = [
   { id: 'nameHeadline', label: 'Name and headline' },
-  { id: 'biography', label: 'Biography' },
+  { id: 'biography', label: 'About' },
   { id: 'location', label: 'Location and remote preference' },
   { id: 'languages', label: 'Languages' },
-  { id: 'rate', label: 'Hourly rate' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'experience', label: 'Experience' },
+  // One flag for all three periods: somebody who shows an hourly rate and hides
+  // the monthly one is describing the same price twice.
+  { id: 'rate', label: 'Expected rates' },
+  { id: 'skills', label: 'Skills and expertise' },
+  { id: 'experience', label: 'Work experience' },
   { id: 'education', label: 'Education' },
-  { id: 'licenses', label: 'Licenses' },
+  { id: 'licenses', label: 'Certifications' },
   { id: 'portfolio', label: 'Portfolio' },
   { id: 'videoIntro', label: 'Video intro' },
   { id: 'availability', label: 'Availability' },

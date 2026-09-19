@@ -670,6 +670,8 @@ export interface components {
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
             rateAmountMinor: string | null;
+            rateWeeklyAmountMinor: string | null;
+            rateMonthlyAmountMinor: string | null;
             rateCurrency: string | null;
             contact: {
                 phoneE164: string | null;
@@ -756,6 +758,8 @@ export interface components {
                 availability?: ("available" | "open_to_offers" | "unavailable") | null;
                 availabilityNote?: string | null;
                 rateAmountMinor?: string | null;
+                rateWeeklyAmountMinor?: string | null;
+                rateMonthlyAmountMinor?: string | null;
                 rateCurrency?: string | null;
             };
             contact?: {
@@ -872,8 +876,10 @@ export interface components {
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
             rate: {
-                amountMinor: string;
                 currency: string;
+                hourlyMinor: string | null;
+                weeklyMinor: string | null;
+                monthlyMinor: string | null;
             } | null;
             languages: {
                 name: string;
