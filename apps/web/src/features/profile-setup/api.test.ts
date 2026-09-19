@@ -91,6 +91,7 @@ describe('saveProfile', () => {
           displayName: 'Sophie Brandt',
           headline: null,
           overview: 'Bio',
+          videoIntroUrl: null,
           availabilityNote: null,
           locationCountry: null,
           locationRegion: null,

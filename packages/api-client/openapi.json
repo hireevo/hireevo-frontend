@@ -1899,6 +1899,9 @@
           "overview": {
             "type": ["string", "null"]
           },
+          "videoIntroUrl": {
+            "type": ["string", "null"]
+          },
           "locationCountry": {
             "type": ["string", "null"]
           },
@@ -2228,6 +2231,7 @@
           "avatarUrl",
           "headline",
           "overview",
+          "videoIntroUrl",
           "locationCountry",
           "locationRegion",
           "locationCity",
@@ -2296,6 +2300,17 @@
                   {
                     "type": "string",
                     "maxLength": 5000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "videoIntroUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500
                   },
                   {
                     "type": "null"

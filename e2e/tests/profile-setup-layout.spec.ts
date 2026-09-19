@@ -43,6 +43,7 @@ const PROFILE = {
       3,
     ),
   avatarUrl: null,
+  videoIntroUrl: null,
   locationCountry: null,
   locationRegion: null,
   locationCity: null,

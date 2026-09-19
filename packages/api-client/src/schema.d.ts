@@ -660,6 +660,7 @@ export interface components {
             avatarUrl: string | null;
             headline: string | null;
             overview: string | null;
+            videoIntroUrl: string | null;
             locationCountry: string | null;
             locationRegion: string | null;
             locationCity: string | null;
@@ -743,6 +744,7 @@ export interface components {
                 avatarKey?: string | null;
                 headline?: string | null;
                 overview?: string | null;
+                videoIntroUrl?: string | null;
                 locationCountry?: string | null;
                 locationRegion?: string | null;
                 locationCity?: string | null;

@@ -332,6 +332,24 @@ describe('ProfileBuilder', () => {
     );
   });
 
+  it('saves the video link to the profile rather than keeping it here', async () => {
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Add video intro' }));
+    await user.type(
+      await section(/Video intro/).findByLabelText('Link to your video'),
+      'https://vimeo.com/123456789',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+        videoIntroUrl: 'https://vimeo.com/123456789',
+      }),
+    );
+    expect(bar()).toHaveAttribute('aria-valuenow', '10');
+  });
+
   it('shows the sections the design draws below the portfolio', async () => {
     const user = await open();
 

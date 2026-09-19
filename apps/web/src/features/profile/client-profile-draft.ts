@@ -18,7 +18,7 @@ import type { ProfileLanguage, ProfileRecord } from './draft.ts';
  * see each other's draft, and a version so an older shape is dropped rather
  * than half read.
  */
-const VERSION = 3;
+const VERSION = 4;
 
 export type StoredDraft = {
   version: number;
@@ -26,7 +26,6 @@ export type StoredDraft = {
   identity: Partial<ProfileValues>;
   country: string;
   languages: ProfileLanguage[];
-  videoIntroUrl: string;
   skills: Entry<string>[];
   experience: Entry<string>[];
   education: Entry<string>[];

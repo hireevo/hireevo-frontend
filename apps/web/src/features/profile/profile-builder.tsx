@@ -136,7 +136,6 @@ export function ProfileBuilder() {
           ...EMPTY_DRAFT,
           country: stored.country,
           languages: stored.languages,
-          videoIntroUrl: stored.videoIntroUrl,
           records: { ...EMPTY_DRAFT.records, portfolio: stored.portfolio },
         },
   );
@@ -246,7 +245,6 @@ export function ProfileBuilder() {
         identity: values,
         country: draft.country,
         languages: draft.languages,
-        videoIntroUrl: draft.videoIntroUrl,
         skills: entries.skills,
         experience: entries.experience,
         education: entries.education,
@@ -325,7 +323,7 @@ export function ProfileBuilder() {
     education: courses.length > 0,
     certifications: certificates.length > 0,
     portfolio: draft.records.portfolio.length > 0,
-    videoIntro: draft.videoIntroUrl.trim() !== '',
+    videoIntro: values.videoIntroUrl.trim() !== '',
   };
   const completion = completionOf(filled);
 
@@ -547,11 +545,12 @@ export function ProfileBuilder() {
       >
         {open === 'video' ? (
           <VideoIntroEditor
-            url={draft.videoIntroUrl}
-            onChange={(videoIntroUrl) => setDraft((current) => ({ ...current, videoIntroUrl }))}
+            url={values.videoIntroUrl}
+            fieldErrors={identity.fieldErrors}
+            onChange={(url) => identity.change('videoIntroUrl', url)}
           />
         ) : filled.videoIntro ? (
-          <p className="truncate text-sm text-content-muted">{draft.videoIntroUrl}</p>
+          <p className="truncate text-sm text-content-muted">{values.videoIntroUrl}</p>
         ) : undefined}
       </SectionCard>
 

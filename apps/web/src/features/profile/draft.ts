@@ -28,8 +28,6 @@ export type ProfileDraft = {
   avatarKey: string;
   country: string;
   languages: ProfileLanguage[];
-  /** Where the short introduction video can be watched. */
-  videoIntroUrl: string;
   records: Record<RecordSectionId, ProfileRecord[]>;
 };
 
@@ -40,7 +38,6 @@ export const EMPTY_DRAFT: ProfileDraft = {
   avatarKey: '',
   country: '',
   languages: [],
-  videoIntroUrl: '',
   records: { workExperience: [], education: [], certifications: [], portfolio: [] },
 };
 
