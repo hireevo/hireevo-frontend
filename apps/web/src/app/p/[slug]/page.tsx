@@ -19,6 +19,15 @@ export async function generateMetadata({
   const profile = await fetchPublicProfile(slug);
 
   // Nothing to describe, and nothing to index.
+  //
+  // Said here rather than left to the 404 Next renders below. That response is
+  // a soft 404 — it answers 200, because the body has begun streaming by the
+  // time `notFound()` is thrown and the status can no longer change — and Next
+  // injects its own `noindex` into it. Without this, the root layout's
+  // `index, follow` is what the page also carries, which is a direct
+  // contradiction for a crawler to resolve. A real 404 status would mean
+  // checking every `/p/` request in `proxy` before the response starts, which
+  // costs an API round trip on every visit to a profile that does exist.
   if (profile === null) {
     return { title: 'Profile not found', robots: { index: false, follow: false } };
   }
