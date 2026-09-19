@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { AvatarPicker } from './avatar-picker.tsx';
@@ -19,11 +19,13 @@ const CONTROL = 'h-9 rounded-lg px-3 text-[0.8125rem] font-semibold';
  * Share copies the address, and says so where it was pressed — a clipboard that
  * gives no sign of having worked is indistinguishable from one that did not.
  */
-function PublicLinks({ slug }: { slug: string }) {
+function PublicLinks({ slug, published }: { slug: string | null; published: boolean }) {
   const [copied, setCopied] = useState(false);
-  const path = `/p/${slug}`;
+  const reasonId = useId();
+  const path = slug === null ? null : `/p/${slug}`;
 
   async function share() {
+    if (path === null) return;
     try {
       await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
       setCopied(true);
@@ -33,8 +35,37 @@ function PublicLinks({ slug }: { slug: string }) {
     }
   }
 
+  // Both are drawn either way, as the design draws them. Before publishing they
+  // are refused rather than hidden, and say why: the API answers 404 for a
+  // profile that is not published, so the link would lead nowhere and the
+  // preview would open a missing page. `aria-disabled` rather than `disabled`
+  // keeps them in the tab order with their reason attached.
+  if (path === null || !published) {
+    const locked = cn(
+      buttonVariants({ variant: 'secondary', size: 'sm' }),
+      CONTROL,
+      'cursor-not-allowed bg-surface-muted text-content-muted hover:bg-surface-muted',
+    );
+
+    return (
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+        <p id={reasonId} className="text-xs text-content-subtle">
+          Publish to share or preview
+        </p>
+        <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
+          <LuShare2 aria-hidden="true" className="size-3.5" />
+          Share
+        </button>
+        <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
+          <LuExternalLink aria-hidden="true" className="size-3.5" />
+          Preview
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="absolute top-5 right-5 flex items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
       <p role="status" aria-live="polite" className="text-xs text-content-subtle">
         {copied ? 'Link copied' : ''}
       </p>
@@ -65,18 +96,19 @@ export type ProfileHeaderCardProps = {
   draft: ProfileDraft;
   /** The account's handle. Shown, never edited — it is set at sign-up. */
   username: string | null;
-  /**
-   * The published profile's slug, or null while there is nothing published.
-   *
-   * Null hides sharing and previewing rather than offering them: the API
-   * answers 404 for a profile that is not published, so a link copied from
-   * here would lead nowhere and a preview would open a missing page.
-   */
+  /** The profile's public slug, and whether there is anything published at it. */
   slug: string | null;
+  published: boolean;
   onChange: (patch: Partial<ProfileDraft>) => void;
 };
 
-export function ProfileHeaderCard({ draft, username, slug, onChange }: ProfileHeaderCardProps) {
+export function ProfileHeaderCard({
+  draft,
+  username,
+  slug,
+  published,
+  onChange,
+}: ProfileHeaderCardProps) {
   const addLanguage = (language: ProfileLanguage) =>
     onChange({ languages: [...draft.languages, language] });
 
@@ -84,14 +116,15 @@ export function ProfileHeaderCard({ draft, username, slug, onChange }: ProfileHe
     onChange({ languages: draft.languages.filter((language) => language.name !== name) });
 
   return (
-    <Card aria-labelledby="profile-identity" className="relative flex items-start gap-6">
-      {slug === null ? null : <PublicLinks slug={slug} />}
+    <Card aria-labelledby="profile-identity" className="flex flex-wrap items-start gap-x-6 gap-y-4">
       <AvatarPicker
         url={draft.avatarUrl}
         onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
       />
 
-      <div className="min-w-0 flex-1">
+      {/* `min-w-[15rem]`: below that the name and its controls are unreadable,
+          so the row wraps and the links take a line of their own instead. */}
+      <div className="min-w-[15rem] flex-1">
         <h2 id="profile-identity" className="sr-only">
           Your name and details
         </h2>
@@ -149,6 +182,8 @@ export function ProfileHeaderCard({ draft, username, slug, onChange }: ProfileHe
           </span>
         </div>
       </div>
+
+      <PublicLinks slug={slug} published={published} />
     </Card>
   );
 }

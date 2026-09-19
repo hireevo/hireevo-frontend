@@ -377,17 +377,25 @@ export function ProfileBuilder() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* `minmax(0,1fr)` on the single-column track too: a grid track sized
-          `auto` takes its content’s minimum width, which pushed these cards
-          wider than a 320px screen. */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
-        <ProfileHeaderCard
-          draft={headerDraft}
-          username={user?.username ?? null}
-          slug={identity.profile?.status === 'published' ? identity.profile.slug : null}
-          onChange={patchHeader}
-        />
+    // Two columns, as the design draws them: the profile itself on the left —
+    // its header and every section — and the strength card alone on the right,
+    // beside all of it rather than above the sections.
+    //
+    // `minmax(0,1fr)` on the single-column track too: a grid track sized `auto`
+    // takes its content’s minimum width, which pushed these cards wider than a
+    // 320px screen.
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
+      <ProfileHeaderCard
+        draft={headerDraft}
+        username={user?.username ?? null}
+        published={identity.profile?.status === 'published'}
+        slug={identity.profile?.slug ?? null}
+        onChange={patchHeader}
+      />
+
+      {/* After the header in the markup, so a phone meets the profile before
+          the summary of it, and beside both rows from `lg`. */}
+      <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <ProfileStrengthCard
           strength={{
             percent: completion.percent,
@@ -409,236 +417,238 @@ export function ProfileBuilder() {
         />
       </div>
 
-      <SectionCard
-        title="About"
-        description="Share some details about yourself, your expertise, and what you offer."
-        icon={<LuUser />}
-        editing={open === 'about'}
-        action={actionFor('about', filled.about, 'Add details', 'About')}
-      >
-        {open === 'about' ? (
-          <IdentityEditor
-            values={values}
-            fieldErrors={identity.fieldErrors}
-            onChange={identity.change}
-          />
-        ) : filled.about ? (
-          <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
-            {values.overview}
-          </p>
-        ) : undefined}
-      </SectionCard>
-
-      <SectionCard
-        title="Skills and expertise"
-        description="Attract relevant clients by sharing your strengths and abilities."
-        icon={<LuStar />}
-        editing={open === 'skills'}
-        action={actionFor(
-          'skills',
-          filled.skills,
-          'Add skills and expertise',
-          'skills and expertise',
-        )}
-      >
-        {open === 'skills' ? (
-          <SkillsEditor skills={skills} heading={false} />
-        ) : filled.skills ? (
-          <SkillChips names={namedSkills} />
-        ) : undefined}
-      </SectionCard>
-
-      <SectionCard
-        title="Work experience"
-        optional
-        description="Add your job history and achievements to give clients insight into your expertise."
-        icon={<LuBriefcaseBusiness />}
-        editing={open === 'experience'}
-        action={actionFor(
-          'experience',
-          filled.experience,
-          'Add work experience',
-          'work experience',
-        )}
-      >
-        {open === 'experience' ? (
-          <ExperienceEditor experience={experience} heading={false} />
-        ) : filled.experience ? (
-          <SummaryList
-            rows={roles.map((item) => ({
-              key: item.key,
-              primary: item.values.role,
-              secondary: joined(
-                item.values.organization,
-                rangeOf(item.values.startDate, item.values.endDate),
-              ),
-              body: item.values.summary,
-            }))}
-          />
-        ) : undefined}
-      </SectionCard>
-
-      {/* The only pair the design puts side by side, and only from `lg` — below
-          that the column is too narrow for two of these to hold their shape. */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
         <SectionCard
-          title="Education"
-          optional
-          description="Back up your skills by adding any educational degrees or programs."
-          icon={<LuGraduationCap />}
-          className={open === 'education' ? 'lg:col-span-2' : ''}
-          editing={open === 'education'}
-          action={actionFor('education', filled.education, 'Add education', 'education')}
+          title="About"
+          description="Share some details about yourself, your expertise, and what you offer."
+          icon={<LuUser />}
+          editing={open === 'about'}
+          action={actionFor('about', filled.about, 'Add details', 'About')}
         >
-          {open === 'education' ? (
-            <EducationEditor education={education} heading={false} />
-          ) : filled.education ? (
-            <SummaryList
-              rows={courses.map((item) => ({
-                key: item.key,
-                primary: item.values.institution,
-                secondary: joined(
-                  item.values.qualification,
-                  item.values.fieldOfStudy,
-                  rangeOf(item.values.startDate, item.values.endDate),
-                ),
-              }))}
+          {open === 'about' ? (
+            <IdentityEditor
+              values={values}
+              fieldErrors={identity.fieldErrors}
+              onChange={identity.change}
             />
+          ) : filled.about ? (
+            <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
+              {values.overview}
+            </p>
           ) : undefined}
         </SectionCard>
 
         <SectionCard
-          title="Certifications"
-          optional
-          description="Showcase your mastery with certifications earned in your field."
-          icon={<LuAward />}
-          className={open === 'certifications' ? 'lg:col-span-2' : ''}
-          editing={open === 'certifications'}
+          title="Skills and expertise"
+          description="Attract relevant clients by sharing your strengths and abilities."
+          icon={<LuStar />}
+          editing={open === 'skills'}
           action={actionFor(
-            'certifications',
-            filled.certifications,
-            'Add certifications',
-            'certifications',
+            'skills',
+            filled.skills,
+            'Add skills and expertise',
+            'skills and expertise',
           )}
         >
-          {open === 'certifications' ? (
-            <LicenseEditor licenses={licenses} heading={false} />
-          ) : filled.certifications ? (
+          {open === 'skills' ? (
+            <SkillsEditor skills={skills} heading={false} />
+          ) : filled.skills ? (
+            <SkillChips names={namedSkills} />
+          ) : undefined}
+        </SectionCard>
+
+        <SectionCard
+          title="Work experience"
+          optional
+          description="Add your job history and achievements to give clients insight into your expertise."
+          icon={<LuBriefcaseBusiness />}
+          editing={open === 'experience'}
+          action={actionFor(
+            'experience',
+            filled.experience,
+            'Add work experience',
+            'work experience',
+          )}
+        >
+          {open === 'experience' ? (
+            <ExperienceEditor experience={experience} heading={false} />
+          ) : filled.experience ? (
             <SummaryList
-              rows={certificates.map((item) => ({
+              rows={roles.map((item) => ({
                 key: item.key,
-                primary: item.values.name,
-                secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+                primary: item.values.role,
+                secondary: joined(
+                  item.values.organization,
+                  rangeOf(item.values.startDate, item.values.endDate),
+                ),
+                body: item.values.summary,
               }))}
             />
           ) : undefined}
         </SectionCard>
-      </div>
 
-      {/* Portfolio has no designed editor yet, so it keeps the short record form. */}
-      <RecordSection
-        spec={RECORD_SPECS.portfolio}
-        open={open === 'portfolio'}
-        action={actionFor('portfolio', filled.portfolio, 'Add portfolio', 'portfolio')}
-        records={draft.records.portfolio}
-        onChange={(records) =>
-          setDraft((current) => ({
-            ...current,
-            records: { ...current.records, portfolio: records },
-          }))
-        }
-      />
+        {/* The only pair the design puts side by side, and only from `lg` — below
+          that the column is too narrow for two of these to hold their shape. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
+          <SectionCard
+            title="Education"
+            optional
+            description="Back up your skills by adding any educational degrees or programs."
+            icon={<LuGraduationCap />}
+            className={open === 'education' ? 'lg:col-span-2' : ''}
+            editing={open === 'education'}
+            action={actionFor('education', filled.education, 'Add education', 'education')}
+          >
+            {open === 'education' ? (
+              <EducationEditor education={education} heading={false} />
+            ) : filled.education ? (
+              <SummaryList
+                rows={courses.map((item) => ({
+                  key: item.key,
+                  primary: item.values.institution,
+                  secondary: joined(
+                    item.values.qualification,
+                    item.values.fieldOfStudy,
+                    rangeOf(item.values.startDate, item.values.endDate),
+                  ),
+                }))}
+              />
+            ) : undefined}
+          </SectionCard>
 
-      <SectionCard
-        title="Video intro"
-        optional
-        description="Record a short video to introduce yourself and make a great first impression."
-        icon={<LuVideo />}
-        editing={open === 'video'}
-        action={actionFor('video', filled.videoIntro, 'Add video intro', 'video intro')}
-      >
-        {open === 'video' ? (
-          <VideoIntroEditor
-            url={values.videoIntroUrl}
-            fieldErrors={identity.fieldErrors}
-            onChange={(url) => identity.change('videoIntroUrl', url)}
-          />
-        ) : filled.videoIntro ? (
-          <p className="truncate text-sm text-content-muted">{values.videoIntroUrl}</p>
-        ) : undefined}
-      </SectionCard>
-
-      <SectionCard
-        title="Visibility"
-        description="Control who can see your profile and manage your online presence."
-        icon={<LuShieldCheck />}
-        editing={open === 'visibility'}
-        action={
-          open === 'visibility' ? (
-            close
-          ) : (
-            <AddButton onClick={() => toggle('visibility')}>Manage visibility</AddButton>
-          )
-        }
-      >
-        {open === 'visibility' ? (
-          <VisibilityEditor draft={identity} />
-        ) : (
-          <p className="text-sm text-content-muted">
-            {identity.profile?.visibility.profilePublic === true
-              ? 'Public once published, showing only the sections you chose.'
-              : 'Private. Nothing is shown publicly until you choose to publish.'}
-          </p>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title="Expected rates"
-        description="Set the hourly rate buyers see, in the currency you bill in."
-        icon={<LuCircleDollarSign />}
-        editing={open === 'rates'}
-        action={
-          open === 'rates' ? (
-            close
-          ) : (
-            <AddButton onClick={() => toggle('rates')}>Manage rates</AddButton>
-          )
-        }
-      >
-        {open === 'rates' ? (
-          <RatesEditor
-            values={values}
-            fieldErrors={identity.fieldErrors}
-            onChange={identity.change}
-          />
-        ) : (
-          <p className="text-sm text-content-muted">
-            {rates.length === 0 ? 'No rates set yet.' : rates.join(' · ')}
-          </p>
-        )}
-      </SectionCard>
-
-      {/* One save, at the end of the form, for the whole of it. */}
-      <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p role="status" aria-live="polite" className="text-sm font-medium text-content">
-            {saveStatus}
-          </p>
-          <p className="mt-1 text-xs text-content-subtle">
-            Everything you type is kept in this browser until you save, so nothing is lost if you
-            close the page. Saving sends the whole profile — your details and every section.
-          </p>
+          <SectionCard
+            title="Certifications"
+            optional
+            description="Showcase your mastery with certifications earned in your field."
+            icon={<LuAward />}
+            className={open === 'certifications' ? 'lg:col-span-2' : ''}
+            editing={open === 'certifications'}
+            action={actionFor(
+              'certifications',
+              filled.certifications,
+              'Add certifications',
+              'certifications',
+            )}
+          >
+            {open === 'certifications' ? (
+              <LicenseEditor licenses={licenses} heading={false} />
+            ) : filled.certifications ? (
+              <SummaryList
+                rows={certificates.map((item) => ({
+                  key: item.key,
+                  primary: item.values.name,
+                  secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+                }))}
+              />
+            ) : undefined}
+          </SectionCard>
         </div>
-        <Button
-          type="button"
-          onClick={() => void save()}
-          loading={identity.save.kind === 'saving'}
-          loadingLabel="Saving"
-          className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+
+        {/* Portfolio has no designed editor yet, so it keeps the short record form. */}
+        <RecordSection
+          spec={RECORD_SPECS.portfolio}
+          open={open === 'portfolio'}
+          action={actionFor('portfolio', filled.portfolio, 'Add portfolio', 'portfolio')}
+          records={draft.records.portfolio}
+          onChange={(records) =>
+            setDraft((current) => ({
+              ...current,
+              records: { ...current.records, portfolio: records },
+            }))
+          }
+        />
+
+        <SectionCard
+          title="Video intro"
+          optional
+          description="Record a short video to introduce yourself and make a great first impression."
+          icon={<LuVideo />}
+          editing={open === 'video'}
+          action={actionFor('video', filled.videoIntro, 'Add video intro', 'video intro')}
         >
-          Save
-        </Button>
-      </Card>
+          {open === 'video' ? (
+            <VideoIntroEditor
+              url={values.videoIntroUrl}
+              fieldErrors={identity.fieldErrors}
+              onChange={(url) => identity.change('videoIntroUrl', url)}
+            />
+          ) : filled.videoIntro ? (
+            <p className="truncate text-sm text-content-muted">{values.videoIntroUrl}</p>
+          ) : undefined}
+        </SectionCard>
+
+        <SectionCard
+          title="Visibility"
+          description="Control who can see your profile and manage your online presence."
+          icon={<LuShieldCheck />}
+          editing={open === 'visibility'}
+          action={
+            open === 'visibility' ? (
+              close
+            ) : (
+              <AddButton onClick={() => toggle('visibility')}>Manage visibility</AddButton>
+            )
+          }
+        >
+          {open === 'visibility' ? (
+            <VisibilityEditor draft={identity} />
+          ) : (
+            <p className="text-sm text-content-muted">
+              {identity.profile?.visibility.profilePublic === true
+                ? 'Public once published, showing only the sections you chose.'
+                : 'Private. Nothing is shown publicly until you choose to publish.'}
+            </p>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Expected rates"
+          description="Set the hourly rate buyers see, in the currency you bill in."
+          icon={<LuCircleDollarSign />}
+          editing={open === 'rates'}
+          action={
+            open === 'rates' ? (
+              close
+            ) : (
+              <AddButton onClick={() => toggle('rates')}>Manage rates</AddButton>
+            )
+          }
+        >
+          {open === 'rates' ? (
+            <RatesEditor
+              values={values}
+              fieldErrors={identity.fieldErrors}
+              onChange={identity.change}
+            />
+          ) : (
+            <p className="text-sm text-content-muted">
+              {rates.length === 0 ? 'No rates set yet.' : rates.join(' · ')}
+            </p>
+          )}
+        </SectionCard>
+
+        {/* One save, at the end of the form, for the whole of it. */}
+        <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p role="status" aria-live="polite" className="text-sm font-medium text-content">
+              {saveStatus}
+            </p>
+            <p className="mt-1 text-xs text-content-subtle">
+              Everything you type is kept in this browser until you save, so nothing is lost if you
+              close the page. Saving sends the whole profile — your details and every section.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => void save()}
+            loading={identity.save.kind === 'saving'}
+            loadingLabel="Saving"
+            className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+          >
+            Save
+          </Button>
+        </Card>
+      </div>
     </div>
   );
 }
