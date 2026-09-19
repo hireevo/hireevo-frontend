@@ -332,6 +332,25 @@ describe('ProfileBuilder', () => {
     );
   });
 
+  it('brings the portfolio into edit mode like every other section', async () => {
+    const user = await open();
+    const portfolio = () => section(/Portfolio/);
+
+    await user.click(screen.getByRole('button', { name: 'Add portfolio' }));
+    await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
+    await user.type(portfolio().getByLabelText('Title'), 'Checkout redesign');
+    await user.click(portfolio().getByRole('button', { name: 'Save' }));
+    await user.click(portfolio().getByRole('button', { name: 'Close' }));
+
+    // Closed, it reads as the profile does: what is in it, and nothing to press.
+    expect(portfolio().getByText('Checkout redesign')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit portfolio' })).not.toBeInTheDocument();
+    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+
+    await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
+    expect(screen.getByRole('button', { name: 'Edit portfolio' })).toBeInTheDocument();
+  });
+
   it('saves the video link to the profile rather than keeping it here', async () => {
     const user = await open();
 

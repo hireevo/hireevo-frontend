@@ -195,6 +195,39 @@ export async function saveProfile(
   }
 }
 
+/** Whether someone is taking work, as the API names it. */
+export type Availability = NonNullable<OwnProfile['availability']>;
+
+/**
+ * Sets whether someone is taking work, and nothing else.
+ *
+ * Its own request, carrying only this field, because it is set from the bar at
+ * the top of every page while the profile form may be half-typed underneath.
+ * Sending the whole profile from up there would write the form's unsaved state
+ * back to whatever was last loaded.
+ */
+export async function saveAvailability(
+  version: number,
+  availability: Availability | null,
+): Promise<SaveResult> {
+  try {
+    const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {
+      body: { version, profile: { availability } },
+    });
+    if (data !== undefined) return { ok: true, profile: data };
+    if (response.status === 409) {
+      return {
+        ok: false,
+        kind: 'conflict',
+        message: 'This profile was changed in another tab or window.',
+      };
+    }
+    return { ok: false, kind: 'failed', message: messageOf(error) };
+  } catch {
+    return { ok: false, kind: 'failed', message: UNREACHABLE };
+  }
+}
+
 export type VisibilityResult =
   | { ok: true; visibility: ProfileVisibility }
   | { ok: false; kind: 'conflict'; message: string }

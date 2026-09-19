@@ -5,6 +5,8 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { DESIGN_SNAPSHOT } from './design-fixture.ts';
 import { workspaceSnapshot } from './snapshot.ts';
+import type { WorkspaceSnapshot } from './types.ts';
+import { WorkspaceChrome } from './workspace-chrome.tsx';
 import { WorkspaceDashboard } from './workspace-dashboard.tsx';
 
 // Links render as the anchors they become; `next/link` needs a router a unit
@@ -43,14 +45,36 @@ const panelOf = (trigger: HTMLElement) => {
   return within(panel);
 };
 
+/**
+ * The page as it is assembled: the chrome the `(workspace)` layout renders,
+ * above the dashboard's own content. Both together, because what this file
+ * checks — the header, its dropdowns and the seller bar — sits in the first and
+ * is read beside the second.
+ */
+const renderPage = (snapshot: WorkspaceSnapshot, onSignOut: (() => void) | null) =>
+  render(
+    <>
+      <WorkspaceChrome
+        nav={snapshot.nav}
+        utilities={snapshot.utilities}
+        user={snapshot.user}
+        seller={snapshot.seller}
+        onSignOut={onSignOut}
+      />
+      <WorkspaceDashboard snapshot={snapshot} />
+    </>,
+  );
+
+const renderPreview = () => renderPage(DESIGN_SNAPSHOT, null);
+
 const renderReal = (onSignOut = vi.fn()) => {
-  render(<WorkspaceDashboard snapshot={workspaceSnapshot(ayesha)} onSignOut={onSignOut} />);
+  renderPage(workspaceSnapshot(ayesha), onSignOut);
   return { onSignOut, user: userEvent.setup() };
 };
 
 describe('WorkspaceDashboard with the design preview content', () => {
   it('draws everything the design file draws', () => {
-    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    renderPreview();
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'Your market-ready foundation',
@@ -71,13 +95,13 @@ describe('WorkspaceDashboard with the design preview content', () => {
   });
 
   it('draws an action with nowhere to go as the design does, but not as a link', () => {
-    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    renderPreview();
     expect(screen.queryByRole('link', { name: /Review membership/ })).not.toBeInTheDocument();
     expect(screen.getByText('Review membership')).toHaveClass('underline');
   });
 
   it('reads each count with its subject', () => {
-    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    renderPreview();
     expect(
       screen.getByText(
         (_, element) => element?.tagName === 'P' && element.textContent === '0 Skills',
@@ -86,7 +110,7 @@ describe('WorkspaceDashboard with the design preview content', () => {
   });
 
   it('has no account menu when there is no one to sign out', () => {
-    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    renderPreview();
     expect(screen.queryByRole('button', { name: /Account menu/ })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Design preview' })).toBeInTheDocument();
   });
@@ -270,7 +294,7 @@ describe('the header dropdowns', () => {
   });
 
   it('shows sign-out as unavailable on the design preview, where no one is signed in', async () => {
-    render(<WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />);
+    renderPreview();
     const user = userEvent.setup();
     const account = screen.getByRole('button', { name: 'Account' });
 

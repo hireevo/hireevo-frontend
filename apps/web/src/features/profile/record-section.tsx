@@ -7,6 +7,7 @@ import { Button, TextField } from '@hireevo/ui-web';
 import { AddButton } from './add-button.tsx';
 import type { ProfileRecord } from './draft.ts';
 import { SectionCard } from './section-card.tsx';
+import { SummaryList } from './section-summaries.tsx';
 
 export type RecordField = {
   name: string;
@@ -34,6 +35,14 @@ export type RecordSectionProps = {
   spec: RecordSpec;
   records: ProfileRecord[];
   onChange: (records: ProfileRecord[]) => void;
+  /** True while this section's editor is open. */
+  open: boolean;
+  /**
+   * The control in the section's corner, decided where every other section's
+   * is: a way in while it is empty, a pencil once it holds something and
+   * editing is on, and nothing at all otherwise.
+   */
+  action: ReactNode;
   className?: string;
 };
 
@@ -41,16 +50,22 @@ const blank = (fields: RecordField[]) =>
   Object.fromEntries(fields.map((field) => [field.name, '']));
 
 /**
- * The four "(Optional)" sections: work experience, education, certifications
- * and portfolio.
+ * A section holding a list of short records — the portfolio.
  *
- * The design draws only their empty state — a heading, a line of copy and an
- * "Add" control — so the editor behind that control has no frame to follow.
- * All four hold a list of short records, so they share one form driven by the
- * field list in their spec. Keeping it in one place is what makes it cheap to
- * throw away once those screens are designed.
+ * The design draws only its empty state, so the form behind the control has no
+ * frame to follow. It opens and closes like every other section on the page, so
+ * that "Complete your profile" means the same thing here as it does there:
+ * closed, it shows what is in it and nothing to press; open, it can be added to
+ * and pruned.
  */
-export function RecordSection({ spec, records, onChange, className }: RecordSectionProps) {
+export function RecordSection({
+  spec,
+  records,
+  onChange,
+  open,
+  action,
+  className,
+}: RecordSectionProps) {
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
 
   const required = spec.fields.filter((field) => field.required === true);
@@ -74,13 +89,19 @@ export function RecordSection({ spec, records, onChange, className }: RecordSect
       description={spec.description}
       icon={spec.icon}
       className={className}
-      action={
-        draft === null ? (
-          <AddButton onClick={() => setDraft(blank(spec.fields))}>{spec.addLabel}</AddButton>
-        ) : null
-      }
+      editing={open}
+      action={action}
     >
-      {records.length === 0 && draft === null ? undefined : (
+      {!open ? (
+        records.length === 0 ? undefined : (
+          <SummaryList
+            rows={records.map((record) => {
+              const { primary, secondary } = spec.summary(record.fields);
+              return { key: record.id, primary, secondary };
+            })}
+          />
+        )
+      ) : (
         <div className="flex flex-col gap-4">
           {records.length === 0 ? null : (
             <ul className="flex flex-col gap-3">
@@ -117,7 +138,9 @@ export function RecordSection({ spec, records, onChange, className }: RecordSect
             </ul>
           )}
 
-          {draft === null ? null : (
+          {draft === null ? (
+            <AddButton onClick={() => setDraft(blank(spec.fields))}>{spec.addLabel}</AddButton>
+          ) : (
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               {spec.fields.map((field) => (
                 <TextField

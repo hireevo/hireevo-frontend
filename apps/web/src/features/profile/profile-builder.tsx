@@ -73,6 +73,7 @@ type OpenSection =
   | 'experience'
   | 'education'
   | 'certifications'
+  | 'portfolio'
   | 'video'
   | 'visibility'
   | 'rates'
@@ -526,6 +527,8 @@ export function ProfileBuilder() {
       {/* Portfolio has no designed editor yet, so it keeps the short record form. */}
       <RecordSection
         spec={RECORD_SPECS.portfolio}
+        open={open === 'portfolio'}
+        action={actionFor('portfolio', filled.portfolio, 'Add portfolio', 'portfolio')}
         records={draft.records.portfolio}
         onChange={(records) =>
           setDraft((current) => ({

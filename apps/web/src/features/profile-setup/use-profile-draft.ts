@@ -12,6 +12,7 @@ import {
   type ProfileField,
   type ProfileValues,
 } from './api.ts';
+import { onProfileChanged, profileChanged } from './profile-events.ts';
 import type { SectionsPayload } from './sections-payload.ts';
 
 export type SaveState =
@@ -132,7 +133,23 @@ export function useProfileDraft({
         : { kind: 'unsaved' },
     );
     setLoad({ status: 'ready' });
+    // The bar above the page writes the same profile; it needs the version this
+    // read came back with.
+    profileChanged(result.profile);
   }, []);
+
+  // And the other way: when something else moves the profile on, take the
+  // version it moved to. What is typed here is untouched — only the version
+  // the next save will carry.
+  useEffect(
+    () =>
+      onProfileChanged((next) => {
+        if (next.version <= version.current) return;
+        version.current = next.version;
+        setProfile(next);
+      }),
+    [],
+  );
 
   // The first load. State starts as "loading", so nothing is set until the
   // request answers — setting it synchronously here would render twice for
@@ -179,6 +196,7 @@ export function useProfileDraft({
       }
       setProfile(result.profile);
       setFieldErrors({});
+      profileChanged(result.profile);
       // Only "saved" if nothing else was typed while this was on its way.
       setSave(
         keyOf(latest.current, sections.current?.()) === savedKey.current

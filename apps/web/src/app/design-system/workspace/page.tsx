@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { DESIGN_SNAPSHOT } from '@/features/workspace/design-fixture.ts';
+import { WorkspaceChrome } from '@/features/workspace/workspace-chrome.tsx';
 import { WorkspaceDashboard } from '@/features/workspace/workspace-dashboard.tsx';
 
 export const metadata: Metadata = {
@@ -18,7 +19,16 @@ export default function WorkspacePreviewPage() {
       <p className="bg-surface-warning-subtle px-4 py-2 text-center text-sm text-content-warning">
         Design preview with sample content from the design file — none of it is account data.
       </p>
-      <WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} onSignOut={null} />
+      {/* The chrome is the layout's on a real page; this route is outside that
+          group, so the preview renders it beside the content it previews. */}
+      <WorkspaceChrome
+        nav={DESIGN_SNAPSHOT.nav}
+        utilities={DESIGN_SNAPSHOT.utilities}
+        user={DESIGN_SNAPSHOT.user}
+        seller={DESIGN_SNAPSHOT.seller}
+        onSignOut={null}
+      />
+      <WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} />
     </>
   );
 }

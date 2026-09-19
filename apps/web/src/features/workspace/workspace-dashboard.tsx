@@ -6,24 +6,14 @@ import { FeatureCard } from './feature-card.tsx';
 import { CONTAINER, EYEBROW } from './layout.ts';
 import { ProfileStrengthCard } from './profile-strength-card.tsx';
 import { StatCard } from './stat-card.tsx';
-import { StatusBar } from './status-bar.tsx';
 import type { WorkspaceSnapshot } from './types.ts';
-import { WorkspaceHeader } from './workspace-header.tsx';
 
-export function WorkspaceDashboard({
-  snapshot,
-  onSignOut,
-}: {
-  snapshot: WorkspaceSnapshot;
-  onSignOut: (() => void) | null;
-}) {
-  const { user, nav, utilities, seller, editProfile, stats, cards, strength } = snapshot;
+/** The dashboard's own content. The chrome above it is the layout's; see workspace-chrome.tsx. */
+export function WorkspaceDashboard({ snapshot }: { snapshot: WorkspaceSnapshot }) {
+  const { editProfile, stats, cards, strength } = snapshot;
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-subtle">
-      <WorkspaceHeader nav={nav} utilities={utilities} user={user} onSignOut={onSignOut} />
-      {seller === null ? null : <StatusBar seller={seller} />}
-
       <main id="main-content" className={cn(CONTAINER, 'flex-1 pt-8 pb-16 sm:pt-10')}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">

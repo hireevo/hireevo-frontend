@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { LuRocket } from 'react-icons/lu';
 import { Switch, cn } from '@hireevo/ui-web';
+import type { AvailabilityControl } from '@/features/profile-setup/use-availability.ts';
 import { ActionLink } from './action-link.tsx';
 import { CONTAINER } from './layout.ts';
 import type { SellerStatus } from './types.ts';
@@ -11,17 +12,30 @@ import type { SellerStatus } from './types.ts';
  * The bar under the header: seller tier, upgrade, whether the profile is live,
  * and availability.
  *
- * Nothing on the account carries a tier or an availability flag yet, and the
- * publish routes have no documented body, so these values come from the design
- * and the switch changes only what this page shows: it saves nothing and is
- * back on after a reload. Wire it to the API before anything relies on it.
+ * Given an `availability` control, the switch is the profile's own — it saves,
+ * and it survives a reload. Without one, as on the design preview where nobody
+ * is signed in, it moves and changes nothing, which is what a preview is.
+ *
+ * The tier and the upgrade link are still the design's: nothing on the account
+ * carries either yet.
  */
-export function StatusBar({ seller }: { seller: SellerStatus }) {
+export function StatusBar({
+  seller,
+  availability,
+}: {
+  seller: SellerStatus;
+  availability?: AvailabilityControl;
+}) {
   const labelId = useId();
-  const [available, setAvailable] = useState(seller.available);
+  const errorId = useId();
+  const [shown, setShown] = useState(seller.available);
+  const live = availability !== undefined;
+  const available = live ? availability.on : shown;
 
   return (
-    <div className="border-b border-border-subtle bg-surface">
+    // A landmark, not a bare strip: everything on a page has to sit inside one,
+    // and this sits between the header and the page's own `main`.
+    <section aria-label="Seller status" className="border-b border-border-subtle bg-surface">
       <div
         className={cn(
           CONTAINER,
@@ -53,11 +67,25 @@ export function StatusBar({ seller }: { seller: SellerStatus }) {
           ) : null}
           <span aria-hidden="true" className="h-4 w-px bg-border-subtle" />
           <span className="inline-flex items-center gap-2">
-            <Switch checked={available} onCheckedChange={setAvailable} aria-labelledby={labelId} />
+            <Switch
+              checked={available}
+              // Only while the profile has not answered yet: disabling the
+              // control someone just pressed would drop their focus (§6.8), and
+              // a save is over in a moment.
+              disabled={live && !availability.ready}
+              onCheckedChange={(next) => (live ? void availability.set(next) : setShown(next))}
+              aria-labelledby={labelId}
+              {...(live && availability.error !== null ? { 'aria-describedby': errorId } : {})}
+            />
             <span id={labelId}>Available</span>
           </span>
+          {live && availability.error !== null ? (
+            <span id={errorId} role="alert" className="text-xs text-content-warning">
+              {availability.error}
+            </span>
+          ) : null}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
