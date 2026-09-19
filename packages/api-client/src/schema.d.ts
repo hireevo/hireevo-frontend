@@ -730,6 +730,8 @@ export interface components {
                     experience: boolean;
                     education: boolean;
                     licenses: boolean;
+                    portfolio: boolean;
+                    videoIntro: boolean;
                     availability: boolean;
                 };
                 searchIndexable: boolean;
@@ -816,6 +818,8 @@ export interface components {
                 experience: boolean;
                 education: boolean;
                 licenses: boolean;
+                portfolio: boolean;
+                videoIntro: boolean;
                 availability: boolean;
             };
             searchIndexable: boolean;
@@ -834,6 +838,8 @@ export interface components {
                 experience: boolean;
                 education: boolean;
                 licenses: boolean;
+                portfolio: boolean;
+                videoIntro: boolean;
                 availability: boolean;
             };
             searchIndexable: boolean;
@@ -897,6 +903,13 @@ export interface components {
                 issuedOn: string | null;
                 expiresOn: string | null;
             }[];
+            portfolio: {
+                title: string;
+                url: string | null;
+                summary: string | null;
+            }[];
+            videoIntroUrl: string | null;
+            searchIndexable: boolean;
             publishedAt: string | null;
         };
     };

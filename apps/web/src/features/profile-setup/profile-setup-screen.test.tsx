@@ -62,6 +62,8 @@ const NOTHING_SHARED = {
   experience: false,
   education: false,
   licenses: false,
+  portfolio: false,
+  videoIntro: false,
   availability: false,
 };
 

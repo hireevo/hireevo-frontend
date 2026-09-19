@@ -14,6 +14,8 @@ export const PUBLIC_SECTIONS = [
   { id: 'experience', label: 'Experience' },
   { id: 'education', label: 'Education' },
   { id: 'licenses', label: 'Licenses' },
+  { id: 'portfolio', label: 'Portfolio' },
+  { id: 'videoIntro', label: 'Video intro' },
   { id: 'availability', label: 'Availability' },
 ] as const;
 

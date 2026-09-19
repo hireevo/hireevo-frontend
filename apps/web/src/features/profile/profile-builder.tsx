@@ -375,6 +375,7 @@ export function ProfileBuilder() {
         <ProfileHeaderCard
           draft={headerDraft}
           username={user?.username ?? null}
+          slug={identity.profile?.status === 'published' ? identity.profile.slug : null}
           onChange={patchHeader}
         />
         <ProfileStrengthCard

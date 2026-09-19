@@ -2189,6 +2189,12 @@
                   "licenses": {
                     "type": "boolean"
                   },
+                  "portfolio": {
+                    "type": "boolean"
+                  },
+                  "videoIntro": {
+                    "type": "boolean"
+                  },
                   "availability": {
                     "type": "boolean"
                   }
@@ -2203,6 +2209,8 @@
                   "experience",
                   "education",
                   "licenses",
+                  "portfolio",
+                  "videoIntro",
                   "availability"
                 ],
                 "additionalProperties": false
@@ -2834,6 +2842,12 @@
               "licenses": {
                 "type": "boolean"
               },
+              "portfolio": {
+                "type": "boolean"
+              },
+              "videoIntro": {
+                "type": "boolean"
+              },
               "availability": {
                 "type": "boolean"
               }
@@ -2848,6 +2862,8 @@
               "experience",
               "education",
               "licenses",
+              "portfolio",
+              "videoIntro",
               "availability"
             ]
           },
@@ -2904,6 +2920,12 @@
               "licenses": {
                 "type": "boolean"
               },
+              "portfolio": {
+                "type": "boolean"
+              },
+              "videoIntro": {
+                "type": "boolean"
+              },
               "availability": {
                 "type": "boolean"
               }
@@ -2918,6 +2940,8 @@
               "experience",
               "education",
               "licenses",
+              "portfolio",
+              "videoIntro",
               "availability"
             ],
             "additionalProperties": false
@@ -3153,6 +3177,31 @@
               "additionalProperties": false
             }
           },
+          "portfolio": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": ["string", "null"]
+                },
+                "summary": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["title", "url", "summary"],
+              "additionalProperties": false
+            }
+          },
+          "videoIntroUrl": {
+            "type": ["string", "null"]
+          },
+          "searchIndexable": {
+            "type": "boolean"
+          },
           "publishedAt": {
             "type": ["string", "null"]
           }
@@ -3172,6 +3221,9 @@
           "experience",
           "education",
           "licenses",
+          "portfolio",
+          "videoIntroUrl",
+          "searchIndexable",
           "publishedAt"
         ],
         "additionalProperties": false

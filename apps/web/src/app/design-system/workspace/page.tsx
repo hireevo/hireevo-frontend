@@ -16,9 +16,14 @@ export const metadata: Metadata = {
 export default function WorkspacePreviewPage() {
   return (
     <>
-      <p className="bg-surface-warning-subtle px-4 py-2 text-center text-sm text-content-warning">
+      {/* A landmark, because everything on a page has to sit inside one and
+          this sits outside the page's own `main`. */}
+      <aside
+        aria-label="Preview notice"
+        className="bg-surface-warning-subtle px-4 py-2 text-center text-sm text-content-warning"
+      >
         Design preview with sample content from the design file — none of it is account data.
-      </p>
+      </aside>
       {/* The chrome is the layout's on a real page; this route is outside that
           group, so the preview renders it beside the content it previews. */}
       <WorkspaceChrome

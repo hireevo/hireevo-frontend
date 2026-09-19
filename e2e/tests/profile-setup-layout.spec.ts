@@ -86,6 +86,8 @@ const PROFILE = {
       experience: false,
       education: false,
       licenses: false,
+      portfolio: false,
+      videoIntro: false,
       availability: false,
     },
     searchIndexable: false,

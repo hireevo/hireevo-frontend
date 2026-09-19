@@ -1,20 +1,82 @@
 'use client';
 
-import { LuGlobe, LuMapPin } from 'react-icons/lu';
-import { Card, Chip } from '@hireevo/ui-web';
+import { useState } from 'react';
+import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
+import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { AvatarPicker } from './avatar-picker.tsx';
 import type { ProfileDraft, ProfileLanguage } from './draft.ts';
 import { InlineEdit } from './inline-edit.tsx';
 import { LanguageAdder } from './language-adder.tsx';
 
+const CONTROL = 'h-9 rounded-lg px-3 text-[0.8125rem] font-semibold';
+
+/**
+ * The two things someone does with a published profile: send it to a buyer, and
+ * look at what that buyer will see.
+ *
+ * Preview is a plain anchor to a new tab rather than a client-side navigation:
+ * the point is to leave the editor behind and see the page as it is served.
+ * Share copies the address, and says so where it was pressed — a clipboard that
+ * gives no sign of having worked is indistinguishable from one that did not.
+ */
+function PublicLinks({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  const path = `/p/${slug}`;
+
+  async function share() {
+    try {
+      await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
+      setCopied(true);
+    } catch {
+      // Denied, or no clipboard at all. The link is still one tab away.
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="absolute top-5 right-5 flex items-center gap-2">
+      <p role="status" aria-live="polite" className="text-xs text-content-subtle">
+        {copied ? 'Link copied' : ''}
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={() => void share()}
+        className={CONTROL}
+      >
+        <LuShare2 aria-hidden="true" className="size-3.5" />
+        Share
+      </Button>
+      <a
+        href={path}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), CONTROL)}
+      >
+        <LuExternalLink aria-hidden="true" className="size-3.5" />
+        Preview
+      </a>
+    </div>
+  );
+}
+
 export type ProfileHeaderCardProps = {
   draft: ProfileDraft;
   /** The account's handle. Shown, never edited — it is set at sign-up. */
   username: string | null;
+  /**
+   * The published profile's slug, or null while there is nothing published.
+   *
+   * Null hides sharing and previewing rather than offering them: the API
+   * answers 404 for a profile that is not published, so a link copied from
+   * here would lead nowhere and a preview would open a missing page.
+   */
+  slug: string | null;
   onChange: (patch: Partial<ProfileDraft>) => void;
 };
 
-export function ProfileHeaderCard({ draft, username, onChange }: ProfileHeaderCardProps) {
+export function ProfileHeaderCard({ draft, username, slug, onChange }: ProfileHeaderCardProps) {
   const addLanguage = (language: ProfileLanguage) =>
     onChange({ languages: [...draft.languages, language] });
 
@@ -22,7 +84,8 @@ export function ProfileHeaderCard({ draft, username, onChange }: ProfileHeaderCa
     onChange({ languages: draft.languages.filter((language) => language.name !== name) });
 
   return (
-    <Card aria-labelledby="profile-identity" className="flex items-start gap-6">
+    <Card aria-labelledby="profile-identity" className="relative flex items-start gap-6">
+      {slug === null ? null : <PublicLinks slug={slug} />}
       <AvatarPicker
         url={draft.avatarUrl}
         onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
