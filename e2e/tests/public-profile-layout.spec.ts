@@ -58,8 +58,9 @@ test('shows every section a freelancer can share', async ({ page }) => {
     await expect(page.getByRole('region', { name })).toBeVisible();
   }
 
-  // The rate is shown in its own currency rather than in minor units.
-  await expect(page.getByText('per hour')).toBeVisible();
+  // The rate is shown in its currency rather than in minor units, and says
+  // what it buys — the fixture prices a week.
+  await expect(page.getByText('per week')).toBeVisible();
 });
 
 test('sends a visitor to the video rather than framing it', async ({ page }) => {
