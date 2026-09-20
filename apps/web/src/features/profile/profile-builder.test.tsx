@@ -258,6 +258,42 @@ describe('ProfileBuilder', () => {
     expect(calls.save).not.toHaveBeenCalled();
   });
 
+  it('keeps every kind of section in the browser draft as it is typed', async () => {
+    // One section from each way the page persists work — a profile value, a
+    // second value, and two of the dated lists that each save on their own — so
+    // a section is never the one left out of the draft that survives the tab.
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+
+    await user.click(screen.getByRole('button', { name: 'Edit video intro' }));
+    await user.type(
+      await section(/Video intro/).findByLabelText('Link to your video'),
+      'https://vimeo.com/42',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
+    await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
+
+    await user.click(screen.getByRole('button', { name: 'Edit work experience' }));
+    await user.type(await section(/Work experience/).findByLabelText('Organization'), 'Acme');
+
+    await afterTheDraftIsWritten();
+
+    const raw = window.localStorage.getItem('hireevo.client-profile-draft.user-1');
+    expect(raw).not.toBeNull();
+    const draft = JSON.parse(raw ?? '{}') as {
+      identity: Record<string, string>;
+      skills: unknown[];
+      experience: unknown[];
+    };
+    expect(draft.identity.overview).toBe('Kept for later.');
+    expect(draft.identity.videoIntroUrl).toBe('https://vimeo.com/42');
+    expect(JSON.stringify(draft.skills)).toContain('Figma');
+    expect(JSON.stringify(draft.experience)).toContain('Acme');
+  });
+
   it('opens the skills editor inside its card and closes back to a summary', async () => {
     const user = await openForEditing();
 
