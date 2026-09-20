@@ -33,7 +33,6 @@ import { useEntries } from '@/features/profile-setup/use-entries.ts';
 import { useProfileDraft } from '@/features/profile-setup/use-profile-draft.ts';
 import { ProfileStrengthCard } from '@/features/workspace/profile-strength-card.tsx';
 import { displayNameOf } from '@/features/workspace/snapshot.ts';
-import { AddButton } from './add-button.tsx';
 import {
   clearDraft,
   entriesFrom,
@@ -362,17 +361,19 @@ export function ProfileBuilder() {
   );
 
   /**
-   * The control in a section's corner: a way in while it is empty, a pencil once
-   * it holds something and editing is on, and nothing at all otherwise.
+   * The control in a section's corner.
+   *
+   * Nothing at all until "Complete your profile" turns editing on. Landing here
+   * shows the profile as it stands, which is what somebody wants to see first;
+   * a page that opens covered in controls reads as a form to fill in rather
+   * than as the thing being filled in.
+   *
+   * From then every section carries the same pencil — the ones holding
+   * something and the ones still empty alike — so there is one way in to learn
+   * rather than one per state.
    */
-  function actionFor(
-    section: Exclude<OpenSection, null>,
-    done: boolean,
-    addLabel: string,
-    name: string,
-  ) {
+  function actionFor(section: Exclude<OpenSection, null>, name: string) {
     if (open === section) return close;
-    if (!done) return <AddButton onClick={() => toggle(section)}>{addLabel}</AddButton>;
     return editMode ? <EditButton section={name} onClick={() => toggle(section)} /> : null;
   }
 
@@ -424,7 +425,7 @@ export function ProfileBuilder() {
           description="Share some details about yourself, your expertise, and what you offer."
           icon={<LuUser />}
           editing={open === 'about'}
-          action={actionFor('about', filled.about, 'Add details', 'About')}
+          action={actionFor('about', 'About')}
         >
           {open === 'about' ? (
             <IdentityEditor
@@ -444,12 +445,7 @@ export function ProfileBuilder() {
           description="Attract relevant clients by sharing your strengths and abilities."
           icon={<LuStar />}
           editing={open === 'skills'}
-          action={actionFor(
-            'skills',
-            filled.skills,
-            'Add skills and expertise',
-            'skills and expertise',
-          )}
+          action={actionFor('skills', 'skills and expertise')}
         >
           {open === 'skills' ? (
             <SkillsEditor skills={skills} heading={false} />
@@ -464,12 +460,7 @@ export function ProfileBuilder() {
           description="Add your job history and achievements to give clients insight into your expertise."
           icon={<LuBriefcaseBusiness />}
           editing={open === 'experience'}
-          action={actionFor(
-            'experience',
-            filled.experience,
-            'Add work experience',
-            'work experience',
-          )}
+          action={actionFor('experience', 'work experience')}
         >
           {open === 'experience' ? (
             <ExperienceEditor experience={experience} heading={false} />
@@ -498,7 +489,7 @@ export function ProfileBuilder() {
             icon={<LuGraduationCap />}
             className={open === 'education' ? 'lg:col-span-2' : ''}
             editing={open === 'education'}
-            action={actionFor('education', filled.education, 'Add education', 'education')}
+            action={actionFor('education', 'education')}
           >
             {open === 'education' ? (
               <EducationEditor education={education} heading={false} />
@@ -524,12 +515,7 @@ export function ProfileBuilder() {
             icon={<LuAward />}
             className={open === 'certifications' ? 'lg:col-span-2' : ''}
             editing={open === 'certifications'}
-            action={actionFor(
-              'certifications',
-              filled.certifications,
-              'Add certifications',
-              'certifications',
-            )}
+            action={actionFor('certifications', 'certifications')}
           >
             {open === 'certifications' ? (
               <LicenseEditor licenses={licenses} heading={false} />
@@ -549,7 +535,7 @@ export function ProfileBuilder() {
         <RecordSection
           spec={RECORD_SPECS.portfolio}
           open={open === 'portfolio'}
-          action={actionFor('portfolio', filled.portfolio, 'Add portfolio', 'portfolio')}
+          action={actionFor('portfolio', 'portfolio')}
           records={draft.records.portfolio}
           onChange={(records) =>
             setDraft((current) => ({
@@ -565,7 +551,7 @@ export function ProfileBuilder() {
           description="Record a short video to introduce yourself and make a great first impression."
           icon={<LuVideo />}
           editing={open === 'video'}
-          action={actionFor('video', filled.videoIntro, 'Add video intro', 'video intro')}
+          action={actionFor('video', 'video intro')}
         >
           {open === 'video' ? (
             <VideoIntroEditor
@@ -583,13 +569,7 @@ export function ProfileBuilder() {
           description="Control who can see your profile and manage your online presence."
           icon={<LuShieldCheck />}
           editing={open === 'visibility'}
-          action={
-            open === 'visibility' ? (
-              close
-            ) : (
-              <AddButton onClick={() => toggle('visibility')}>Manage visibility</AddButton>
-            )
-          }
+          action={actionFor('visibility', 'visibility')}
         >
           {open === 'visibility' ? (
             <VisibilityEditor draft={identity} />
@@ -607,13 +587,7 @@ export function ProfileBuilder() {
           description="Set the hourly rate buyers see, in the currency you bill in."
           icon={<LuCircleDollarSign />}
           editing={open === 'rates'}
-          action={
-            open === 'rates' ? (
-              close
-            ) : (
-              <AddButton onClick={() => toggle('rates')}>Manage rates</AddButton>
-            )
-          }
+          action={actionFor('rates', 'expected rates')}
         >
           {open === 'rates' ? (
             <RatesEditor

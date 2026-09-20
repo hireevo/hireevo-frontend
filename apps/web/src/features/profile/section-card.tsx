@@ -49,15 +49,17 @@ export function SectionCard({
           <p className="mt-4 max-w-[420px] text-sm leading-[1.6] text-content-subtle">
             {description}
           </p>
-          {editing ? null : <div className="mt-5">{action}</div>}
         </div>
-        {/* Decoration, and the first thing to go when the column is narrow:
-            the design is one 1440px frame, and 100px of illustration beside
-            two lines of copy on a phone leaves room for neither. */}
-        {editing ? (
-          <div className="shrink-0">{action}</div>
-        ) : (
+
+        {/* The corner holds one or the other, as the design draws it: the
+            control that opens the section, or — while there is none — the
+            illustration. The illustration is the first thing to go when the
+            column is narrow: 100px of it beside two lines of copy on a phone
+            leaves room for neither. */}
+        {action === null || action === undefined ? (
           <IconTile className="hidden sm:flex">{icon}</IconTile>
+        ) : (
+          <div className="shrink-0">{action}</div>
         )}
       </div>
       {children === undefined ? null : (

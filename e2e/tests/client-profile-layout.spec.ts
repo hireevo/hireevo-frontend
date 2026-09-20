@@ -158,6 +158,18 @@ async function open(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
+/**
+ * The page with editing turned on.
+ *
+ * Landing here shows the profile and nothing to press; the button in the
+ * strength card is what puts a pencil on every section, so it is how any of
+ * them is opened.
+ */
+async function openForEditing(page: Page) {
+  await open(page);
+  await page.getByRole('button', { name: /Complete your profile/ }).click();
+}
+
 test('opens on the account holder’s name', async ({ page }) => {
   await open(page);
 
@@ -165,10 +177,27 @@ test('opens on the account holder’s name', async ({ page }) => {
   await expect(page.getByText('@ayeshakhan')).toBeVisible();
 });
 
+test('lands on the profile with nothing to press until editing is turned on', async ({ page }) => {
+  const corners = ['Edit About', 'Edit skills and expertise', 'Edit expected rates'];
+  await open(page);
+
+  // Filled or empty, no section offers a way in yet: this page is the profile,
+  // and a profile is read before it is written.
+  for (const name of corners) {
+    await expect(page.getByRole('button', { name })).toHaveCount(0);
+  }
+
+  await page.getByRole('button', { name: /Complete your profile/ }).click();
+
+  for (const name of corners) {
+    await expect(page.getByRole('button', { name })).toBeVisible();
+  }
+});
+
 test('fetches a section’s editor only when that section is opened', async ({ page }) => {
   // The reason the editors are not in this page's bundle (§8.1: the claim in
   // section-editors.tsx is checked here rather than asserted in a comment).
-  await open(page);
+  await openForEditing(page);
   // What the page loads on its own first: Next fetches its route's chunks after
   // hydration, so the count has to settle before anything is claimed about it.
   await page.waitForLoadState('networkidle');
@@ -180,15 +209,15 @@ test('fetches a section’s editor only when that section is opened', async ({ p
   await page.waitForTimeout(300);
   const settled = scripts.length;
 
-  await page.getByRole('button', { name: 'Add skills and expertise' }).click();
+  await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
   await expect(page.getByRole('group', { name: 'Skill 1' })).toBeVisible();
 
   expect(scripts.length, 'opening a section fetches its editor').toBeGreaterThan(settled);
 });
 
 test('opens About in place, and saves the whole form from the end of it', async ({ page }) => {
-  await open(page);
-  await page.getByRole('button', { name: 'Add details' }).click();
+  await openForEditing(page);
+  await page.getByRole('button', { name: 'Edit About' }).click();
 
   const about = page.getByRole('region', { name: /About/ });
   await about
@@ -207,9 +236,9 @@ test('opens About in place, and saves the whole form from the end of it', async 
 });
 
 test('opens again on what was typed but never saved', async ({ page }) => {
-  await open(page);
+  await openForEditing(page);
 
-  await page.getByRole('button', { name: 'Add skills and expertise' }).click();
+  await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
   await page
     .getByRole('group', { name: 'Skill 1' })
     .getByLabel('Skill', { exact: true })
@@ -234,10 +263,10 @@ test('the client profile holds its layout at every window size, open and closed'
   page,
 }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
-  await open(page);
+  await openForEditing(page);
   await sweep(page, 'client profile');
 
-  await page.getByRole('button', { name: 'Add details' }).click();
+  await page.getByRole('button', { name: 'Edit About' }).click();
   await expect(page.getByRole('region', { name: /About/ }).getByLabel('Biography')).toBeVisible();
   await sweep(page, 'client profile with the About editor open');
 });
@@ -246,16 +275,16 @@ test('the rates and visibility editors hold their layout at every window size', 
   page,
 }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
-  await open(page);
+  await openForEditing(page);
 
   // A row of four — the label and three periods — is the widest thing on this
   // page, and the one most likely to be unusable on a phone.
-  await page.getByRole('button', { name: 'Manage rates' }).click();
+  await page.getByRole('button', { name: 'Edit expected rates' }).click();
   const rates = page.getByRole('region', { name: /Expected rates/ });
   await expect(rates.getByLabel('Hourly Rate')).toBeVisible();
   await sweep(page, 'client profile with the rates editor open');
 
-  await page.getByRole('button', { name: 'Manage visibility' }).click();
+  await page.getByRole('button', { name: 'Edit visibility' }).click();
   const visibility = page.getByRole('region', { name: /Visibility/ });
   await expect(visibility.getByRole('button', { name: 'Save section' })).toBeVisible();
   await sweep(page, 'client profile with the visibility editor open');
@@ -264,10 +293,10 @@ test('the rates and visibility editors hold their layout at every window size', 
 test('the client profile has no automatically detectable accessibility violations', async ({
   page,
 }) => {
-  await open(page);
+  await openForEditing(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
-  await page.getByRole('button', { name: 'Add skills and expertise' }).click();
+  await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
   await expect(page.getByRole('group', { name: 'Skill 1' })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

@@ -102,6 +102,17 @@ const open = async () => {
   return user;
 };
 
+/**
+ * The page as somebody filling it in sees it: landing on the profile, then
+ * pressing the button that turns every section's pencil on. Nothing is
+ * editable before that, which is the whole point of the button.
+ */
+const openForEditing = async () => {
+  const user = await open();
+  await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
+  return user;
+};
+
 /** Past the pause the draft waits for before it is written to this browser. */
 const afterTheDraftIsWritten = () => new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -168,9 +179,9 @@ describe('ProfileBuilder', () => {
   });
 
   it('opens About in its own card, with no save of its own', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
 
     const about = section(/About/);
     expect(await about.findByLabelText('Biography')).toBeInTheDocument();
@@ -181,8 +192,8 @@ describe('ProfileBuilder', () => {
   });
 
   it('sends nothing while typing, and everything when Save is pressed', async () => {
-    const user = await open();
-    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    const user = await openForEditing();
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
     const about = section(/About/);
 
     await user.type(await about.findByLabelText('Biography'), 'I build design systems.');
@@ -205,9 +216,9 @@ describe('ProfileBuilder', () => {
   });
 
   it('sends every section in the one request the profile takes', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -217,8 +228,8 @@ describe('ProfileBuilder', () => {
   });
 
   it('lets go of the browser draft once the save it was protecting lands', async () => {
-    const user = await open();
-    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    const user = await openForEditing();
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
     await user.type(await section(/About/).findByLabelText('Biography'), 'Saved for real.');
     await afterTheDraftIsWritten();
     expect(window.localStorage.length).toBe(1);
@@ -229,11 +240,11 @@ describe('ProfileBuilder', () => {
   });
 
   it('opens the page again on what was typed but never saved', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
-    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
     await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
     await afterTheDraftIsWritten();
 
@@ -248,9 +259,9 @@ describe('ProfileBuilder', () => {
   });
 
   it('opens the skills editor inside its card and closes back to a summary', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
 
     const skills = section(/Skills and expertise/);
     await user.type(await skills.findByLabelText('Skill'), 'Figma');
@@ -262,9 +273,9 @@ describe('ProfileBuilder', () => {
   });
 
   it('opens the designed editor for work experience', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add work experience' }));
+    await user.click(screen.getByRole('button', { name: 'Edit work experience' }));
 
     const experience = section(/Work experience/);
     expect(await experience.findByRole('group', { name: 'Role 1' })).toBeInTheDocument();
@@ -274,14 +285,14 @@ describe('ProfileBuilder', () => {
   });
 
   it('opens education and certifications separately, as the design draws them', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add education' }));
+    await user.click(screen.getByRole('button', { name: 'Edit education' }));
     expect(
       await section(/Education/).findByRole('group', { name: 'Institution 1' }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Add certifications' }));
+    await user.click(screen.getByRole('button', { name: 'Edit certifications' }));
     expect(
       await section(/Certifications/).findByRole('group', { name: 'License 1' }),
     ).toBeInTheDocument();
@@ -292,14 +303,14 @@ describe('ProfileBuilder', () => {
   });
 
   it('counts what a buyer decides on more heavily than the rest', async () => {
-    const user = await open();
+    const user = await openForEditing();
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
-    await user.click(screen.getByRole('button', { name: 'Add skills and expertise' }));
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
 
-    await user.click(screen.getByRole('button', { name: 'Add details' }));
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
     await user.type(await section(/About/).findByLabelText('Biography'), 'I build things.');
     expect(bar()).toHaveAttribute('aria-valuenow', '30');
   });
@@ -322,11 +333,20 @@ describe('ProfileBuilder', () => {
     });
     const user = await open();
 
-    // A section with something in it reads as the profile, not as a form.
+    // Landing here shows the profile, not a form: nothing offers a way in, and
+    // that holds for the sections with something in them and the empty ones
+    // alike.
     expect(section(/About/).getByText('I map difficult journeys.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit About' })).not.toBeInTheDocument();
+    for (const name of ['Edit About', 'Edit skills and expertise', 'Edit expected rates']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
 
     await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
+
+    // And now every one of them does.
+    for (const name of ['Edit About', 'Edit skills and expertise', 'Edit expected rates']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
 
     await user.click(screen.getByRole('button', { name: 'Edit About' }));
     expect(await section(/About/).findByLabelText('Biography')).toHaveValue(
@@ -335,28 +355,24 @@ describe('ProfileBuilder', () => {
   });
 
   it('brings the portfolio into edit mode like every other section', async () => {
-    const user = await open();
+    const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);
 
-    await user.click(screen.getByRole('button', { name: 'Add portfolio' }));
+    // The corner opens the section; the control inside it adds a piece.
+    await user.click(screen.getByRole('button', { name: 'Edit portfolio' }));
     await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
     await user.type(portfolio().getByLabelText('Title'), 'Checkout redesign');
     await user.click(portfolio().getByRole('button', { name: 'Save' }));
     await user.click(portfolio().getByRole('button', { name: 'Close' }));
 
-    // Closed, it reads as the profile does: what is in it, and nothing to press.
     expect(portfolio().getByText('Checkout redesign')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit portfolio' })).not.toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
-
-    await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
-    expect(screen.getByRole('button', { name: 'Edit portfolio' })).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Add video intro' }));
+    await user.click(screen.getByRole('button', { name: 'Edit video intro' }));
     await user.type(
       await section(/Video intro/).findByLabelText('Link to your video'),
       'https://vimeo.com/123456789',
@@ -372,13 +388,13 @@ describe('ProfileBuilder', () => {
   });
 
   it('shows the sections the design draws below the portfolio', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
     expect(screen.getByRole('region', { name: /Video intro/ })).toBeInTheDocument();
     expect(section(/Visibility/).getByText(/Private/)).toBeInTheDocument();
     expect(section(/Expected rates/).getByText('No rates set yet.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Manage rates' }));
+    await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
     await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
     await user.type(rates.getByLabelText('Hourly Rate'), '14000');
@@ -393,9 +409,9 @@ describe('ProfileBuilder', () => {
   });
 
   it('sends all three rates with the profile', async () => {
-    const user = await open();
+    const user = await openForEditing();
 
-    await user.click(screen.getByRole('button', { name: 'Manage rates' }));
+    await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
     await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
     await user.type(rates.getByLabelText('Monthly Rate'), '2000000');
