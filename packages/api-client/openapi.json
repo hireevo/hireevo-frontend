@@ -2401,15 +2401,8 @@
                 ]
               },
               "availability": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": ["available", "open_to_offers", "unavailable"]
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+                "type": "string",
+                "enum": ["available", "open_to_offers", "unavailable"]
               },
               "availabilityNote": {
                 "anyOf": [

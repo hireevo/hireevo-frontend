@@ -214,7 +214,7 @@ export type Availability = NonNullable<OwnProfile['availability']>;
  */
 export async function saveAvailability(
   version: number,
-  availability: Availability | null,
+  availability: Availability,
 ): Promise<SaveResult> {
   try {
     const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {

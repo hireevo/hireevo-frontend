@@ -755,7 +755,8 @@ export interface components {
                 serviceArea?: string | null;
                 timezone?: string | null;
                 remoteMode?: ("remote" | "on_site" | "hybrid") | null;
-                availability?: ("available" | "open_to_offers" | "unavailable") | null;
+                /** @enum {string} */
+                availability?: "available" | "open_to_offers" | "unavailable";
                 availabilityNote?: string | null;
                 rateAmountMinor?: string | null;
                 rateWeeklyAmountMinor?: string | null;
