@@ -21,16 +21,56 @@ export function PasswordChangedDialog() {
   const dialog = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // The only thing to do here is the button, so it takes focus: a keyboard
-    // or screen-reader user lands on the dialog, not somewhere behind it.
-    dialog.current?.querySelector('button')?.focus();
+    const node = dialog.current;
+    const focusable = () =>
+      node === null
+        ? []
+        : Array.from(
+            node.querySelectorAll<HTMLElement>(
+              'button, [href], input, [tabindex]:not([tabindex="-1"])',
+            ),
+          );
+
+    // The dialog takes focus, so a keyboard or screen-reader user lands on it
+    // rather than somewhere behind it.
+    focusable()[0]?.focus();
 
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
+    // aria-modal only promises the trap; it does not build one. Tab is kept
+    // inside the dialog, and Escape takes the same exit the button does, so the
+    // modal cannot be tabbed out of or left stuck with no keyboard way out.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        router.push('/sign-in?reset=1');
+        return;
+      }
+      if (event.key !== 'Tab' || node === null) return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const active = document.activeElement;
+      if (!node.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previous;
+      document.removeEventListener('keydown', onKeyDown);
     };
-  }, []);
+  }, [router]);
 
   return (
     <>

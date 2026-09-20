@@ -19,7 +19,7 @@ export type AuthResult =
   | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 /** Shown when the request never reached the API, or came back unrecognisable. */
-const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
+export const UNREACHABLE = 'Could not reach HireEvo. Check your connection and try again.';
 
 /**
  * Turns a failed call into something a form can render.
@@ -49,9 +49,16 @@ function toResult(error: unknown, fieldMap: Record<string, string> = {}): AuthRe
     : { ok: false, message };
 }
 
-export async function signIn(values: SignInValues): Promise<AuthResult> {
+export async function signIn(
+  values: SignInValues,
+  captchaToken?: string | null,
+): Promise<AuthResult> {
   const { data, error } = await api.POST('/api/v1/auth/login', {
     body: { email: values.email, password: values.password },
+    // The reCAPTCHA token from the checkbox rides as a header, so the request
+    // body — and the published contract — stays the shape every client sends.
+    // Null when protection is off.
+    ...(captchaToken ? { headers: { 'x-captcha-token': captchaToken } } : {}),
   });
 
   if (error !== undefined || data === undefined) {
@@ -68,7 +75,13 @@ export async function signIn(values: SignInValues): Promise<AuthResult> {
   };
 }
 
-export async function signUp(values: SignUpValues): Promise<AuthResult> {
+export async function signUp(
+  values: SignUpValues,
+  captchaToken?: string | null,
+): Promise<AuthResult> {
+  // The reCAPTCHA token from the checkbox rides as a header, so the request body
+  // — and the published contract — does not have to carry a field only
+  // bot-verification uses. Null when protection is off.
   const { error } = await api.POST('/api/v1/auth/register', {
     body: {
       firstName: values.firstName,
@@ -78,6 +91,7 @@ export async function signUp(values: SignUpValues): Promise<AuthResult> {
       password: values.password,
       confirmPassword: values.confirmPassword,
     },
+    ...(captchaToken ? { headers: { 'x-captcha-token': captchaToken } } : {}),
   });
 
   if (error !== undefined) return toResult(error);
@@ -111,8 +125,12 @@ export async function requestRecovery(values: RecoverValues): Promise<AuthResult
 
 /** Sends a fresh recovery code; the screen's own countdown decides when it may. */
 export async function resendResetCode(email: string): Promise<AuthResult> {
-  const { error } = await api.POST('/api/v1/auth/password/forgot', { body: { email } });
-  if (error !== undefined) return toResult(error);
+  try {
+    const { error } = await api.POST('/api/v1/auth/password/forgot', { body: { email } });
+    if (error !== undefined) return toResult(error);
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
   return { ok: true };
 }
 
@@ -153,8 +171,12 @@ export async function confirmEmail(
 }
 
 export async function resendCode(email: string): Promise<AuthResult> {
-  const { error } = await api.POST('/api/v1/auth/resend-verification', { body: { email } });
-  if (error !== undefined) return toResult(error);
+  try {
+    const { error } = await api.POST('/api/v1/auth/resend-verification', { body: { email } });
+    if (error !== undefined) return toResult(error);
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
   return { ok: true };
 }
 
@@ -195,9 +217,17 @@ export type UsernameVerdict =
   | { status: 'unknown' };
 
 export async function isUsernameAvailable(username: string): Promise<UsernameVerdict> {
-  const { data, error } = await api.GET('/api/v1/auth/username-available', {
-    params: { query: { username } },
-  });
+  let data;
+  let error: unknown;
+  try {
+    ({ data, error } = await api.GET('/api/v1/auth/username-available', {
+      params: { query: { username } },
+    }));
+  } catch {
+    // The request never reached the API. Say nothing rather than claim a name
+    // is unavailable because the network dropped.
+    return { status: 'unknown' };
+  }
 
   if (error !== undefined) {
     const issue = toFieldIssues(error).find((candidate) => candidate.path === 'username');

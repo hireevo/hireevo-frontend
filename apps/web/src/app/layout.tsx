@@ -42,6 +42,14 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+// The CSP nonce is per request (see src/middleware.ts), and Next can only stamp
+// a per-request nonce onto its script tags while it is rendering the page for
+// that request — a statically prerendered page ships build-time HTML with no
+// nonce, so its scripts are blocked by `script-src`. Rendering every route
+// dynamically is the cost of a nonce-based policy, taken deliberately here
+// rather than shipping `'unsafe-inline'`. [F-13, §6.10]
+export const dynamic = 'force-dynamic';
+
 export const viewport: Viewport = {
   // One value, and it is the light surface: the app does not follow the
   // operating system's colour scheme, so offering the browser a dark one would

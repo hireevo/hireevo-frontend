@@ -22,7 +22,15 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     // The primitives are tested in `packages/ui-web` and the routes end to end
     // by Playwright; what lives here is the app's own logic — schemas, form
-    // state and the screens assembled from the primitives.
-    passWithNoTests: true,
+    // state and the screens assembled from the primitives. `passWithNoTests` is
+    // off so deleting the last test in this app fails rather than passes empty.
+    passWithNoTests: false,
+    coverage: {
+      provider: 'v8',
+      // A ratchet, not a target: set just below where the suite sits today so
+      // coverage cannot silently fall, and raise it as more of the app's logic
+      // is covered. README promised thresholds; there were none.
+      thresholds: { statements: 60, branches: 45, functions: 70, lines: 65 },
+    },
   },
 });

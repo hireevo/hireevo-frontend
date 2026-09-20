@@ -1171,6 +1171,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description reCAPTCHA token from the sign-in checkbox; verified only when protection is on. */
+                "x-captcha-token"?: string;
                 "X-Device-Model"?: string;
                 /** @description Client-generated device id */
                 "X-Device-Id"?: string;

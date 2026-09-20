@@ -1,7 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import type { Route } from 'next';
 import { Button, OtpInput } from '@hireevo/ui-web';
 import { confirmEmail, resendCode, resendResetCode, verifyResetCode } from './api.ts';
 import { FormMessage } from './form-message.tsx';
@@ -9,6 +11,36 @@ import { confirmEmailSchema } from './schemas.ts';
 import { useAuthForm } from './use-auth-form.ts';
 
 const RESEND_SECONDS = 60;
+
+/**
+ * When the resend countdown may next reach zero, kept per address so a refresh
+ * resumes it instead of restarting it at sixty. A page reload was giving anyone
+ * who fat-fingered it a fresh minute; the deadline is the truth, the on-screen
+ * number just ticks towards it.
+ */
+function resendKey(purpose: CodePurpose, email: string): string {
+  return `hireevo:resend:${purpose}:${email}`;
+}
+
+function readDeadline(key: string): number | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null;
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDeadline(key: string, deadline: number): void {
+  try {
+    localStorage.setItem(key, String(deadline));
+  } catch {
+    // Private mode, or storage disabled. The countdown still works this session;
+    // it just will not survive a refresh, which is no worse than before.
+  }
+}
 
 /**
  * Which flow the code belongs to. The screen is drawn identically for both —
@@ -48,10 +80,14 @@ const FLOWS = {
 export function ConfirmEmailForm({
   email,
   purpose = 'signup',
+  backHref,
 }: {
   email: string;
   purpose?: CodePurpose;
+  /** Where the design's "Back" button returns to — the screen the address was typed on. */
+  backHref: Route;
 }) {
+  const router = useRouter();
   const flow = FLOWS[purpose];
   const layout = LAYOUT[purpose];
   const { fieldErrors, formError, pending, run, clearField } = useAuthForm(
@@ -59,22 +95,48 @@ export function ConfirmEmailForm({
     flow.submit,
   );
   const [code, setCode] = useState('');
+  // Starts at the full minute for the server render and the first client render
+  // — matching, so hydration is quiet — then reconciles with the stored deadline.
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [resending, setResending] = useState(false);
 
+  const storageKey = resendKey(purpose, email);
+
   useEffect(() => {
-    if (seconds === 0) return;
-    const timer = setTimeout(() => setSeconds((current) => current - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [seconds]);
+    // The deadline is the truth; the on-screen number only ticks towards it, so
+    // a refresh resumes the time actually left instead of restarting at a full
+    // minute. A deadline already in the past leaves resend enabled.
+    let deadline = readDeadline(storageKey);
+    if (deadline === null) {
+      // First time on this screen for this address: a code was just sent.
+      deadline = Date.now() + RESEND_SECONDS * 1000;
+      writeDeadline(storageKey, deadline);
+    }
+    const ends = deadline;
+
+    // Set from a timer callback, never synchronously in the effect body: the
+    // first paint keeps its value for a quiet hydration, and the real time left
+    // lands on the very next tick. Once it reaches zero the value stops
+    // changing, so React re-renders nothing further; the interval is cleared on
+    // unmount.
+    const tick = () => setSeconds(Math.max(0, Math.ceil((ends - Date.now()) / 1000)));
+    const initial = setTimeout(tick, 0);
+    const interval = setInterval(tick, 1000);
+
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [storageKey]);
 
   const handleResend = useCallback(() => {
     setResending(true);
     void flow.resend(email).finally(() => {
       setResending(false);
+      writeDeadline(storageKey, Date.now() + RESEND_SECONDS * 1000);
       setSeconds(RESEND_SECONDS);
     });
-  }, [email, flow]);
+  }, [email, flow, storageKey]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,23 +178,22 @@ export function ConfirmEmailForm({
           )}
         </div>
 
-        {/* The file greys "Resend code" out to #c3d6e7, which is 1.4:1 on the
-            page — unreadable rather than merely quiet. It is drawn that way
-            because the countdown is running, so the state is expressed by
-            disabling the control instead of by a colour nobody can read. */}
-        <div className={`${layout.resend} flex flex-col items-center text-sm leading-[1.5]`}>
-          <p className="text-content-accent">
-            Didn&rsquo;t receive a code?{seconds > 0 ? ` within (${seconds}s)` : ''}
-          </p>
+        {/* The design's line: "Check your spam folder or Resend code". The
+            countdown is kept as a gate on the resend — a page reload used to
+            hand anyone who fat-fingered it a fresh minute — and, since the
+            control is disabled while it runs, the seconds are shown on the
+            control itself rather than as an unreadable grey. */}
+        <p className={`${layout.resend} text-center text-sm leading-[1.5] text-content-accent`}>
+          Didn&rsquo;t receive a code? Check your spam folder or{' '}
           <button
             type="button"
             onClick={handleResend}
             disabled={seconds > 0 || resending}
-            className="inline-flex min-h-6 items-center text-content-subtle underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+            className="inline-flex min-h-6 items-center text-content-link underline underline-offset-2 disabled:cursor-not-allowed disabled:text-content-subtle disabled:no-underline"
           >
-            Resend code
+            Resend code{seconds > 0 ? ` (${seconds}s)` : ''}
           </button>
-        </div>
+        </p>
       </div>
 
       {formError === null ? null : (
@@ -141,9 +202,22 @@ export function ConfirmEmailForm({
         </div>
       )}
 
-      <Button type="submit" size="xl" fullWidth loading={pending} className={layout.submit}>
-        Submit
-      </Button>
+      {/* The design pairs a "Back" button with "Verify": Back leaves the flow
+          the way "use a different email" did, Verify submits the code. */}
+      <div className={`${layout.submit} grid grid-cols-2 gap-4`}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="xl"
+          fullWidth
+          onClick={() => router.push(backHref)}
+        >
+          Back
+        </Button>
+        <Button type="submit" variant="primary" size="xl" fullWidth loading={pending}>
+          Verify
+        </Button>
+      </div>
     </form>
   );
 }

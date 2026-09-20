@@ -3,10 +3,21 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import type { ZodType } from 'zod';
-import type { AuthResult } from './api.ts';
+import { UNREACHABLE, type AuthResult } from './api.ts';
 import { useSession } from './session.tsx';
 
 export type FieldErrors = Record<string, string>;
+
+/**
+ * Where a submit ended, for callers that must react differently to each.
+ *
+ * `invalid` means the values failed client-side validation and nothing was
+ * sent; `failed` means the request left the browser and did not succeed; `ok`
+ * means it did. The sign-up form uses the distinction to keep a solved
+ * reCAPTCHA checkbox across a field typo — the token is only spent once the
+ * request actually reaches the server.
+ */
+export type RunOutcome = 'ok' | 'invalid' | 'failed';
 
 /** First message per field. A field showing three complaints at once reads as noise. */
 function byField(issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>): FieldErrors {
@@ -46,24 +57,35 @@ export function useAuthForm<Values>(
   }, []);
 
   const run = useCallback(
-    async (raw: unknown): Promise<boolean> => {
+    async (raw: unknown): Promise<RunOutcome> => {
       const parsed = schema.safeParse(raw);
       if (!parsed.success) {
         setFieldErrors(byField(parsed.error.issues));
         setFormError(null);
-        return false;
+        return 'invalid';
       }
 
       setFieldErrors({});
       setFormError(null);
       setPending(true);
-      const result = await submit(parsed.data);
+
+      let result: AuthResult;
+      try {
+        result = await submit(parsed.data);
+      } catch {
+        // The submit threw rather than returning a failure — a dropped
+        // connection or a backend that is down. The inputs keep what was typed,
+        // so the person only has to press the button again once it is back.
+        setPending(false);
+        setFormError(UNREACHABLE);
+        return 'failed';
+      }
 
       if (!result.ok) {
         setPending(false);
         setFieldErrors(result.fieldErrors ?? {});
         setFormError(result.message);
-        return false;
+        return 'failed';
       }
 
       // A session that came back with the response is adopted before the
@@ -77,13 +99,13 @@ export function useAuthForm<Values>(
         // Pending stays true across the navigation: releasing the button here
         // would let a second submit land while the next screen is still loading.
         router.push(result.redirectTo);
-        return true;
+        return 'ok';
       }
 
       // No navigation: the screen shows the outcome in place, as the reset
       // screen does with its confirmation dialog.
       setPending(false);
-      return true;
+      return 'ok';
     },
     [adopt, router, schema, submit],
   );

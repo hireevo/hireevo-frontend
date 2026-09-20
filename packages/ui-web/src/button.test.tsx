@@ -24,6 +24,17 @@ describe('Button', () => {
     expect(onClick).not.toHaveBeenCalled();
     expect(control).toHaveAttribute('aria-disabled', 'true');
     expect(control).toHaveAttribute('aria-busy', 'true');
+    expect(control).not.toBeDisabled(); // still focusable
+
+    control.focus();
+    await userEvent.click(control);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(control).toHaveFocus();
+  });
+
+  it('keeps using the disabled attribute for a genuinely disabled button', () => {
+    render(<Button disabled>Publish profile</Button>);
+    expect(screen.getByRole('button', { name: 'Publish profile' })).toBeDisabled();
   });
 
   it('keeps focus on itself when it starts loading', () => {

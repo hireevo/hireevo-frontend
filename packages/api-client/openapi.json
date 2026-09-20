@@ -322,6 +322,15 @@
         "operationId": "SessionController_login_v1",
         "parameters": [
           {
+            "name": "x-captcha-token",
+            "in": "header",
+            "description": "reCAPTCHA token from the sign-in checkbox; verified only when protection is on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Device-Model",
             "in": "header",
             "required": false,
@@ -1491,6 +1500,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           }
@@ -1534,6 +1547,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           }
@@ -1661,6 +1678,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           },

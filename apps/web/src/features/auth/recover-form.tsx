@@ -1,7 +1,7 @@
 'use client';
 
 import type { FormEvent } from 'react';
-import { Button, Checkbox, TextField } from '@hireevo/ui-web';
+import { Button, TextField } from '@hireevo/ui-web';
 import { requestRecovery } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { recoverSchema } from './schemas.ts';
@@ -16,7 +16,7 @@ export function RecoverForm() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void run({ email: data.get('email'), remember: data.get('remember') === 'on' });
+    void run({ email: data.get('email') });
   }
 
   // `method="post"` matters only before the page hydrates. Until then Enter
@@ -41,10 +41,6 @@ export function RecoverForm() {
         onChange={() => clearField('email')}
       />
 
-      <Checkbox name="remember" className="mt-[calc(12px+0.1*var(--fit))] self-start">
-        Remember me
-      </Checkbox>
-
       {formError === null ? null : (
         <div className="mt-6">
           <FormMessage>{formError}</FormMessage>
@@ -58,7 +54,7 @@ export function RecoverForm() {
         loading={pending}
         className="mt-[calc(20px+0.16*var(--fit))]"
       >
-        Continue
+        Reset password
       </Button>
     </form>
   );

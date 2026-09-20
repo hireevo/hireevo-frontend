@@ -1,24 +1,37 @@
 import { z } from 'zod';
 
 /**
- * The four rules the sign-up screen lists under the password field. They are
- * data rather than one regular expression because the screen has to say which
- * of them a password currently satisfies, not just whether it passes.
+ * The rules the reset screen lists under the password field, and the ones the
+ * sign-up strength meter is measured against. They are data rather than one
+ * regular expression because the screen has to say which of them a password
+ * currently satisfies, not just whether it passes. They mirror the backend's
+ * PasswordSchema exactly; the shared-password-rule test keeps the two in step.
  */
 export const PASSWORD_RULES = [
   { id: 'length', label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
   { id: 'upper', label: 'At least 1 uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
   { id: 'lower', label: 'At least 1 lowercase letter', test: (v: string) => /[a-z]/.test(v) },
   { id: 'number', label: 'At least 1 number', test: (v: string) => /\d/.test(v) },
+  {
+    id: 'special',
+    label: 'At least 1 special character',
+    test: (v: string) => /[^A-Za-z0-9]/.test(v),
+  },
 ] as const;
 
 export const password = z
   .string()
+  // Bounded to the column the API stores it in (256), so an over-long value is
+  // caught here and not only on submit. Derived from the contract; see the
+  // drift test in schemas.test.ts.
+  .max(256, { message: 'Use 256 characters or fewer.' })
   .refine((value) => PASSWORD_RULES.every((rule) => rule.test(value)), {
-    message: 'Password does not meet all four requirements.',
+    message: 'Use 8+ characters with upper and lower case, a number and a special character.',
   });
 
-const email = z.email({ message: 'Enter a valid email address.' });
+const email = z
+  .email({ message: 'Enter a valid email address.' })
+  .max(254, { message: 'Enter an email of 254 characters or fewer.' });
 
 export const signInSchema = z.object({
   email,
@@ -31,24 +44,38 @@ export const signInSchema = z.object({
 
 export const signUpSchema = z
   .object({
-    firstName: z.string().trim().min(1, { message: 'Enter your first name.' }),
-    lastName: z.string().trim().min(1, { message: 'Enter your last name.' }),
+    firstName: z
+      .string()
+      .trim()
+      .min(1, { message: 'Enter your first name.' })
+      .max(80, { message: 'Use 80 characters or fewer.' }),
+    lastName: z
+      .string()
+      .trim()
+      .min(1, { message: 'Enter your last name.' })
+      .max(80, { message: 'Use 80 characters or fewer.' }),
     email,
     username: z
       .string()
       .trim()
       .min(3, { message: 'Usernames are at least 3 characters.' })
-      .regex(/^[a-z0-9_]+$/i, { message: 'Letters, numbers and underscores only.' }),
+      .max(30, { message: 'Usernames are 30 characters or fewer.' })
+      // Mirrors the API contract exactly (^[a-zA-Z][a-zA-Z0-9_-]*$): start with a
+      // letter, then letters, numbers, hyphens or underscores. The old client
+      // rule drifted — it accepted a leading underscore or digit the API refuses
+      // and rejected the hyphen the API allows. See the drift test.
+      .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, {
+        message: 'Start with a letter; then letters, numbers, hyphens or underscores.',
+      }),
     password,
     confirmPassword: z.string(),
-    remember: z.boolean(),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: 'Both passwords must match.',
     path: ['confirmPassword'],
   });
 
-export const recoverSchema = z.object({ email, remember: z.boolean() });
+export const recoverSchema = z.object({ email });
 
 export const confirmEmailSchema = z.object({
   // The address travels with the code because a code is only meaningful against

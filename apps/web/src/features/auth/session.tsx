@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import { getAccessToken, setAccessToken } from '@/lib/access-token.ts';
 import { api } from '@/lib/api.ts';
+import { onSessionEnded, refreshSession } from '@/lib/session-refresh.ts';
 
 export type SessionStatus = 'restoring' | 'authenticated' | 'anonymous';
 
@@ -51,19 +52,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    void (async () => {
-      const { data } = await api.POST('/api/v1/auth/refresh', { body: {} });
+    // One shared refresh, so StrictMode's double mount and any concurrent 401
+    // do not each spend the single-use token and revoke the family.
+    void refreshSession().then((result) => {
       if (cancelled) return;
-
-      if (data?.accessToken !== undefined && data.user !== undefined) {
-        adopt(data.accessToken, data.user);
+      if (result !== null) {
+        adopt(result.accessToken, result.user);
       } else {
         setStatus('anonymous');
       }
-    })();
+    });
+
+    // When a later 401-retry finds the session has genuinely ended, the API
+    // client calls this so the UI turns anonymous instead of appearing signed in.
+    const stopListening = onSessionEnded(() => {
+      if (cancelled) return;
+      setAccessToken(null);
+      setUser(null);
+      setStatus('anonymous');
+    });
 
     return () => {
       cancelled = true;
+      stopListening();
     };
   }, [adopt]);
 

@@ -127,7 +127,8 @@ export function OtpInput({
             // design's 60px: on a 320px phone that is ~39px each, still a
             // comfortable target, instead of 410px of boxes pushing the page sideways.
             'aspect-square h-auto min-w-0 flex-1 max-w-15 rounded-md border bg-transparent text-center text-xl text-content',
-            'transition-colors focus:border-border-accent focus:outline-none',
+            'transition-colors focus:border-border-accent',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
             'disabled:cursor-not-allowed disabled:opacity-60',
             invalid ? 'border-border-danger' : 'border-border',
           )}
