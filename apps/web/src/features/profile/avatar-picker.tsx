@@ -17,6 +17,12 @@ export type ChosenPhoto = {
 export type AvatarPickerProps = {
   url: string | null;
   onChange: (photo: ChosenPhoto) => void;
+  /**
+   * False until "Complete your profile" turns editing on, which hides the
+   * camera: the profile is read before it is written, and a control that
+   * uploads on click does not belong on a page that is being read.
+   */
+  editable?: boolean;
 };
 
 /**
@@ -33,7 +39,7 @@ export type AvatarPickerProps = {
  * browser's own copy of the file, so the photo appears at once rather than
  * after a round trip.
  */
-export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
+export function AvatarPicker({ url, onChange, editable = true }: AvatarPickerProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
   const [error, setError] = useState<string | null>(null);
@@ -73,28 +79,30 @@ export function AvatarPicker({ url, onChange }: AvatarPickerProps) {
           )}
         </span>
 
-        <label
-          htmlFor={inputId}
-          className="absolute right-0 bottom-0 flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-surface bg-accent text-content-on-accent transition-colors hover:bg-accent-hover focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus"
-        >
-          <LuCamera aria-hidden="true" className="size-3.5" />
-          <span className="sr-only">
-            {busy
-              ? 'Uploading your profile photo'
-              : url === null
-                ? 'Add a profile photo'
-                : 'Change your profile photo'}
-          </span>
-          <input
-            id={inputId}
-            type="file"
-            accept={ACCEPT}
-            disabled={busy}
-            onChange={(event) => void handleChange(event)}
-            {...(error === null ? {} : { 'aria-describedby': errorId })}
-            className="sr-only"
-          />
-        </label>
+        {!editable ? null : (
+          <label
+            htmlFor={inputId}
+            className="absolute right-0 bottom-0 flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-surface bg-accent text-content-on-accent transition-colors hover:bg-accent-hover focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus"
+          >
+            <LuCamera aria-hidden="true" className="size-3.5" />
+            <span className="sr-only">
+              {busy
+                ? 'Uploading your profile photo'
+                : url === null
+                  ? 'Add a profile photo'
+                  : 'Change your profile photo'}
+            </span>
+            <input
+              id={inputId}
+              type="file"
+              accept={ACCEPT}
+              disabled={busy}
+              onChange={(event) => void handleChange(event)}
+              {...(error === null ? {} : { 'aria-describedby': errorId })}
+              className="sr-only"
+            />
+          </label>
+        )}
       </div>
 
       {/* Polite while it is working, assertive when it failed: one is progress,

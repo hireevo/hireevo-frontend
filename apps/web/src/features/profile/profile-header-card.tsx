@@ -108,6 +108,12 @@ export type ProfileHeaderCardProps = {
   /** The profile's public slug, and whether there is anything published at it. */
   slug: string | null;
   published: boolean;
+  /**
+   * False until "Complete your profile" turns editing on. The sections below
+   * already follow that rule; this card has to follow it too, or the page a
+   * person lands on is half read-only and half a form.
+   */
+  editable: boolean;
   onChange: (patch: Partial<ProfileDraft>) => void;
 };
 
@@ -116,6 +122,7 @@ export function ProfileHeaderCard({
   username,
   slug,
   published,
+  editable,
   onChange,
 }: ProfileHeaderCardProps) {
   const addLanguage = (language: ProfileLanguage) =>
@@ -134,6 +141,7 @@ export function ProfileHeaderCard({
     >
       <AvatarPicker
         url={draft.avatarUrl}
+        editable={editable}
         onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
       />
 
@@ -150,6 +158,7 @@ export function ProfileHeaderCard({
             placeholder="Add display name"
             label="Edit display name"
             onSave={(displayName) => onChange({ displayName })}
+            editable={editable}
             className="-ml-2 text-[1.375rem] leading-8 font-bold"
           />
           {username === null ? null : (
@@ -162,6 +171,7 @@ export function ProfileHeaderCard({
           placeholder="Add title"
           label="Edit professional title"
           onSave={(title) => onChange({ title })}
+          editable={editable}
           className="-ml-2 mt-0.5 block text-sm text-content-muted"
         />
 
@@ -178,6 +188,7 @@ export function ProfileHeaderCard({
               label="Edit location"
               maxLength={56}
               onSave={(country) => onChange({ country })}
+              editable={editable}
               className="-mx-1 px-1"
             />
           </span>
@@ -187,13 +198,13 @@ export function ProfileHeaderCard({
             {draft.languages.map((language) => (
               <Chip
                 key={language.name}
-                onRemove={() => removeLanguage(language.name)}
+                {...(editable ? { onRemove: () => removeLanguage(language.name) } : {})}
                 removeLabel={`Remove ${language.name}`}
               >
                 {language.name} &middot; {language.proficiency}
               </Chip>
             ))}
-            <LanguageAdder chosen={draft.languages} onAdd={addLanguage} />
+            {editable ? <LanguageAdder chosen={draft.languages} onAdd={addLanguage} /> : null}
           </span>
         </div>
       </div>

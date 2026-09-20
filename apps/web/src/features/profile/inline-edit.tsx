@@ -16,6 +16,14 @@ export type InlineEditProps = {
   label: string;
   onSave: (value: string) => void;
   maxLength?: number;
+  /**
+   * False until "Complete your profile" turns editing on, which is when every
+   * other control on this page appears. Read-only renders the value as the text
+   * it is rather than a button that looks pressable and is not — and an empty
+   * value renders as nothing at all, because "Add display name" on a page with
+   * no way to add one is an instruction that cannot be followed.
+   */
+  editable?: boolean;
   /** Applied to both states, so the text does not resize when editing starts. */
   className?: string;
 };
@@ -37,6 +45,7 @@ export function InlineEdit({
   label,
   onSave,
   maxLength = 80,
+  editable = true,
   className,
 }: InlineEditProps) {
   const [editing, setEditing] = useState(false);
@@ -76,6 +85,12 @@ export function InlineEdit({
       cancelled.current = true;
       event.currentTarget.blur();
     }
+  }
+
+  if (!editable) {
+    return value === '' ? null : (
+      <span className={cn('inline-block max-w-full truncate px-2 py-0.5', className)}>{value}</span>
+    );
   }
 
   if (editing) {

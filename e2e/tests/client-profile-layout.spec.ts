@@ -173,8 +173,15 @@ async function openForEditing(page: Page) {
 test('opens on the account holder’s name', async ({ page }) => {
   await open(page);
 
-  await expect(page.getByRole('button', { name: 'Edit display name: Ayesha Khan' })).toBeVisible();
+  // Readable, not pressable: this page is landed on as the profile it is, and
+  // the name gains its pencil only once editing is turned on.
+  // Exact, because the account menu in the header names her too.
+  await expect(page.getByText('Ayesha Khan', { exact: true })).toBeVisible();
   await expect(page.getByText('@ayeshakhan')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Edit display name/ })).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Complete your profile/ }).click();
+  await expect(page.getByRole('button', { name: 'Edit display name: Ayesha Khan' })).toBeVisible();
 });
 
 test('lands on the profile with nothing to press until editing is turned on', async ({ page }) => {

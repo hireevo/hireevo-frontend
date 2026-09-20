@@ -136,11 +136,10 @@ describe('ProfileBuilder', () => {
   it('opens on the account holder’s name, which is not saved until Save is pressed', async () => {
     await open();
 
-    expect(
-      screen.getByRole('button', { name: 'Edit display name: Ayesha Khan' }),
-    ).toBeInTheDocument();
+    // Read, not pressed: the page is landed on as the profile it is, so the
+    // name is text here and gains its pencil only in edit mode.
+    expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
     expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
@@ -161,21 +160,21 @@ describe('ProfileBuilder', () => {
     await open();
 
     expect(await screen.findByText('German · Fluent')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit location: Austria' })).toBeInTheDocument();
+    expect(screen.getByText('Austria')).toBeInTheDocument();
     expect(section(/Skills and expertise/).getByText('Service design')).toBeInTheDocument();
     // Filling the page in from the server is not work to send back.
-    expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
   it('keeps the profile’s own display name when it has one', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: stored({ displayName: 'Sophie Brandt' }) });
-    await open();
+    const user = await openForEditing();
 
     expect(
       screen.getByRole('button', { name: 'Edit display name: Sophie Brandt' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
+    expect(user).toBeDefined();
   });
 
   it('opens About in its own card, with no save of its own', async () => {
@@ -248,9 +247,10 @@ describe('ProfileBuilder', () => {
     await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
     await afterTheDraftIsWritten();
 
-    // The tab is closed and opened again.
+    // The tab is closed and opened again. Reopened for editing, because the
+    // save status lives on the card that only edit mode shows.
     cleanup();
-    await open();
+    await openForEditing();
 
     expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
     expect(section(/Skills and expertise/).getByText('Figma')).toBeInTheDocument();
@@ -317,7 +317,7 @@ describe('ProfileBuilder', () => {
 
   it('removes a language from the header', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: withLanguage() });
-    const user = await open();
+    const user = await openForEditing();
     expect(await screen.findByRole('button', { name: 'Remove English' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Remove English' }));
@@ -352,6 +352,45 @@ describe('ProfileBuilder', () => {
     expect(await section(/About/).findByLabelText('Biography')).toHaveValue(
       'I map difficult journeys.',
     );
+  });
+
+  /**
+   * The same rule, for the card the page opens on.
+   *
+   * The sections followed it and this card did not, so landing here gave a
+   * screen that was half read-only and half a form: the name, title, location,
+   * photo and languages were all editable before anything asked for them, and
+   * a Save button offered to write changes that could not yet be made.
+   */
+  it('keeps the header card and the save button out of the way too', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({ displayName: 'Sophie', locationCountry: 'AT' }),
+    });
+    const user = await open();
+
+    // Everything is still legible — it is a profile being read.
+    expect(await screen.findByText('Sophie')).toBeInTheDocument();
+    expect(screen.getByText('Austria')).toBeInTheDocument();
+
+    // And none of it can be typed into.
+    for (const name of [
+      'Edit display name: Sophie',
+      'Edit location: Austria',
+      'Add languages',
+      'Save',
+    ]) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/profile photo/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
+
+    for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Add languages']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByText('Add a profile photo')).toBeInTheDocument();
   });
 
   it('brings the portfolio into edit mode like every other section', async () => {

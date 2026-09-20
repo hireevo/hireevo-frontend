@@ -391,6 +391,7 @@ export function ProfileBuilder() {
         username={user?.username ?? null}
         published={identity.profile?.status === 'published'}
         slug={identity.profile?.slug ?? null}
+        editable={editMode}
         onChange={patchHeader}
       />
 
@@ -602,27 +603,32 @@ export function ProfileBuilder() {
           )}
         </SectionCard>
 
-        {/* One save, at the end of the form, for the whole of it. */}
-        <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p role="status" aria-live="polite" className="text-sm font-medium text-content">
-              {saveStatus}
-            </p>
-            <p className="mt-1 text-xs text-content-subtle">
-              Everything you type is kept in this browser until you save, so nothing is lost if you
-              close the page. Saving sends the whole profile — your details and every section.
-            </p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => void save()}
-            loading={identity.save.kind === 'saving'}
-            loadingLabel="Saving"
-            className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
-          >
-            Save
-          </Button>
-        </Card>
+        {/* One save, at the end of the form, for the whole of it — and only
+            while there is a form. On the page as it is landed on, nothing can
+            be typed, so a Save button offers to write changes that cannot
+            exist. */}
+        {!editMode ? null : (
+          <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p role="status" aria-live="polite" className="text-sm font-medium text-content">
+                {saveStatus}
+              </p>
+              <p className="mt-1 text-xs text-content-subtle">
+                Everything you type is kept in this browser until you save, so nothing is lost if
+                you close the page. Saving sends the whole profile — your details and every section.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => void save()}
+              loading={identity.save.kind === 'saving'}
+              loadingLabel="Saving"
+              className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+            >
+              Save
+            </Button>
+          </Card>
+        )}
       </div>
     </div>
   );
