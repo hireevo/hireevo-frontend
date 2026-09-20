@@ -252,8 +252,9 @@ async function fillEverything(page: Page) {
     .getByLabel('Service area')
     .fill('Remote across Europe, the Gulf and South Asia; on-site in Vienna, Lahore and Dubai');
   await location.getByLabel('Remote availability').selectOption('hybrid');
-  await location.getByLabel('Rate currency (3 letters)').fill('EUR');
-  await location.getByLabel('Hourly rate in smallest currency unit').fill('999999999999999');
+  // The widest a rate can be, so the row is measured at its worst.
+  await location.getByLabel('Rate in USD').fill('9999999999999');
+  await location.getByLabel('What that rate covers').selectOption('yearly');
   await location.getByLabel('Timezone').fill('Mars/Olympus');
   await location.getByRole('button', { name: /Save and next/ }).click();
   await expect(
@@ -339,7 +340,9 @@ test('profile setup holds its layout filled to its limits, with errors showing',
   test.setTimeout(FULL ? 900_000 : 240_000);
   await open(page);
   await fillEverything(page);
-  await expect(page.getByText('€9,999,999,999,999.99 per hour')).toBeVisible();
+  // Read back in the currency, so a number typed as 9999999999999 is visibly
+  // that many dollars and not a hundredth of them.
+  await expect(page.getByText('$9,999,999,999,999.00')).toBeVisible();
   await sweep(page, 'profile setup, filled');
 });
 
@@ -403,8 +406,8 @@ test('save and next registers the click that leaves a field with a problem in it
   await location.getByLabel('City', { exact: true }).fill('Vienna');
   await location.getByLabel('Service area').fill('Remote across Europe');
   await location.getByLabel('Remote availability').selectOption('remote');
-  await location.getByLabel('Rate currency (3 letters)').fill('EUR');
-  await location.getByLabel('Hourly rate in smallest currency unit').fill('14000');
+  await location.getByLabel('Rate in USD').fill('140');
+  await location.getByLabel('What that rate covers').selectOption('weekly');
   await location.getByLabel('Timezone').fill('Mars/Olympus');
   await location.getByRole('button', { name: /Save and next/ }).click();
 
