@@ -1,31 +1,21 @@
 import { LuMapPin, LuUser, LuVideo } from 'react-icons/lu';
 import { Card } from '@hireevo/ui-web';
-import { formatRate } from '@/features/profile-setup/location-options.ts';
+import { RATE_PERIOD_LABEL, formatRate } from '@/features/profile-setup/location-options.ts';
 import { SkillChips, SummaryList, joined, rangeOf } from '@/features/profile/section-summaries.tsx';
 import type { PublicProfile } from './api.ts';
 
 /**
  * Every period the freelancer priced, as "PKR 5,000.00 per hour".
  *
- * Only the ones they priced: somebody who sells by the month has no hourly
- * rate, and inventing one by division would quote a price they never named.
+ * The one rate, written the way it is read.
  */
 function readableRates(rate: PublicProfile['rate']): string[] {
   if (rate === null) return [];
 
-  return (
-    [
-      ['hourlyMinor', 'per hour'],
-      ['weeklyMinor', 'per week'],
-      ['monthlyMinor', 'per month'],
-    ] as const
-  ).flatMap(([period, per]) => {
-    const amount = rate[period];
-    if (amount === null) return [];
-    // An unknown currency code is still worth showing as a number.
-    const shown = formatRate(amount, rate.currency) ?? `${amount} ${rate.currency}`;
-    return [`${shown} ${per}`];
-  });
+  // An unknown currency code is still worth showing as a number.
+  const shown =
+    formatRate(rate.amountMinor, rate.currency) ?? `${rate.amountMinor} ${rate.currency}`;
+  return [`${shown} ${RATE_PERIOD_LABEL[rate.period] ?? rate.period}`];
 }
 
 const AVAILABILITY: Record<string, string> = {

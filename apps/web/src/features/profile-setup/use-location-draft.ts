@@ -2,14 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProfileField, ProfileValues } from './api.ts';
-import {
-  asCurrencyCode,
-  asMinorAmount,
-  countryByCode,
-  countryByName,
-  isCurrency,
-  isTimezone,
-} from './location-options.ts';
+import { RATE_CURRENCY } from './api.ts';
+import { asRateInput, countryByCode, countryByName, isTimezone } from './location-options.ts';
 
 export const LOCATION_FIELDS = [
   'country',
@@ -17,8 +11,8 @@ export const LOCATION_FIELDS = [
   'serviceArea',
   'timezone',
   'remoteMode',
-  'rateCurrency',
   'rateAmountMinor',
+  'ratePeriod',
 ] as const;
 
 export type LocationField = (typeof LOCATION_FIELDS)[number];
@@ -31,8 +25,8 @@ export const EMPTY_LOCATION: LocationValues = {
   serviceArea: '',
   timezone: '',
   remoteMode: '',
-  rateCurrency: '',
   rateAmountMinor: '',
+  ratePeriod: '',
 };
 
 /** Which profile field each one of these is stored in. */
@@ -41,8 +35,8 @@ const PROFILE_FIELD: Record<Exclude<LocationField, 'country'>, ProfileField> = {
   serviceArea: 'serviceArea',
   timezone: 'timezone',
   remoteMode: 'remoteMode',
-  rateCurrency: 'rateCurrency',
   rateAmountMinor: 'rateAmountMinor',
+  ratePeriod: 'ratePeriod',
 };
 
 /** Every field is optional; what is filled in has to be a real value. */
@@ -54,18 +48,18 @@ export function validateLocation(values: LocationValues): LocationErrors {
   if (values.timezone.trim() !== '' && !isTimezone(values.timezone.trim())) {
     errors.timezone = 'Choose a timezone from the list, for example Europe/Vienna.';
   }
-  if (values.rateCurrency !== '' && !isCurrency(values.rateCurrency)) {
-    errors.rateCurrency = 'Use a three-letter currency code, for example EUR.';
-  } else if (values.rateAmountMinor !== '' && values.rateCurrency === '') {
-    errors.rateCurrency = 'Add the currency this rate is in.';
+  // The amount and its period are one fact, and the API refuses half of it.
+  if (values.rateAmountMinor !== '' && values.ratePeriod === '') {
+    errors.ratePeriod = 'Choose what the rate covers.';
+  } else if (values.ratePeriod !== '' && values.rateAmountMinor === '') {
+    errors.rateAmountMinor = 'Add an amount for the rate.';
   }
   return errors;
 }
 
 /** Keeps the two constrained fields in shape as they are typed. */
 function normalise(field: LocationField, value: string): string {
-  if (field === 'rateCurrency') return asCurrencyCode(value);
-  if (field === 'rateAmountMinor') return asMinorAmount(value);
+  if (field === 'rateAmountMinor') return asRateInput(value, RATE_CURRENCY);
   return value;
 }
 
@@ -105,7 +99,7 @@ export function useLocationDraft(draft: {
     setCountry(countryByCode(code)?.name ?? '');
   }, [code]);
 
-  const { locationCity, serviceArea, timezone, remoteMode, rateCurrency, rateAmountMinor } =
+  const { locationCity, serviceArea, timezone, remoteMode, rateAmountMinor, ratePeriod } =
     draft.values;
 
   // Built once per change rather than once per render: what depends on it —
@@ -118,10 +112,10 @@ export function useLocationDraft(draft: {
       serviceArea,
       timezone,
       remoteMode,
-      rateCurrency,
       rateAmountMinor,
+      ratePeriod,
     }),
-    [country, locationCity, serviceArea, timezone, remoteMode, rateCurrency, rateAmountMinor],
+    [country, locationCity, serviceArea, timezone, remoteMode, rateAmountMinor, ratePeriod],
   );
 
   const { change: changeProfile } = draft;

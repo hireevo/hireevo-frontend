@@ -95,7 +95,7 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     remoteMode: null,
     availability: null,
     rateAmountMinor: null,
-    rateCurrency: null,
+    ratePeriod: null,
     sections: NO_SECTIONS,
     visibility: {
       profilePublic: false,
@@ -128,7 +128,7 @@ beforeEach(() => {
   calls.save.mockReset().mockImplementation((version, values) => {
     // The claimed photo is a key to send, not a field the profile answers with,
     // and a remote mode is one of three words rather than whatever was typed.
-    const { avatarKey: _claimed, remoteMode: _mode, ...fields } = values;
+    const { avatarKey: _claimed, remoteMode: _mode, ratePeriod: _period, ...fields } = values;
     return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
   });
   calls.visibility.mockReset().mockImplementation((settings) =>
@@ -491,8 +491,8 @@ describe('sinceLabel', () => {
 });
 
 describe('Location and rate', () => {
-  const RATE = 'Hourly rate in smallest currency unit';
-  const CURRENCY = 'Rate currency (3 letters)';
+  const RATE = 'Rate in USD';
+  const PERIOD = 'What that rate covers';
   type Section = Awaited<ReturnType<typeof section>>;
 
   async function fill(
@@ -504,8 +504,8 @@ describe('Location and rate', () => {
     await user.type(location.getByLabelText('City'), 'Vienna');
     await user.type(location.getByLabelText('Service area'), 'Remote across Europe');
     await user.selectOptions(location.getByLabelText('Remote availability'), 'remote');
-    await user.type(location.getByLabelText(CURRENCY), 'eur');
-    await user.type(location.getByLabelText(RATE), '14,000');
+    await user.type(location.getByLabelText(RATE), '140');
+    await user.selectOptions(location.getByLabelText(PERIOD), 'weekly');
     await user.type(location.getByLabelText('Timezone'), overrides.timezone ?? 'Europe/Vienna');
   }
 
@@ -515,14 +515,7 @@ describe('Location and rate', () => {
     const location = await section(/Location and rate/);
 
     expect(location.getByLabelText('Country')).toHaveValue('');
-    for (const label of [
-      'City',
-      'Service area',
-      'Timezone',
-      'Remote availability',
-      CURRENCY,
-      RATE,
-    ]) {
+    for (const label of ['City', 'Service area', 'Timezone', 'Remote availability', RATE, PERIOD]) {
       expect(location.getByLabelText(label)).toBeInTheDocument();
     }
     expect(location.getByText('Complete every field to continue')).toBeInTheDocument();
@@ -554,9 +547,11 @@ describe('Location and rate', () => {
 
     // Left the country field already, so it settled to its listed name.
     expect(location.getByLabelText('Country')).toHaveValue('Austria');
-    expect(location.getByLabelText(CURRENCY)).toHaveValue('EUR');
-    expect(location.getByLabelText(RATE)).toHaveValue('14000');
-    expect(location.getByText('€140.00 per hour')).toBeInTheDocument();
+    expect(location.getByLabelText(RATE)).toHaveValue('140');
+    expect(location.getByLabelText(PERIOD)).toHaveValue('weekly');
+    // Read back in the currency it is stored in, so a rate typed as 140 is
+    // visibly $140.00 and not a hundred times less.
+    expect(location.getByText('$140.00')).toBeInTheDocument();
     expect(location.getByText('All fields complete')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Location & rate, complete' })).toBeInTheDocument();
 

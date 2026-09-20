@@ -1,5 +1,6 @@
 import { toApiError, toFieldIssues, type Schema } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
+import { toMinorUnits, toTypedAmount } from './location-options.ts';
 import type { SectionsPayload } from './sections-payload.ts';
 
 export type OwnProfile = Schema<'OwnProfileResponse'>;
@@ -7,6 +8,16 @@ export type UploadTicket = Schema<'UploadTicket'>;
 export type VisibilitySettings = Schema<'UpdateVisibilityRequest'>;
 export type ProfileVisibility = Schema<'ProfileVisibilityResponse'>;
 export type ApprovedSkill = Schema<'SkillListResponse'>['skills'][number];
+export type RatePeriod = NonNullable<OwnProfile['ratePeriod']>;
+
+/**
+ * The one currency every rate is quoted in.
+ *
+ * No screen offers a choice, so the API does not accept one either — this is
+ * here to convert between what is typed and what is stored, which needs to know
+ * how many minor units the currency has.
+ */
+export const RATE_CURRENCY = 'USD';
 
 /**
  * Every field of the profile the form edits, as the form holds them: strings,
@@ -30,9 +41,7 @@ export const PROFILE_FIELDS = [
   'timezone',
   'remoteMode',
   'rateAmountMinor',
-  'rateWeeklyAmountMinor',
-  'rateMonthlyAmountMinor',
-  'rateCurrency',
+  'ratePeriod',
   'avatarKey',
 ] as const;
 
@@ -84,10 +93,10 @@ export function valuesOf(profile: OwnProfile): ProfileValues {
     serviceArea: shown(profile.serviceArea),
     timezone: shown(profile.timezone),
     remoteMode: shown(profile.remoteMode),
-    rateAmountMinor: shown(profile.rateAmountMinor),
-    rateWeeklyAmountMinor: shown(profile.rateWeeklyAmountMinor),
-    rateMonthlyAmountMinor: shown(profile.rateMonthlyAmountMinor),
-    rateCurrency: shown(profile.rateCurrency),
+    // Filled in as it was typed: the API stores minor units, the field holds
+    // what a person would say out loud.
+    rateAmountMinor: toTypedAmount(shown(profile.rateAmountMinor), profile.rateCurrency),
+    ratePeriod: shown(profile.ratePeriod),
     // Never sent back as a key: the response carries the URL it is served from,
     // and a claim only happens when a new photo has just been uploaded.
     avatarKey: '',
@@ -110,10 +119,11 @@ export function toPayload(values: ProfileValues) {
     serviceArea: clear(values.serviceArea),
     timezone: clear(values.timezone),
     remoteMode: clear(values.remoteMode) as 'remote' | 'on_site' | 'hybrid' | null,
-    rateAmountMinor: clear(values.rateAmountMinor),
-    rateWeeklyAmountMinor: clear(values.rateWeeklyAmountMinor),
-    rateMonthlyAmountMinor: clear(values.rateMonthlyAmountMinor),
-    rateCurrency: clear(values.rateCurrency),
+    // Back into the minor units the API stores. A rate with no period and a
+    // period with no rate are both refused by the contract, so the pair is
+    // cleared together rather than half-sent.
+    rateAmountMinor: toMinorUnits(values.rateAmountMinor, RATE_CURRENCY),
+    ratePeriod: (clear(values.ratePeriod) as RatePeriod | null) ?? null,
     // Absent unless a photo was just claimed: sending null would clear the one
     // already on the profile every time anything else was saved.
     ...(values.avatarKey.trim() === '' ? {} : { avatarKey: values.avatarKey.trim() }),

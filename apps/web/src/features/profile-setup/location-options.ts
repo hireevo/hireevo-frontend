@@ -80,9 +80,10 @@ export function isCurrency(value: string): boolean {
 /**
  * The shape a rate is typed in, wherever it is typed.
  *
- * A currency is three letters and nothing else; an amount is whole minor units,
- * because that is what the API stores. Fifteen digits stay below 2^53, so the
- * figure is never rounded on its way to being shown.
+ * A currency is three letters and nothing else. An amount is typed the way it
+ * is spoken — 85 means eighty-five dollars, not eighty-five cents — and is
+ * converted to the minor units the API stores at the seam that talks to it.
+ * Fifteen digits stay below 2^53, so the figure is never rounded on the way.
  */
 export function asCurrencyCode(value: string): string {
   return value
@@ -91,8 +92,61 @@ export function asCurrencyCode(value: string): string {
     .slice(0, 3);
 }
 
-export function asMinorAmount(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 15);
+/**
+ * How many minor units make a major one: 100 for USD, 1 for JPY, 1000 for KWD.
+ *
+ * Read from the currency rather than assumed, because "divide by a hundred" is
+ * wrong for a fifth of the world's currencies and wrong by a factor of a
+ * hundred when it is.
+ */
+export function minorDigitsOf(currency: string): number {
+  if (!isCurrency(currency)) return 2;
+  return (
+    new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
+      .maximumFractionDigits ?? 2
+  );
+}
+
+/**
+ * What the person typed, kept as they typed it.
+ *
+ * Digits and at most one separator, trimmed to the places the currency has —
+ * typing a third decimal in USD is a typo, not an amount. The value is not
+ * normalised while it is being typed: "85." is a half-written "85.50", and
+ * correcting it under the caret is how a field fights the person using it.
+ */
+export function asRateInput(value: string, currency: string): string {
+  const digits = minorDigitsOf(currency);
+  const cleaned = value.replace(/[^\d.]/g, '').replace(/(?<=\..*)\./g, '');
+  const [whole = '', fraction] = cleaned.split('.');
+  const major = whole.slice(0, 15 - digits);
+  if (fraction === undefined) return major;
+  return digits === 0 ? major : `${major}.${fraction.slice(0, digits)}`;
+}
+
+/** What the person typed, as the whole number of minor units the API stores. */
+export function toMinorUnits(typed: string, currency: string): string | null {
+  const value = typed.trim();
+  if (value === '' || !/^\d*(\.\d*)?$/.test(value)) return null;
+
+  const digits = minorDigitsOf(currency);
+  const [whole = '', fraction = ''] = value.split('.');
+  const minor = `${whole || '0'}${fraction.padEnd(digits, '0').slice(0, digits)}`;
+  // Leading zeros dropped, so "0085" and "85" are the same amount to the API.
+  const trimmed = minor.replace(/^0+(?=\d)/, '');
+  return trimmed === '0' ? null : trimmed;
+}
+
+/** The inverse, for filling the field back in from what was saved. */
+export function toTypedAmount(amountMinor: string, currency: string): string {
+  if (!/^\d{1,15}$/.test(amountMinor)) return '';
+  const digits = minorDigitsOf(currency);
+  if (digits === 0) return amountMinor;
+
+  const padded = amountMinor.padStart(digits + 1, '0');
+  const whole = padded.slice(0, -digits);
+  const fraction = padded.slice(-digits).replace(/0+$/, '');
+  return fraction === '' ? whole : `${whole}.${fraction}`;
 }
 
 export const REMOTE_MODES = [
@@ -100,6 +154,17 @@ export const REMOTE_MODES = [
   { value: 'on_site', label: 'On-site only' },
   { value: 'hybrid', label: 'Remote and on-site' },
 ] as const;
+
+/**
+ * What a rate's period is called where it is read, rather than the value the
+ * API stores. One copy, because the client profile and the public profile both
+ * render it and two copies drift (§8.4).
+ */
+export const RATE_PERIOD_LABEL: Record<string, string> = {
+  weekly: 'per week',
+  monthly: 'per month',
+  yearly: 'per year',
+};
 
 /**
  * A rate in minor units, as the person will read it: "14000" in EUR is "€140.00".

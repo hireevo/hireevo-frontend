@@ -1,31 +1,24 @@
 'use client';
 
 import { cn } from '@hireevo/ui-web';
-import type { FieldErrors, ProfileField, ProfileValues } from '@/features/profile-setup/api.ts';
 import {
-  asCurrencyCode,
-  asMinorAmount,
-  formatRate,
-} from '@/features/profile-setup/location-options.ts';
+  RATE_CURRENCY,
+  type FieldErrors,
+  type ProfileField,
+  type ProfileValues,
+} from '@/features/profile-setup/api.ts';
+import { asRateInput } from '@/features/profile-setup/location-options.ts';
 import { CONTROL, SetupField } from '@/features/profile-setup/setup-field.tsx';
 
-/** The three periods the design prices, in its order. */
+/** What one rate can buy. */
 const PERIODS = [
-  { field: 'rateAmountMinor', label: 'Hourly Rate', per: 'per hour' },
-  { field: 'rateWeeklyAmountMinor', label: 'Weekly Rate', per: 'per week' },
-  { field: 'rateMonthlyAmountMinor', label: 'Monthly Rate', per: 'per month' },
-] as const satisfies readonly { field: ProfileField; label: string; per: string }[];
+  { value: 'weekly', label: 'Per week' },
+  { value: 'monthly', label: 'Per month' },
+  { value: 'yearly', label: 'Per year' },
+] as const;
 
-/**
- * What the currency is written as: "$" for USD, "₨" for PKR, the code itself
- * for anything the runtime has no symbol for.
- *
- * The design draws a "$" against every field. Taking that literally would price
- * everyone in dollars, so the sign follows the currency actually chosen and
- * falls back to the design's while there is none.
- */
+/** The currency's sign, for the box the amount is typed into. */
 function symbolOf(currency: string): string {
-  if (!/^[A-Z]{3}$/.test(currency)) return '$';
   try {
     const parts = new Intl.NumberFormat('en', { style: 'currency', currency }).formatToParts(0);
     return parts.find((part) => part.type === 'currency')?.value ?? currency;
@@ -35,15 +28,16 @@ function symbolOf(currency: string): string {
 }
 
 /**
- * What the work costs, by the hour, the week and the month.
+ * What the work costs, and what that buys.
  *
- * Amounts are held in the smallest unit the currency has — cents, paise — which
- * is what the API stores and what keeps money out of floating point. Nobody
- * thinks in minor units, so each field reads back underneath in the currency
- * itself, derived from what was typed rather than stored separately.
+ * One amount and one period, not a column of periods to fill in: somebody sells
+ * their time one way and quotes it one way.
  *
- * All three share one currency: the same work priced three ways is one price.
- * A period left empty is left unpriced, which is not the same as free.
+ * The amount is typed the way it is spoken — 85 is eighty-five dollars, not
+ * eighty-five cents — and converted to the minor units the API stores at the
+ * seam that talks to it. It used to be typed in minor units behind a "$", so
+ * anyone who typed what they charge priced their week at a few cents and only
+ * the hint underneath said so.
  */
 export function RatesEditor({
   values,
@@ -54,66 +48,54 @@ export function RatesEditor({
   fieldErrors: FieldErrors;
   onChange: (field: ProfileField, value: string) => void;
 }) {
-  const sign = symbolOf(values.rateCurrency);
+  const sign = symbolOf(RATE_CURRENCY);
 
   return (
-    <div>
-      <div className="sm:max-w-[200px]">
-        <SetupField label="Currency (3 letters)" error={fieldErrors.rateCurrency}>
-          {(control) => (
+    // Below `sm` they stack: two controls side by side at a phone width leaves
+    // neither wide enough to read.
+    <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+      <SetupField label="Rate" error={fieldErrors.rateAmountMinor}>
+        {(control) => (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 transition-colors focus-within:border-border-accent">
+            <span aria-hidden="true" className="shrink-0 text-sm text-content-subtle">
+              {sign}
+            </span>
             <input
               {...control}
-              name="rateCurrency"
+              name="rateAmountMinor"
+              inputMode="decimal"
               autoComplete="off"
-              placeholder="USD"
-              value={values.rateCurrency}
-              onChange={(event) => onChange('rateCurrency', asCurrencyCode(event.target.value))}
-              className={cn(CONTROL, 'h-10 tabular-nums uppercase')}
+              placeholder="0"
+              value={values.rateAmountMinor}
+              onChange={(event) =>
+                onChange('rateAmountMinor', asRateInput(event.target.value, RATE_CURRENCY))
+              }
+              className="h-10 min-w-0 flex-1 bg-transparent text-sm text-content tabular-nums outline-none placeholder:text-content-subtle"
             />
-          )}
-        </SetupField>
-      </div>
+          </div>
+        )}
+      </SetupField>
 
-      {/* The design's row of three, with its "Price" label at the left. Below
-          `sm` they stack: four columns at a phone width leaves each of them
-          too narrow to type a number into. */}
-      <div className="mt-5 grid gap-x-4 gap-y-4 sm:grid-cols-[auto_repeat(3,minmax(0,1fr))]">
-        <p
-          aria-hidden="true"
-          className="hidden self-end pb-2.5 text-sm font-bold text-content-accent sm:block"
-        >
-          Price
-        </p>
-
-        {PERIODS.map(({ field, label, per }) => {
-          const shown = formatRate(values[field], values.rateCurrency);
-          return (
-            <SetupField
-              key={field}
-              label={label}
-              error={fieldErrors[field]}
-              {...(shown === null ? {} : { hint: `${shown} ${per}` })}
-            >
-              {(control) => (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 transition-colors focus-within:border-border-accent">
-                  <span aria-hidden="true" className="shrink-0 text-sm text-content-subtle">
-                    {sign}
-                  </span>
-                  <input
-                    {...control}
-                    name={field}
-                    inputMode="numeric"
-                    autoComplete="off"
-                    value={values[field]}
-                    onChange={(event) => onChange(field, asMinorAmount(event.target.value))}
-                    className="h-10 min-w-0 flex-1 bg-transparent text-sm text-content tabular-nums outline-none placeholder:text-content-subtle"
-                  />
-                </div>
-              )}
-            </SetupField>
-          );
-        })}
-      </div>
+      <SetupField label="Per" error={fieldErrors.ratePeriod}>
+        {(control) => (
+          <select
+            {...control}
+            name="ratePeriod"
+            value={values.ratePeriod}
+            onChange={(event) => onChange('ratePeriod', event.target.value)}
+            className={cn(CONTROL, 'h-10')}
+          >
+            {/* Empty first, so a profile with no rate does not read as one
+                priced by the week with the amount left out. */}
+            <option value="">Choose a period</option>
+            {PERIODS.map((period) => (
+              <option key={period.value} value={period.value}>
+                {period.label}
+              </option>
+            ))}
+          </select>
+        )}
+      </SetupField>
     </div>
   );
 }

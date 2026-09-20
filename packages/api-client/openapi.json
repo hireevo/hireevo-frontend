@@ -1945,14 +1945,19 @@
           "rateAmountMinor": {
             "type": ["string", "null"]
           },
-          "rateWeeklyAmountMinor": {
-            "type": ["string", "null"]
-          },
-          "rateMonthlyAmountMinor": {
-            "type": ["string", "null"]
+          "ratePeriod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["weekly", "monthly", "yearly"]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rateCurrency": {
-            "type": ["string", "null"]
+            "type": "string"
           },
           "contact": {
             "type": "object",
@@ -2255,8 +2260,7 @@
           "availability",
           "availabilityNote",
           "rateAmountMinor",
-          "rateWeeklyAmountMinor",
-          "rateMonthlyAmountMinor",
+          "ratePeriod",
           "rateCurrency",
           "contact",
           "sections",
@@ -2426,35 +2430,11 @@
                   }
                 ]
               },
-              "rateWeeklyAmountMinor": {
+              "ratePeriod": {
                 "anyOf": [
                   {
                     "type": "string",
-                    "pattern": "^\\d{1,15}$"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "rateMonthlyAmountMinor": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "pattern": "^\\d{1,15}$"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "rateCurrency": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 3,
-                    "pattern": "^[A-Z]{3}$"
+                    "enum": ["weekly", "monthly", "yearly"]
                   },
                   {
                     "type": "null"
@@ -3084,17 +3064,15 @@
                   "currency": {
                     "type": "string"
                   },
-                  "hourlyMinor": {
-                    "type": ["string", "null"]
+                  "amountMinor": {
+                    "type": "string"
                   },
-                  "weeklyMinor": {
-                    "type": ["string", "null"]
-                  },
-                  "monthlyMinor": {
-                    "type": ["string", "null"]
+                  "period": {
+                    "type": "string",
+                    "enum": ["weekly", "monthly", "yearly"]
                   }
                 },
-                "required": ["currency", "hourlyMinor", "weeklyMinor", "monthlyMinor"],
+                "required": ["currency", "amountMinor", "period"],
                 "additionalProperties": false
               },
               {

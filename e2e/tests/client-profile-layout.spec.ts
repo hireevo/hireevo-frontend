@@ -41,12 +41,11 @@ const PROFILE = {
   serviceArea: null,
   timezone: null,
   remoteMode: null,
-  availability: null,
+  availability: 'available',
   availabilityNote: null,
   rateAmountMinor: null,
-  rateWeeklyAmountMinor: null,
-  rateMonthlyAmountMinor: null,
-  rateCurrency: null,
+  ratePeriod: null,
+  rateCurrency: 'USD',
   contact: {
     phoneE164: null,
     contactEmail: null,
@@ -284,11 +283,12 @@ test('the rates and visibility editors hold their layout at every window size', 
   test.setTimeout(FULL ? 900_000 : 240_000);
   await openForEditing(page);
 
-  // A row of four — the label and three periods — is the widest thing on this
-  // page, and the one most likely to be unusable on a phone.
+  // The amount and its period sit side by side, which is the pair most likely
+  // to be unusable once the column narrows to a phone.
   await page.getByRole('button', { name: 'Edit expected rates' }).click();
   const rates = page.getByRole('region', { name: /Expected rates/ });
-  await expect(rates.getByLabel('Hourly Rate')).toBeVisible();
+  await expect(rates.getByLabel('Rate')).toBeVisible();
+  await expect(rates.getByLabel('Per')).toBeVisible();
   await sweep(page, 'client profile with the rates editor open');
 
   await page.getByRole('button', { name: 'Edit visibility' }).click();

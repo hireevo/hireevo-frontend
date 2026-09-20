@@ -100,9 +100,7 @@ describe('saveProfile', () => {
           timezone: null,
           remoteMode: null,
           rateAmountMinor: null,
-          rateWeeklyAmountMinor: null,
-          rateMonthlyAmountMinor: null,
-          rateCurrency: null,
+          ratePeriod: null,
         },
       },
     });

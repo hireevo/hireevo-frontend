@@ -22,12 +22,11 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
   availability: 'open_to_offers',
   availabilityNote: 'Open to one discovery engagement starting October 2026, remote or in Lahore',
   rate: {
-    currency: 'PKR',
-    hourlyMinor: '999999999999999',
-    weeklyMinor: '18000000',
-    // Priced by the hour and the week, not by the month — the widest the row
-    // gets is three of these, and the honest state is that one is missing.
-    monthlyMinor: null,
+    currency: 'USD',
+    // Fifteen digits: the widest a rate can be, so the row is measured at its
+    // worst rather than at a comfortable number.
+    amountMinor: '999999999999999',
+    period: 'weekly',
   },
   videoIntroUrl: 'https://vimeo.com/123456789',
   languages: [

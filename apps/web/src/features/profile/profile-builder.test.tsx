@@ -127,7 +127,7 @@ beforeEach(() => {
   calls.save.mockReset().mockImplementation((version, values) => {
     // The claimed photo is a key to send, not a field the profile answers with,
     // and a remote mode is one of three words rather than whatever was typed.
-    const { avatarKey: _claimed, remoteMode: _mode, ...fields } = values;
+    const { avatarKey: _claimed, remoteMode: _mode, ratePeriod: _period, ...fields } = values;
     return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
   });
 });
@@ -435,32 +435,30 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
-    await user.type(rates.getByLabelText('Hourly Rate'), '14000');
-    await user.type(rates.getByLabelText('Weekly Rate'), '500000');
+    await user.type(await rates.findByLabelText('Rate'), '85');
+    await user.selectOptions(rates.getByLabelText('Per'), 'weekly');
 
-    expect(rates.getByLabelText('Currency (3 letters)')).toHaveValue('EUR');
-    // Each amount reads back in the currency, from what was typed.
-    expect(rates.getByText('€140.00 per hour')).toBeInTheDocument();
-    expect(rates.getByText('€5,000.00 per week')).toBeInTheDocument();
-    // A period nobody priced stays unpriced rather than showing as nothing.
-    expect(rates.queryByText(/per month/)).not.toBeInTheDocument();
+    expect(rates.getByLabelText('Rate')).toHaveValue('85');
   });
 
-  it('sends all three rates with the profile', async () => {
+  /**
+   * The amount is typed the way it is spoken and stored in minor units, and
+   * the two are a hundred apart. It used to be typed in minor units behind a
+   * "$", so anyone who typed what they charge priced their week at 85 cents.
+   */
+  it('sends the rate as minor units, not as the number that was typed', async () => {
     const user = await openForEditing();
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Currency (3 letters)'), 'eur');
-    await user.type(rates.getByLabelText('Monthly Rate'), '2000000');
+    await user.type(await rates.findByLabelText('Rate'), '85.50');
+    await user.selectOptions(rates.getByLabelText('Per'), 'monthly');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
-        rateCurrency: 'EUR',
-        rateMonthlyAmountMinor: '2000000',
-        rateAmountMinor: '',
+        rateAmountMinor: '85.50',
+        ratePeriod: 'monthly',
       }),
     );
   });

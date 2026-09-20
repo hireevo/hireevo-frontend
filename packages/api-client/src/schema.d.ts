@@ -670,9 +670,8 @@ export interface components {
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
             rateAmountMinor: string | null;
-            rateWeeklyAmountMinor: string | null;
-            rateMonthlyAmountMinor: string | null;
-            rateCurrency: string | null;
+            ratePeriod: ("weekly" | "monthly" | "yearly") | null;
+            rateCurrency: string;
             contact: {
                 phoneE164: string | null;
                 contactEmail: string | null;
@@ -759,9 +758,7 @@ export interface components {
                 availability?: "available" | "open_to_offers" | "unavailable";
                 availabilityNote?: string | null;
                 rateAmountMinor?: string | null;
-                rateWeeklyAmountMinor?: string | null;
-                rateMonthlyAmountMinor?: string | null;
-                rateCurrency?: string | null;
+                ratePeriod?: ("weekly" | "monthly" | "yearly") | null;
             };
             contact?: {
                 phoneE164?: string | null;
@@ -878,9 +875,9 @@ export interface components {
             availabilityNote: string | null;
             rate: {
                 currency: string;
-                hourlyMinor: string | null;
-                weeklyMinor: string | null;
-                monthlyMinor: string | null;
+                amountMinor: string;
+                /** @enum {string} */
+                period: "weekly" | "monthly" | "yearly";
             } | null;
             languages: {
                 name: string;

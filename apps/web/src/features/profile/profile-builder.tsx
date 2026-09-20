@@ -22,10 +22,13 @@ import {
   SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
+import { RATE_CURRENCY } from '@/features/profile-setup/api.ts';
 import {
+  RATE_PERIOD_LABEL,
   countryByCode,
   countryByName,
   formatRate,
+  toMinorUnits,
 } from '@/features/profile-setup/location-options.ts';
 import { fromSavedSections, toSectionsPayload } from '@/features/profile-setup/sections-payload.ts';
 import { PROFICIENCIES as SKILL_PROFICIENCIES } from '@/features/profile-setup/skill-options.ts';
@@ -314,17 +317,13 @@ export function ProfileBuilder() {
   const roles = experience.items.filter((item) => item.values.role.trim() !== '');
   const courses = education.items.filter((item) => item.values.institution.trim() !== '');
   const certificates = licenses.items.filter((item) => item.values.name.trim() !== '');
-  /** Only the periods that were priced; an empty one is unpriced, not free. */
-  const rates = (
-    [
-      ['rateAmountMinor', 'per hour'],
-      ['rateWeeklyAmountMinor', 'per week'],
-      ['rateMonthlyAmountMinor', 'per month'],
-    ] as const
-  ).flatMap(([field, per]) => {
-    const shown = formatRate(values[field], values.rateCurrency);
-    return shown === null ? [] : [`${shown} ${per}`];
-  });
+  /** The one rate, once there is one: an amount and what it buys. */
+  const rates = (() => {
+    const minor = toMinorUnits(values.rateAmountMinor, RATE_CURRENCY);
+    const shown = minor === null ? null : formatRate(minor, RATE_CURRENCY);
+    if (shown === null || values.ratePeriod === '') return [];
+    return [`${shown} ${RATE_PERIOD_LABEL[values.ratePeriod] ?? values.ratePeriod}`];
+  })();
 
   const filled: SectionsFilled = {
     about: values.overview.trim() !== '',

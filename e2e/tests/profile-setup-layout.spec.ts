@@ -53,9 +53,8 @@ const PROFILE = {
   availability: null,
   availabilityNote: 'Open to one discovery engagement starting October 2026, remote or in Lahore',
   rateAmountMinor: null,
-  rateWeeklyAmountMinor: null,
-  rateMonthlyAmountMinor: null,
-  rateCurrency: null,
+  ratePeriod: null,
+  rateCurrency: 'USD',
   contact: {
     phoneE164: null,
     contactEmail: null,

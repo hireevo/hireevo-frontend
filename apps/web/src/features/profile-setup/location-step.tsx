@@ -4,13 +4,14 @@ import { useId, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { LuChevronDown } from 'react-icons/lu';
 import { Card, cn } from '@hireevo/ui-web';
+import { RATE_CURRENCY } from './api.ts';
 import { border } from './entry-fields.ts';
 import { LOCATION_LIMITS } from './limits.ts';
 import {
   REMOTE_MODES,
   countryNameOptions,
-  currencyOptions,
   formatRate,
+  toMinorUnits,
   timezoneOptions,
 } from './location-options.ts';
 import { CONTROL, SetupField } from './setup-field.tsx';
@@ -42,11 +43,10 @@ export function LocationStep({
   const headingId = useId();
   const countriesId = useId();
   const timezonesId = useId();
-  const currenciesId = useId();
   const fields = useRef<HTMLDivElement>(null);
 
   const filled = LOCATION_FIELDS.filter((field) => values[field].trim() !== '').length;
-  const rate = formatRate(values.rateAmountMinor, values.rateCurrency);
+  const rate = formatRate(toMinorUnits(values.rateAmountMinor, RATE_CURRENCY) ?? '', RATE_CURRENCY);
 
   const bind = (field: LocationField) => ({
     name: field,
@@ -169,45 +169,43 @@ export function LocationStep({
           )}
         </SetupField>
 
-        <SetupField label="Rate currency (3 letters)" error={errors.rateCurrency}>
-          {(control) => (
-            <input
-              {...control}
-              {...bind('rateCurrency')}
-              list={currenciesId}
-              maxLength={3}
-              autoCapitalize="characters"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="e.g. EUR"
-              className={cn(CONTROL, 'h-10', border(errors.rateCurrency))}
-            />
-          )}
-        </SetupField>
-
         <SetupField
-          label="Hourly rate in smallest currency unit"
-          // The design has no hint here. The amount is read back once it can be,
-          // because a rate in minor units is easy to enter a hundred times off.
-          {...(rate === null ? {} : { hint: `${rate} per hour` })}
+          label={`Rate in ${RATE_CURRENCY}`}
+          // Typed the way it is spoken — 85 is eighty-five dollars — and read
+          // back below so there is no doubt which of the two it meant.
+          {...(rate === null ? {} : { hint: rate })}
           error={errors.rateAmountMinor}
         >
           {(control) => (
             <input
               {...control}
               {...bind('rateAmountMinor')}
-              inputMode="numeric"
+              inputMode="decimal"
               maxLength={LOCATION_LIMITS.rateAmountMinor}
               autoComplete="off"
               className={cn(CONTROL, 'h-10 tabular-nums', border(errors.rateAmountMinor))}
             />
           )}
         </SetupField>
+
+        <SetupField label="What that rate covers" error={errors.ratePeriod}>
+          {(control) => (
+            <select
+              {...control}
+              {...bind('ratePeriod')}
+              className={cn(CONTROL, 'h-10', border(errors.ratePeriod))}
+            >
+              <option value="">Choose a period</option>
+              <option value="weekly">Per week</option>
+              <option value="monthly">Per month</option>
+              <option value="yearly">Per year</option>
+            </select>
+          )}
+        </SetupField>
       </div>
 
       <StaticDatalist id={countriesId} options={countryNameOptions()} />
       <StaticDatalist id={timezonesId} options={timezoneOptions()} />
-      <StaticDatalist id={currenciesId} options={currencyOptions()} />
 
       <StepFooter complete={filled === LOCATION_FIELDS.length} onContinue={saveAndNext} />
     </Card>

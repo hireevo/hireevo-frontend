@@ -7,8 +7,8 @@ const filled = {
   serviceArea: 'Remote across Europe',
   timezone: 'Europe/Vienna',
   remoteMode: 'remote',
-  rateCurrency: 'EUR',
-  rateAmountMinor: '14000',
+  rateAmountMinor: '140',
+  ratePeriod: 'weekly',
 };
 
 describe('validateLocation', () => {
@@ -20,24 +20,24 @@ describe('validateLocation', () => {
     expect(validateLocation(filled)).toEqual({});
   });
 
-  it('refuses a country, timezone or currency that is not one', () => {
-    expect(
-      validateLocation({
-        ...filled,
-        country: 'Atlantis',
-        timezone: 'Mars/Olympus',
-        rateCurrency: 'ABC',
-      }),
-    ).toEqual({
+  it('refuses a country or timezone that is not one', () => {
+    expect(validateLocation({ ...filled, country: 'Atlantis', timezone: 'Mars/Olympus' })).toEqual({
       country: 'Choose a country from the list.',
       timezone: 'Choose a timezone from the list, for example Europe/Vienna.',
-      rateCurrency: 'Use a three-letter currency code, for example EUR.',
     });
   });
 
-  it('asks for the currency a rate is in', () => {
-    expect(validateLocation({ ...EMPTY_LOCATION, rateAmountMinor: '14000' })).toEqual({
-      rateCurrency: 'Add the currency this rate is in.',
+  /**
+   * The amount and its period are one fact, and the column holding them refuses
+   * half of it. Caught here so the person is told which half is missing rather
+   * than being handed the constraint's answer after a round trip.
+   */
+  it('asks what a rate covers, and what a period is worth', () => {
+    expect(validateLocation({ ...EMPTY_LOCATION, rateAmountMinor: '140' })).toEqual({
+      ratePeriod: 'Choose what the rate covers.',
+    });
+    expect(validateLocation({ ...EMPTY_LOCATION, ratePeriod: 'weekly' })).toEqual({
+      rateAmountMinor: 'Add an amount for the rate.',
     });
   });
 });
