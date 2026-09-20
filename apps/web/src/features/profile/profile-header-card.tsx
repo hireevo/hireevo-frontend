@@ -10,6 +10,9 @@ import { LanguageAdder } from './language-adder.tsx';
 
 const CONTROL = 'h-9 rounded-lg px-3 text-[0.8125rem] font-semibold';
 
+/** The card's top-right corner, as the design draws it — and its own row below `sm`. */
+const COLUMN = 'flex w-full shrink-0 flex-col gap-1.5 sm:w-auto sm:items-end';
+
 /**
  * The two things someone does with a published profile: send it to a buyer, and
  * look at what that buyer will see.
@@ -48,46 +51,52 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
     );
 
     return (
-      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+      <div className={COLUMN}>
+        <div className="flex items-center gap-2">
+          <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
+            <LuShare2 aria-hidden="true" className="size-3.5" />
+            Share
+          </button>
+          <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
+            <LuExternalLink aria-hidden="true" className="size-3.5" />
+            Preview
+          </button>
+        </div>
+        {/* Under the buttons rather than beside them: the design's corner is
+            these two controls, and a sentence in front of them moves them. */}
         <p id={reasonId} className="text-xs text-content-subtle">
           Publish to share or preview
         </p>
-        <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
-          <LuShare2 aria-hidden="true" className="size-3.5" />
-          Share
-        </button>
-        <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
-          <LuExternalLink aria-hidden="true" className="size-3.5" />
-          Preview
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+    <div className={COLUMN}>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => void share()}
+          className={CONTROL}
+        >
+          <LuShare2 aria-hidden="true" className="size-3.5" />
+          Share
+        </Button>
+        <a
+          href={path}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), CONTROL)}
+        >
+          <LuExternalLink aria-hidden="true" className="size-3.5" />
+          Preview
+        </a>
+      </div>
       <p role="status" aria-live="polite" className="text-xs text-content-subtle">
         {copied ? 'Link copied' : ''}
       </p>
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        onClick={() => void share()}
-        className={CONTROL}
-      >
-        <LuShare2 aria-hidden="true" className="size-3.5" />
-        Share
-      </Button>
-      <a
-        href={path}
-        target="_blank"
-        rel="noreferrer"
-        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), CONTROL)}
-      >
-        <LuExternalLink aria-hidden="true" className="size-3.5" />
-        Preview
-      </a>
     </div>
   );
 }
@@ -116,15 +125,21 @@ export function ProfileHeaderCard({
     onChange({ languages: draft.languages.filter((language) => language.name !== name) });
 
   return (
-    <Card aria-labelledby="profile-identity" className="flex flex-wrap items-start gap-x-6 gap-y-4">
+    // Wraps only below `sm`, where three columns leave none of them usable.
+    // From there the row holds: photo, details, and the two public controls in
+    // the corner the design puts them in.
+    <Card
+      aria-labelledby="profile-identity"
+      className="flex flex-wrap items-start gap-x-6 gap-y-4 sm:flex-nowrap"
+    >
       <AvatarPicker
         url={draft.avatarUrl}
         onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
       />
 
-      {/* `min-w-[15rem]`: below that the name and its controls are unreadable,
-          so the row wraps and the links take a line of their own instead. */}
-      <div className="min-w-[15rem] flex-1">
+      {/* `min-w-0` so this column gives way to the corner's controls rather
+          than pushing them onto a line of their own. */}
+      <div className="min-w-0 flex-1">
         <h2 id="profile-identity" className="sr-only">
           Your name and details
         </h2>

@@ -397,6 +397,7 @@ export function ProfileBuilder() {
           the summary of it, and beside both rows from `lg`. */}
       <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <ProfileStrengthCard
+          compact
           strength={{
             percent: completion.percent,
             done: completion.done,

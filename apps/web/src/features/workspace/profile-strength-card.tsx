@@ -8,9 +8,22 @@ import type { ProfileStrength } from './types.ts';
 /** The button at the foot of the card, whether it navigates or acts in place. */
 const ACTION = 'mt-6 h-11 rounded-lg font-semibold';
 
-export function ProfileStrengthCard({ strength }: { strength: ProfileStrength }) {
+export function ProfileStrengthCard({
+  strength,
+  compact = false,
+}: {
+  strength: ProfileStrength;
+  /**
+   * For the narrow column beside the client profile, where the dashboard's
+   * proportions leave the headline about a hundred pixels to wrap in. The ring
+   * shrinks and the sentence moves under it, which is how the design draws this
+   * card at that width.
+   */
+  compact?: boolean;
+}) {
   const headingId = useId();
   const { percent, done, total } = strength;
+  const blurb = 'A stronger profile ranks higher and wins more briefs.';
 
   return (
     <Card aria-labelledby={headingId} className="border-l-4 border-border-accent p-5 sm:p-6">
@@ -24,24 +37,39 @@ export function ProfileStrengthCard({ strength }: { strength: ProfileStrength })
           value={percent}
           label="Profile strength"
           valueText={`${percent} percent complete, ${done} of ${total} steps done`}
-          size={92}
-          thickness={7}
+          size={compact ? 72 : 92}
+          thickness={compact ? 6 : 7}
         >
-          <span className="text-2xl leading-none font-bold text-content-accent">{percent}%</span>
+          <span
+            className={cn(
+              'leading-none font-bold text-content-accent',
+              compact ? 'text-xl' : 'text-2xl',
+            )}
+          >
+            {percent}%
+          </span>
           <span className="mt-1 text-xs text-content-subtle">complete</span>
         </ProgressRing>
         <div className="min-w-0">
           <h2
             id={headingId}
-            className="text-xl leading-snug font-semibold text-balance text-content-accent"
+            className={cn(
+              'leading-snug font-semibold text-balance text-content-accent',
+              compact ? 'text-base' : 'text-xl',
+            )}
           >
             {strength.headline}
           </h2>
-          <p className="mt-2 text-[0.9375rem] leading-relaxed text-content-subtle">
-            {done} of {total} steps done. A stronger profile ranks higher and wins more briefs.
-          </p>
+          {compact ? null : (
+            <p className="mt-2 text-[0.9375rem] leading-relaxed text-content-subtle">
+              {done} of {total} steps done. {blurb}
+            </p>
+          )}
         </div>
       </div>
+
+      {/* Below the ring rather than beside it: at this width there is no beside. */}
+      {compact ? <p className="mt-3 text-sm text-content-subtle">{blurb}</p> : null}
 
       <ul className="mt-5 flex flex-col gap-3">
         {strength.items.map((item) => (
