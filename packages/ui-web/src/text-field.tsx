@@ -33,7 +33,12 @@ export function TextField({
         <span
           className={cn(
             inputShell,
-            error === undefined ? 'border-border' : 'border-border-danger',
+            // The border stays as it is when there is a problem, which is how
+            // the design draws it: the message underneath says what is wrong,
+            // in the warning colour, while a red box around the field said it
+            // a second time in a colour the message never used. The message
+            // carries `role="alert"`, so nothing here depends on seeing colour.
+            'border-border',
             input.disabled === true && 'cursor-not-allowed opacity-60',
           )}
         >

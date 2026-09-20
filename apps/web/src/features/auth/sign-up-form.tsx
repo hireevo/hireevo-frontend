@@ -175,7 +175,7 @@ export function SignUpForm() {
       </div>
 
       {recaptchaEnabled ? (
-        <div className="mt-[calc(12px+0.1*var(--fit))]">
+        <div className="mt-[calc(6px+0.16*var(--fit))]">
           <RecaptchaCheckbox ref={captcha} onChange={handleCaptcha} />
           {captchaError === null ? null : (
             <p role="alert" className="mt-1.5 text-sm text-content-warning">
@@ -185,7 +185,7 @@ export function SignUpForm() {
         </div>
       ) : null}
 
-      <div className="mt-[calc(10px+0.08*var(--fit))] flex items-center justify-between gap-4">
+      <div className="mt-[calc(4px+0.14*var(--fit))] flex items-center justify-between gap-4">
         <Checkbox name="remember">Remember me</Checkbox>
         <Link
           href="/recover"
@@ -206,7 +206,7 @@ export function SignUpForm() {
         size="xl"
         fullWidth
         loading={pending}
-        className="mt-[calc(14px+0.14*var(--fit))]"
+        className="mt-[calc(8px+0.2*var(--fit))]"
       >
         Continue
       </Button>
