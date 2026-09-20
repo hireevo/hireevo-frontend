@@ -108,8 +108,13 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
 
 const scrollIntoView = vi.fn();
 
-const renderScreen = () => {
-  render(<ProfileSetupScreen autosaveDelay={40} />);
+/**
+ * 40ms so the autosave lands quickly. A test that needs the pause *not* to
+ * have elapsed passes a long one instead — asserting "not saved yet" against a
+ * 40ms timer is a race the test loses on a slow machine, and did.
+ */
+const renderScreen = (autosaveDelay = 40) => {
+  render(<ProfileSetupScreen autosaveDelay={autosaveDelay} />);
   return userEvent.setup();
 };
 
@@ -202,16 +207,33 @@ describe('ProfileSetupScreen', () => {
     );
   });
 
+  it('says the work is unsaved until the pause is over', async () => {
+    // A pause long enough that it cannot have elapsed, so "not saved yet" is a
+    // fact rather than a race: with the 40ms the other tests use, typing twelve
+    // characters takes longer than the pause and the save lands mid-word.
+    const user = renderScreen(10_000);
+    const identity = await section(/Identity and story/);
+
+    await user.type(identity.getByLabelText('Availability'), 'F');
+
+    expect(screen.getByText('Unsaved')).toBeInTheDocument();
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
   it('saves after a pause in typing, not on every keystroke', async () => {
     const user = renderScreen();
     const identity = await section(/Identity and story/);
 
     await user.type(identity.getByLabelText('Availability'), 'From October');
-    expect(screen.getByText('Unsaved')).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
+    // The whole point: one save for many keystrokes, carrying what was typed.
     expect(calls.save.mock.calls.length).toBeLessThan('From October'.length);
-    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ availabilityNote: 'From October' });
+    await waitFor(() =>
+      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+        availabilityNote: 'From October',
+      }),
+    );
     expect(identity.getByText('All fields complete')).toBeInTheDocument();
   });
 
@@ -366,22 +388,36 @@ describe('ProfileSetupScreen', () => {
     expect(screen.getByText('10 characters left')).toBeInTheDocument();
   });
 
-  it('saves a section that is not the first, and asks before leaving until it lands', async () => {
-    const user = renderScreen();
+  /** Whether the page would stop someone closing the tab. */
+  const leave = () => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it('asks before leaving while there is work the server has not got', async () => {
+    // A pause that cannot have elapsed, so "there is unsaved work" is a fact.
+    // At 40ms the save lands while the word is still being typed, and the test
+    // then asks whether unsaved work exists a moment after it stopped existing.
+    const user = renderScreen(10_000);
     const location = await section(/Location and rate/);
-    const leave = () => {
-      const event = new Event('beforeunload', { cancelable: true });
-      window.dispatchEvent(event);
-      return event.defaultPrevented;
-    };
 
     expect(leave()).toBe(false);
+    await user.type(location.getByLabelText('City'), 'Vienna');
+
+    expect(leave()).toBe(true);
+  });
+
+  it('saves a section that is not the first, and stops asking once it lands', async () => {
+    const user = renderScreen();
+    const location = await section(/Location and rate/);
 
     await user.type(location.getByLabelText('City'), 'Vienna');
-    expect(leave()).toBe(true);
 
     await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
-    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCity: 'Vienna' });
+    await waitFor(() =>
+      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCity: 'Vienna' }),
+    );
     expect(leave()).toBe(false);
   });
 
@@ -404,9 +440,14 @@ describe('ProfileSetupScreen', () => {
       'Figma',
     );
 
-    await waitFor(() => expect(calls.save).toHaveBeenCalled());
-    expect(calls.save.mock.calls.at(-1)?.[2]).toMatchObject({
-      skills: [{ name: 'Figma', proficiency: null, years: null }],
+    // Waited for by name, not by "any call carrying a skill": typing is slow
+    // enough on a loaded machine that a save fires mid-word, and a search for
+    // a non-empty list keeps finding that first partial one for ever.
+    await waitFor(() => {
+      const carrying = calls.save.mock.calls.find((call) => call[2]?.skills?.[0]?.name === 'Figma');
+      expect(carrying?.[2]).toMatchObject({
+        skills: [{ name: 'Figma', proficiency: null, years: null }],
+      });
     });
   });
 
@@ -845,7 +886,10 @@ describe('Visibility and publication', () => {
     const identity = await section(/Identity and story/);
     await user.type(identity.getByLabelText('Availability'), 'Now');
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
-    expect(calls.save.mock.calls.at(-1)?.[0]).toBe(9);
+    // The first save after the visibility write is the one that has to carry
+    // the version it moved to. Later ones carry what each save returned, and
+    // on a loaded machine typing three characters produces several.
+    expect(calls.save.mock.calls[0]?.[0]).toBe(9);
   });
 
   it('keeps the setting on screen when it could not be saved', async () => {
