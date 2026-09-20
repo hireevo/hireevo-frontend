@@ -26,7 +26,7 @@ export const password = z
   // drift test in schemas.test.ts.
   .max(256, { message: 'Use 256 characters or fewer.' })
   .refine((value) => PASSWORD_RULES.every((rule) => rule.test(value)), {
-    message: 'Use 8+ characters with upper and lower case, a number and a special character.',
+    message: 'Use 8+ characters, mixed case, a number and a symbol.',
   });
 
 const email = z

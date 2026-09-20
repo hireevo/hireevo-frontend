@@ -105,7 +105,7 @@ export function SignUpForm() {
       noValidate
       className="mt-[calc(8px+0.06*var(--fit))] flex flex-col"
     >
-      <div className="flex flex-col gap-[calc(8px+0.04*var(--fit))]">
+      <div className="flex flex-col gap-[calc(4px+0.08*var(--fit))]">
         <div className="grid grid-cols-1 gap-[15px] sm:grid-cols-[244fr_270fr] sm:gap-4 [&>*]:min-w-0">
           <TextField
             label="First Name"
