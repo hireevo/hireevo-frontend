@@ -22,7 +22,7 @@ export default function RecoverPage() {
         <p className="mt-3 text-lg leading-[1.5] text-content">
           Enter your email address to recover your account
         </p>
-        <DevMailboxNote />
+        <DevMailboxNote carries="link" />
       </div>
       <RecoverForm />
 

@@ -36,7 +36,7 @@ export function ConfirmCodeScreen({ address, purpose }: { address: string; purpo
             Please enter it below
           </p>
         </div>
-        <DevMailboxNote />
+        <DevMailboxNote carries="code" />
       </div>
       {/* The design's "Back" button, in the form below, is the way out of the
           flow — it returns to the screen the address was typed on. */}
