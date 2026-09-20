@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 export default function SignUpPage() {
   return (
     <>
-      <h1 className="text-[length:calc(34px+0.14*var(--fit))] leading-none font-bold tracking-tight text-content-accent">
+      <h1 className="text-[length:calc(26px+0.22*var(--fit))] leading-none font-bold tracking-tight text-content-accent">
         Sign up
       </h1>
       {/* Under the heading, the inverse of sign-in's "Don't have an account?". */}
-      <p className="mt-[calc(8px+0.1*var(--fit))] text-lg text-content-subtle">
+      <p className="mt-[calc(2px+0.16*var(--fit))] text-lg text-content-subtle">
         Already have an account?{' '}
         <Link
           href="/sign-in"
@@ -31,7 +31,7 @@ export default function SignUpPage() {
           They also satisfy the requirement for a Terms link on this screen. */}
       <nav
         aria-label="Legal"
-        className="mt-[calc(16px+0.2*var(--fit))] flex justify-center gap-8 text-sm text-content-subtle"
+        className="mt-[calc(4px+0.32*var(--fit))] flex justify-center gap-8 text-sm text-content-subtle"
       >
         <Link
           href="/privacy"

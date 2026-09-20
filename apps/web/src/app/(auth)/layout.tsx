@@ -35,7 +35,7 @@ import { Wordmark } from './_components/wordmark.tsx';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-rhythm grid min-h-dvh grid-cols-1 bg-surface-subtle lg:grid-cols-[minmax(0,674fr)_minmax(0,766fr)]">
-      <div className="flex min-w-0 flex-col px-6 py-8 sm:px-10 lg:pt-[calc(24px+0.3*var(--fit))] lg:pr-0 lg:pb-[calc(24px+0.16*var(--fit))] lg:pl-[8.902%] min-[2000px]:pl-0">
+      <div className="flex min-w-0 flex-col px-6 py-8 sm:px-10 lg:pt-[calc(8px+0.46*var(--fit))] lg:pr-0 lg:pb-[calc(24px+0.16*var(--fit))] lg:pl-[8.902%] min-[2000px]:pl-0">
         <div className="mx-auto flex w-full max-w-[530px] flex-1 flex-col lg:mx-0 lg:max-w-none min-[2000px]:mx-auto min-[2000px]:max-w-[555px]">
           {/* The mark is 30px inside a 39px block in the file, so the block —
               not the mark — is what the 46px gap below is measured from. */}
@@ -44,7 +44,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
           <main
             id="main-content"
-            className="flex flex-1 flex-col pt-[calc(20px+0.26*var(--fit))] pb-10 lg:ml-[4.072%] lg:pb-0 lg:w-[86.32%] lg:max-w-[530px] min-[2000px]:ml-[25px] min-[2000px]:w-[530px]"
+            className="flex flex-1 flex-col pt-[calc(6px+0.4*var(--fit))] pb-10 lg:ml-[4.072%] lg:pb-0 lg:w-[86.32%] lg:max-w-[530px] min-[2000px]:ml-[25px] min-[2000px]:w-[530px]"
           >
             {children}
           </main>

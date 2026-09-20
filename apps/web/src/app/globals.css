@@ -24,7 +24,7 @@
 @utility auth-rhythm {
   --field-label-inset: calc(0.1 * var(--fit));
   --field-label-gap: calc(8px + 0.06 * var(--fit));
-  --field-height: calc(44px + 0.1 * var(--fit));
+  --field-height: calc(40px + 0.14 * var(--fit));
   --button-xl-height: calc(48px + 0.12 * var(--fit));
 }
 

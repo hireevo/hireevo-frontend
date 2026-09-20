@@ -59,5 +59,14 @@ export const RecaptchaCheckbox = forwardRef<
   }, []);
 
   if (recaptchaSiteKey === undefined) return null;
-  return <div ref={container} />;
+
+  /*
+   * Google draws this widget 304px wide and will not reflow it. A 320px phone
+   * leaves 272px once the column has its gutters, so the page scrolled
+   * sideways — which §6.11 allows at no width. Below 360px the widget alone
+   * reaches into the gutter; everything else keeps it. The compact widget was
+   * the other way out and costs more than it saves: it is 144px tall against
+   * 78px, which puts the button under the fold on a laptop.
+   */
+  return <div ref={container} className="max-[359px]:-mx-4" />;
 });

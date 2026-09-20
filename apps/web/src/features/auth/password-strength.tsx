@@ -43,7 +43,7 @@ export function PasswordStrength({ value }: { value: string }) {
         ))}
       </div>
       <p className="text-sm text-content-subtle">
-        Use 8+ characters with upper and lower case, a number and a special character.
+        Use 8+ characters, mixed case, a number and a symbol.
       </p>
       <span role="status" className="sr-only">
         {strength === 0 ? 'Password strength: empty' : `Password strength: ${LABELS[strength]}`}
