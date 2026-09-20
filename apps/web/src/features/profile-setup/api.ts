@@ -270,55 +270,6 @@ export async function saveVisibility(settings: VisibilitySettings): Promise<Visi
   }
 }
 
-export type AvatarResult = { ok: true; key: string } | { ok: false; message: string };
-
-/**
- * Uploads a photo and answers with the key to claim.
- *
- * Two steps, because the bytes never go through the API: it signs an upload,
- * and the browser sends the file straight to storage. The key is claimed with
- * the next save of the profile, so an upload nobody finished changes nothing.
- */
-export async function uploadAvatar(file: File): Promise<AvatarResult> {
-  const contentType = file.type;
-  if (contentType !== 'image/jpeg' && contentType !== 'image/png' && contentType !== 'image/webp') {
-    return { ok: false, message: 'Choose a JPEG, PNG or WebP image.' };
-  }
-
-  let ticket: UploadTicket;
-  try {
-    const { data, error } = await api.POST('/api/v1/profiles/me/avatar-upload', {
-      body: { contentType },
-    });
-    if (data === undefined) return { ok: false, message: messageOf(error) };
-    ticket = data;
-  } catch {
-    return { ok: false, message: UNREACHABLE };
-  }
-
-  if (file.size > ticket.maxBytes) {
-    const megabytes = Math.floor(ticket.maxBytes / 1_000_000);
-    return { ok: false, message: `That image is over ${megabytes}MB. Choose a smaller one.` };
-  }
-
-  const form = new FormData();
-  // The fields the signature covers go first, in order; the file is last, which
-  // is what S3-compatible storage expects of a pre-signed post.
-  for (const [name, value] of Object.entries(ticket.fields)) form.append(name, value);
-  form.append('file', file);
-
-  try {
-    const response = await fetch(ticket.url, { method: 'POST', body: form });
-    if (!response.ok) {
-      return { ok: false, message: 'The photo could not be stored. Try again.' };
-    }
-  } catch {
-    return { ok: false, message: 'The photo could not be stored. Try again.' };
-  }
-
-  return { ok: true, key: ticket.key };
-}
-
 /** The approved skills, narrowed by what someone is typing. */
 export async function listSkills(query?: string): Promise<ApprovedSkill[]> {
   try {

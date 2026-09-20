@@ -397,15 +397,35 @@ describe('ProfileBuilder', () => {
     const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);
 
-    // The corner opens the section; the control inside it adds a piece.
+    // The corner opens the section; the control inside it adds a piece. There
+    // is no Save on the piece: a portfolio piece is edited in place, because
+    // attaching twenty images to it is something done over more than one
+    // sitting rather than inside one submit.
     await user.click(screen.getByRole('button', { name: 'Edit portfolio' }));
     await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
     await user.type(portfolio().getByLabelText('Title'), 'Checkout redesign');
-    await user.click(portfolio().getByRole('button', { name: 'Save' }));
     await user.click(portfolio().getByRole('button', { name: 'Close' }));
 
     expect(portfolio().getByText('Checkout redesign')).toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
+  });
+
+  it('keeps editing a piece it has already added, rather than only adding and deleting', async () => {
+    const user = await openForEditing();
+    const portfolio = () => section(/Portfolio/);
+
+    await user.click(screen.getByRole('button', { name: 'Edit portfolio' }));
+    await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
+
+    const title = portfolio().getByLabelText('Title');
+    await user.type(title, 'Checkout');
+    await user.type(title, ' redesign');
+
+    expect(title).toHaveValue('Checkout redesign');
+    // Both attachment controls are there from the start, each stating how much
+    // room is left, so nobody has to guess whether twenty is the limit.
+    expect(portfolio().getByText('0 of 20')).toBeInTheDocument();
+    expect(portfolio().getByText('0 of 5')).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {

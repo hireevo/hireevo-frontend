@@ -22,7 +22,8 @@ import {
   SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
-import { RATE_CURRENCY } from '@/features/profile-setup/api.ts';
+import { RATE_CURRENCY, publishProfile } from '@/features/profile-setup/api.ts';
+import { profileChanged } from '@/features/profile-setup/profile-events.ts';
 import {
   RATE_PERIOD_LABEL,
   countryByCode,
@@ -53,8 +54,7 @@ import {
 } from './draft.ts';
 import { EditButton } from './edit-button.tsx';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
-import { RecordSection } from './record-section.tsx';
-import { RECORD_SPECS } from './record-specs.tsx';
+import { PortfolioSection } from './portfolio-section.tsx';
 import { SectionCard } from './section-card.tsx';
 import {
   EducationEditor,
@@ -145,6 +145,8 @@ export function ProfileBuilder() {
   const [open, setOpen] = useState<OpenSection>(null);
   /** Turned on by "Complete your profile": every filled section grows a pencil. */
   const [editMode, setEditMode] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const languages = draft.languages;
   const portfolio = draft.records.portfolio;
@@ -160,7 +162,10 @@ export function ProfileBuilder() {
         experience: experience.items.map((item) => item.values),
         education: education.items.map((item) => item.values),
         licenses: licenses.items.map((item) => item.values),
-        portfolio: portfolio.map((record) => record.fields),
+        portfolio: portfolio.map((record) => ({
+          fields: record.fields,
+          files: record.files ?? [],
+        })),
       }),
     [languages, portfolio, skills.items, experience.items, education.items, licenses.items],
   );
@@ -210,6 +215,10 @@ export function ProfileBuilder() {
           portfolio: saved.portfolio.map((piece, index) => ({
             id: `portfolio-${index}`,
             fields: { title: piece.title, url: piece.url, summary: piece.summary },
+            // Already stored, and claimed again by the next save: the editor
+            // sends the whole list back every time, so a file left out is a
+            // file removed.
+            files: piece.files,
           })),
         },
       }));
@@ -349,6 +358,37 @@ export function ProfileBuilder() {
     if ((await identity.flush()) && userId !== null) clearDraft(userId);
   }
 
+  /**
+   * Takes a finished profile public.
+   *
+   * Saves what is on screen first, so publishing never lags behind an edit, then
+   * adopts the published copy and announces it — which is what turns the seller
+   * bar's availability on, since a profile can only be available once it is live.
+   */
+  async function publish() {
+    setPublishError(null);
+    setPublishing(true);
+    const flushed = await identity.flush();
+    if (!flushed) {
+      setPublishing(false);
+      setPublishError('Your latest changes could not be saved, so nothing was published.');
+      return;
+    }
+    const result = await publishProfile();
+    setPublishing(false);
+    if (result.ok) {
+      if (userId !== null) clearDraft(userId);
+      identity.adopt(result.profile);
+      profileChanged(result.profile);
+      return;
+    }
+    setPublishError(
+      result.kind === 'incomplete'
+        ? 'Some sections still need attention before your profile can go public.'
+        : result.message,
+    );
+  }
+
   /** Opens a section, or closes it when it is the one already open. */
   const toggle = (section: Exclude<OpenSection, null>) =>
     setOpen((current) => (current === section ? null : section));
@@ -414,9 +454,16 @@ export function ProfileBuilder() {
                     setOpen(null);
                   },
                 }
-              : { label: 'Complete your profile', onClick: () => setEditMode(true) },
+              : completion.percent === 100
+                ? { label: publishing ? 'Publishing…' : 'Publish', onClick: () => void publish() }
+                : { label: 'Complete your profile', onClick: () => setEditMode(true) },
           }}
         />
+        {publishError === null ? null : (
+          <p role="alert" className="mt-2 text-sm text-content-warning">
+            {publishError}
+          </p>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
@@ -531,9 +578,7 @@ export function ProfileBuilder() {
           </SectionCard>
         </div>
 
-        {/* Portfolio has no designed editor yet, so it keeps the short record form. */}
-        <RecordSection
-          spec={RECORD_SPECS.portfolio}
+        <PortfolioSection
           open={open === 'portfolio'}
           action={actionFor('portfolio', 'portfolio')}
           records={draft.records.portfolio}

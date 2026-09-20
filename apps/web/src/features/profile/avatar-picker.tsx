@@ -3,9 +3,7 @@
 import { useId, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { LuCamera, LuUser } from 'react-icons/lu';
-import { uploadAvatar } from '@/features/profile-setup/api.ts';
-
-const ACCEPT = 'image/png,image/jpeg,image/webp';
+import { ACCEPT, uploadProfilePhoto } from '@/features/media/upload.ts';
 
 export type ChosenPhoto = {
   /** What to show it from until the profile is saved and the server names one. */
@@ -54,14 +52,16 @@ export function AvatarPicker({ url, onChange, editable = true }: AvatarPickerPro
 
     setError(null);
     setBusy(true);
-    const result = await uploadAvatar(file);
+    // Re-encoded in this tab before anything is sent: a photo straight off a
+    // phone is several megabytes, and what a 76-pixel avatar needs is not.
+    const result = await uploadProfilePhoto(file);
     setBusy(false);
 
     if (!result.ok) {
       setError(result.message);
       return;
     }
-    onChange({ url: URL.createObjectURL(file), key: result.key });
+    onChange({ url: URL.createObjectURL(file), key: result.value });
   }
 
   return (
@@ -95,7 +95,7 @@ export function AvatarPicker({ url, onChange, editable = true }: AvatarPickerPro
             <input
               id={inputId}
               type="file"
-              accept={ACCEPT}
+              accept={ACCEPT.image}
               disabled={busy}
               onChange={(event) => void handleChange(event)}
               {...(error === null ? {} : { 'aria-describedby': errorId })}

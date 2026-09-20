@@ -1101,17 +1101,17 @@
         "tags": ["profiles"]
       }
     },
-    "/api/v1/profiles/me/avatar-upload": {
+    "/api/v1/profiles/me/uploads": {
       "post": {
-        "description": "The bytes go straight to storage, never through this API (ADR-004). Post the returned fields and the file to the returned URL, then claim the key with a normal PATCH of the profile. The signature states the key, the type and a size range, so storage refuses anything else.",
-        "operationId": "ProfilesController_avatarUpload_v1",
+        "description": "The bytes go straight to storage, never through this API (ADR-004). PUT the file to the returned URL with the returned headers, then claim the key with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for a portfolio image or document. The role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else.",
+        "operationId": "ProfilesController_requestUpload_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AvatarUploadRequest"
+                "$ref": "#/components/schemas/UploadRequest"
               }
             }
           }
@@ -1168,7 +1168,7 @@
             }
           }
         },
-        "summary": "A signed upload for the caller’s profile photo",
+        "summary": "A signed upload for one of the caller’s files",
         "tags": ["profiles"]
       }
     },
@@ -2171,9 +2171,81 @@
                     },
                     "summary": {
                       "type": ["string", "null"]
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["image", "document"]
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "thumbUrl": {
+                            "type": ["string", "null"]
+                          },
+                          "objectKey": {
+                            "type": "string"
+                          },
+                          "thumbKey": {
+                            "type": ["string", "null"]
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "byteSize": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "width": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "height": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "fileName": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "url",
+                          "thumbUrl",
+                          "objectKey",
+                          "thumbKey",
+                          "contentType",
+                          "byteSize",
+                          "width",
+                          "height",
+                          "fileName"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
-                  "required": ["title", "url", "summary"],
+                  "required": ["title", "url", "summary", "files"],
                   "additionalProperties": false
                 }
               }
@@ -2810,6 +2882,83 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "files": {
+                      "maxItems": 25,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["image", "document"]
+                          },
+                          "objectKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "thumbKey": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "contentType": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "byteSize": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 10000000
+                          },
+                          "width": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 20000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "height": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 20000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "fileName": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "objectKey", "contentType", "byteSize"]
+                      }
                     }
                   },
                   "required": ["title"]
@@ -2999,16 +3148,86 @@
           "additionalProperties": false
         }
       },
-      "AvatarUploadRequest": {
+      "UploadRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "contentType": {
-            "type": "string",
-            "enum": ["image/jpeg", "image/png", "image/webp"]
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "avatar"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 2000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-image"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 5000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-thumbnail"
+              },
+              "contentType": {
+                "type": "string",
+                "const": "image/webp"
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 200000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-document"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["application/pdf"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
           }
-        },
-        "required": ["contentType"]
+        ]
       },
       "UploadTicket": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3017,7 +3236,7 @@
           "url": {
             "type": "string"
           },
-          "fields": {
+          "headers": {
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -3032,13 +3251,13 @@
           "expiresAt": {
             "type": "string"
           },
-          "maxBytes": {
+          "byteSize": {
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           }
         },
-        "required": ["url", "fields", "key", "expiresAt", "maxBytes"],
+        "required": ["url", "headers", "key", "expiresAt", "byteSize"],
         "additionalProperties": false
       },
       "PublicProfileResponse": {
@@ -3218,9 +3437,81 @@
                 },
                 "summary": {
                   "type": ["string", "null"]
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["image", "document"]
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "thumbUrl": {
+                        "type": ["string", "null"]
+                      },
+                      "objectKey": {
+                        "type": "string"
+                      },
+                      "thumbKey": {
+                        "type": ["string", "null"]
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "byteSize": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "width": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "height": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fileName": {
+                        "type": ["string", "null"]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "url",
+                      "thumbUrl",
+                      "objectKey",
+                      "thumbKey",
+                      "contentType",
+                      "byteSize",
+                      "width",
+                      "height",
+                      "fileName"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               },
-              "required": ["title", "url", "summary"],
+              "required": ["title", "url", "summary", "files"],
               "additionalProperties": false
             }
           },

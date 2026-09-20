@@ -1,3 +1,4 @@
+import { toClaim, type DraftFile } from '@/features/media/upload.ts';
 import type { Schema } from '@hireevo/api-client';
 
 /** The lists as the API accepts them. */
@@ -76,8 +77,17 @@ export type SectionLists = {
   experience?: readonly Fields[];
   education?: readonly Fields[];
   licenses?: readonly Fields[];
-  portfolio?: readonly Fields[];
+  portfolio?: readonly PortfolioInput[];
 };
+
+/**
+ * A portfolio piece as the editor holds it: its text and its attachments.
+ *
+ * The other sections are text alone, so they travel as a bare field map. This
+ * one carries files that are already in storage, each of which the save is
+ * about to claim.
+ */
+export type PortfolioInput = { fields: Fields; files?: readonly DraftFile[] };
 
 /**
  * Keeps only the entries something names, and only the lists that were passed.
@@ -140,11 +150,18 @@ export function toSectionsPayload(lists: SectionLists): SectionsPayload {
   }));
   if (licenses !== undefined) payload.licenses = licenses;
 
-  const portfolio = listOf(lists.portfolio, 'title', (fields, title) => ({
-    title,
-    url: text(fields.url),
-    summary: text(fields.summary),
-  }));
+  const portfolio = listOf(
+    lists.portfolio?.map((piece) => piece.fields),
+    'title',
+    (fields, title) => ({
+      title,
+      url: text(fields.url),
+      summary: text(fields.summary),
+      // Matched back by the field map's identity rather than by index: an
+      // untitled piece is dropped by `listOf`, so positions shift.
+      files: (lists.portfolio?.find((piece) => piece.fields === fields)?.files ?? []).map(toClaim),
+    }),
+  );
   if (portfolio !== undefined) payload.portfolio = portfolio;
 
   return payload;
@@ -210,6 +227,7 @@ export function fromSavedSections(
       title: entry.title,
       url: shown(entry.url),
       summary: shown(entry.summary),
+      files: entry.files,
     })),
   };
 }

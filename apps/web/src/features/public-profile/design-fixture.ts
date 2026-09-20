@@ -77,6 +77,7 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
       url: 'https://example.com/case-studies/benefits-eligibility',
       summary:
         'Cut the time to a decision from eleven days to two, and the appeal rate by a third.',
+      files: [],
     },
   ],
   searchIndexable: false,

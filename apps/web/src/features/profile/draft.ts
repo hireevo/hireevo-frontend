@@ -1,3 +1,5 @@
+import type { DraftFile } from '@/features/media/upload.ts';
+
 /** How well someone speaks a language, in the order the options are offered. */
 export const PROFICIENCIES = ['Basic', 'Conversational', 'Fluent', 'Native or bilingual'] as const;
 
@@ -8,8 +10,20 @@ export type ProfileLanguage = { name: string; proficiency: Proficiency };
 /** The sections that hold a list of entries rather than a single value. */
 export type RecordSectionId = 'workExperience' | 'education' | 'certifications' | 'portfolio';
 
-/** One entry in such a section, keyed by the field names its spec declares. */
-export type ProfileRecord = { id: string; fields: Record<string, string> };
+/**
+ * One entry in such a section, keyed by the field names its spec declares.
+ *
+ * `files` is the portfolio's alone — the images and documents attached to a
+ * piece, already uploaded and waiting to be claimed by the next save. It sits
+ * beside `fields` rather than inside it because a file is a record of several
+ * values, and squeezing one into a string map is how a shape stops being
+ * checkable.
+ */
+export type ProfileRecord = {
+  id: string;
+  fields: Record<string, string>;
+  files?: DraftFile[];
+};
 
 /**
  * What the builder holds that the profile fields and lists do not.
