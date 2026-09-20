@@ -1,4 +1,4 @@
-import { LuMapPin, LuUser, LuVideo } from 'react-icons/lu';
+import { LuExternalLink, LuFileText, LuMapPin, LuUser, LuVideo } from 'react-icons/lu';
 import { Card } from '@hireevo/ui-web';
 import { RATE_PERIOD_LABEL, formatRate } from '@/features/profile-setup/location-options.ts';
 import { SkillChips, SummaryList, joined, rangeOf } from '@/features/profile/section-summaries.tsx';
@@ -189,16 +189,101 @@ export function PublicProfileScreen({ profile }: { profile: PublicProfile }) {
 
       {profile.portfolio.length === 0 ? null : (
         <Section title="Portfolio">
-          <SummaryList
-            rows={profile.portfolio.map((piece, index) => ({
-              key: `portfolio-${index}`,
-              primary: piece.title,
-              secondary: piece.url ?? '',
-              body: piece.summary ?? '',
-            }))}
-          />
+          <ul className="flex flex-col gap-8">
+            {profile.portfolio.map((piece, index) => (
+              <li key={`portfolio-${index}`}>
+                <PortfolioPiece piece={piece} />
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
     </main>
+  );
+}
+
+/**
+ * One piece of work, with whatever it carries.
+ *
+ * The gallery renders thumbnails and links each to its full-size copy, rather
+ * than loading twenty full-size images: a thumbnail is about fifteen kilobytes
+ * against three hundred, and this page is the one a stranger opens on a phone
+ * before deciding whether to read any further.
+ *
+ * Every image reserves its own space from the stored dimensions, so the text
+ * below a gallery does not jump down the page as each one arrives.
+ */
+function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }) {
+  const images = piece.files.filter((file) => file.kind === 'image');
+  const documents = piece.files.filter((file) => file.kind === 'document');
+
+  return (
+    <article className="flex flex-col gap-3">
+      <h3 className="text-base font-semibold text-content">{piece.title}</h3>
+      {piece.summary === null || piece.summary === '' ? null : (
+        <p className="text-sm text-content-subtle">{piece.summary}</p>
+      )}
+
+      {piece.url === null || piece.url === '' ? null : (
+        <a
+          href={piece.url}
+          // A link on a public page to an address its owner typed: `noopener`
+          // keeps the opened tab from reaching back through `window.opener`,
+          // and `ugc` says this is not an endorsement.
+          rel="noopener noreferrer ugc"
+          target="_blank"
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-content-accent underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <LuExternalLink aria-hidden="true" className="size-3.5" />
+          Visit the work
+        </a>
+      )}
+
+      {images.length === 0 ? null : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {images.map((image) => (
+            <li key={image.objectKey}>
+              <a
+                href={image.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block overflow-hidden rounded-lg bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                {/* Not `next/image`: the source is object storage, whose host is
+                    configuration rather than something the optimiser is told
+                    about at build time. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.thumbUrl ?? image.url}
+                  alt={image.fileName ?? `${piece.title}, image`}
+                  width={image.width ?? undefined}
+                  height={image.height ?? undefined}
+                  loading="lazy"
+                  className="aspect-square size-full object-cover transition-opacity hover:opacity-90"
+                />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {documents.length === 0 ? null : (
+        <ul className="flex flex-col gap-2">
+          {documents.map((document) => (
+            <li key={document.objectKey}>
+              <a
+                href={document.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-fit max-w-full items-center gap-2 rounded-md border border-border-subtle px-3 py-2 text-sm text-content transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+                <span className="truncate">{document.fileName ?? 'Document'}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
   );
 }

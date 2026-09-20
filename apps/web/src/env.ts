@@ -44,6 +44,41 @@ const schema = z.object({
    * production, to turn the protection on.
    */
   NEXT_PUBLIC_RECAPTCHA_SITE_KEY: z.string().min(1).optional(),
+  /**
+   * Where uploaded media is sent and read back from, as a comma-separated list
+   * of origins.
+   *
+   * The Content-Security-Policy needs these by name. The browser PUTs a file
+   * straight to storage (ADR-004), which `connect-src` governs, and then loads
+   * it back into a gallery, which `img-src` governs — and neither directive
+   * accepts an origin it was never told about, so without this every upload
+   * fails in the browser with a policy violation and no request on the wire.
+   *
+   * A list rather than one value because the two are often different hosts: a
+   * DigitalOcean Space is written at `nyc3.digitaloceanspaces.com` and read
+   * from its CDN at `<space>.nyc3.cdn.digitaloceanspaces.com`. Locally both are
+   * MinIO on `http://localhost:9000`, which also has to be named — `img-src`
+   * allows `https:` wholesale but nothing over plain http.
+   */
+  NEXT_PUBLIC_STORAGE_ORIGINS: z
+    .string()
+    .optional()
+    .refine(
+      (value) =>
+        value === undefined ||
+        value.split(',').every((entry) => {
+          const trimmed = entry.trim();
+          try {
+            return trimmed !== '' && new URL(trimmed).origin === trimmed;
+          } catch {
+            return false;
+          }
+        }),
+      {
+        message:
+          'NEXT_PUBLIC_STORAGE_ORIGINS must be a comma-separated list of origins with no path, for example http://localhost:9000',
+      },
+    ),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -55,6 +90,7 @@ const parsed = schema.safeParse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL,
   NEXT_PUBLIC_RECAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY,
+  NEXT_PUBLIC_STORAGE_ORIGINS: process.env.NEXT_PUBLIC_STORAGE_ORIGINS,
   NODE_ENV: process.env.NODE_ENV,
 });
 
