@@ -62,8 +62,9 @@ export type SectionId =
 /**
  * What each section is worth.
  *
- * Skills, work experience and portfolio carry twenty each: they are what a
- * buyer decides on. The four that are left share the remaining forty equally.
+ * Skills, education and portfolio carry twenty each: they are what a buyer
+ * decides on. The four that are left — about, work experience, certifications
+ * and the video intro — share the remaining forty equally, ten apiece.
  *
  * Visibility and expected rates are not here. They are settings — who may see
  * the profile, and what the work costs — rather than the profile a buyer reads,
@@ -75,10 +76,10 @@ export type SectionId =
  */
 export const SECTION_WEIGHTS: Readonly<Record<SectionId, number>> = {
   skills: 20,
-  experience: 20,
+  education: 20,
   portfolio: 20,
   about: 10,
-  education: 10,
+  experience: 10,
   certifications: 10,
   videoIntro: 10,
 };
@@ -97,18 +98,18 @@ export const NOTHING_FILLED: SectionsFilled = {
 };
 
 /**
- * The rows the strength card lists, as the design writes them.
+ * The rows the strength card lists.
  *
- * Education and certifications share a row because the design gives them one,
- * while counting separately because they are two sections someone fills in
- * separately: filling one moves the figure by ten, and the row is finished when
- * both are.
+ * Education and certifications are two separate rows, because they are two
+ * sections someone fills in separately: each is finished on its own, and each
+ * moves the figure by its own weight.
  */
 const ROWS: readonly { label: string; sections: readonly SectionId[] }[] = [
   { label: 'About section', sections: ['about'] },
   { label: 'Skills & expertise', sections: ['skills'] },
   { label: 'Work experience', sections: ['experience'] },
-  { label: 'Education & certifications', sections: ['education', 'certifications'] },
+  { label: 'Education', sections: ['education'] },
+  { label: 'Certifications', sections: ['certifications'] },
   { label: 'Portfolio', sections: ['portfolio'] },
   { label: 'Add a video intro', sections: ['videoIntro'] },
 ];

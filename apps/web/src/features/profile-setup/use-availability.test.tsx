@@ -22,7 +22,7 @@ vi.mock('./api.ts', async (importOriginal) => ({
 }));
 
 const profile = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
-  ({ id: 'p1', version: 3, status: 'draft', availability: null, ...overrides }) as OwnProfile;
+  ({ id: 'p1', version: 3, status: 'published', availability: null, ...overrides }) as OwnProfile;
 
 /** The bar as the layout assembles it: the switch driven by the profile itself. */
 function Harness() {
@@ -67,6 +67,23 @@ describe('the availability switch', () => {
     open();
 
     await waitFor(() => expect(theSwitch()).toHaveAttribute('aria-checked', 'false'));
+  });
+
+  it('stays off and cannot be toggled until the profile is published', async () => {
+    // An unpublished profile is not visible to anyone, so being "available" on
+    // it means nothing — the switch reads off and is disabled even when the
+    // field itself says available.
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: profile({ status: 'draft', availability: 'available' }),
+    });
+    const user = open();
+
+    await waitFor(() => expect(theSwitch()).toBeDisabled());
+    expect(theSwitch()).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(theSwitch());
+    expect(calls.save).not.toHaveBeenCalled();
   });
 
   it('reads anything that is not a refusal as available', async () => {

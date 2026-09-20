@@ -140,7 +140,7 @@ describe('ProfileBuilder', () => {
     // name is text here and gains its pencil only in edit mode.
     expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 7 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
 

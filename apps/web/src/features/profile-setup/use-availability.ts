@@ -79,8 +79,13 @@ export function useAvailability() {
   );
 
   return {
-    /** The switch's position. Off only where the profile says so explicitly. */
-    on: profile?.availability !== 'unavailable',
+    /**
+     * The switch's position. A profile can only be available once it is
+     * published — an unpublished profile is not visible to anyone, so "taking
+     * work" on it means nothing — so this is off until the profile is published,
+     * and then on unless its owner has explicitly said unavailable.
+     */
+    on: profile?.status === 'published' && profile.availability !== 'unavailable',
     /** Whether the profile is actually published, rather than what a fixture said. */
     published: profile?.status === 'published',
     /** False until the profile has answered, so the switch cannot be moved blind. */

@@ -69,16 +69,22 @@ export function StatusBar({
           <span className="inline-flex items-center gap-2">
             <Switch
               checked={available}
-              // Only while the profile has not answered yet: disabling the
-              // control someone just pressed would drop their focus (§6.8), and
-              // a save is over in a moment.
-              disabled={live && !availability.ready}
+              // Disabled until the profile has answered (so the control someone
+              // just pressed does not lose their focus mid-save, §6.8) and until
+              // it is published — availability means nothing on a profile no one
+              // can see, so it cannot be turned on before publishing.
+              disabled={live && (!availability.ready || !availability.published)}
               onCheckedChange={(next) => (live ? void availability.set(next) : setShown(next))}
               aria-labelledby={labelId}
               {...(live && availability.error !== null ? { 'aria-describedby': errorId } : {})}
             />
             <span id={labelId}>Available</span>
           </span>
+          {live && availability.ready && !availability.published ? (
+            <span className="text-xs text-content-subtle">
+              Publish your profile to become available
+            </span>
+          ) : null}
           {live && availability.error !== null ? (
             <span id={errorId} role="alert" className="text-xs text-content-warning">
               {availability.error}
