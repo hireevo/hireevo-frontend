@@ -24,6 +24,15 @@ const USER = {
   permissions: [],
 };
 
+/**
+ * A one-pixel image as a data URI.
+ *
+ * The thumbnails have to render from somewhere this suite controls: a layout
+ * sweep that reached out to storage would fail when storage is down, which is
+ * a fact about the bucket rather than about the layout.
+ */
+const SWATCH = 'data:image/gif;base64,R0lGODlhAQABAIAAAMLBwQAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
 const PROFILE = {
   id: '0199a3c4-0000-7000-8000-00000000000a',
   slug: 'opaque-slug-for-e2e',
@@ -63,7 +72,42 @@ const PROFILE = {
     experience: [],
     education: [],
     licenses: [],
-    portfolio: [],
+    // The one section that is not empty. A gallery is the widest thing on this
+    // screen and the only part of it that reflows by count rather than by text
+    // length, so sweeping an empty portfolio would prove nothing about it.
+    portfolio: [
+      {
+        title: 'Checkout redesign',
+        url: 'https://example.com/checkout',
+        summary: 'Cut abandonment by a fifth.',
+        files: [
+          ...Array.from({ length: 8 }, (_, index) => ({
+            kind: 'image' as const,
+            url: `http://localhost:9000/hireevo-media/profiles/p/portfolio/${index}.webp`,
+            thumbUrl: SWATCH,
+            objectKey: `profiles/p/portfolio/${String(index).padStart(16, '0')}.webp`,
+            thumbKey: `profiles/p/portfolio/${String(index).padStart(16, '0')}-thumb.webp`,
+            contentType: 'image/webp',
+            byteSize: 302_114,
+            width: 2048,
+            height: 1365,
+            fileName: `screen-${index}.png`,
+          })),
+          {
+            kind: 'document' as const,
+            url: 'http://localhost:9000/hireevo-media/profiles/p/portfolio/case.pdf',
+            thumbUrl: null,
+            objectKey: 'profiles/p/portfolio/000000000000000a.pdf',
+            thumbKey: null,
+            contentType: 'application/pdf',
+            byteSize: 880_000,
+            width: null,
+            height: null,
+            fileName: 'checkout-case-study.pdf',
+          },
+        ],
+      },
+    ],
   },
   visibility: {
     profilePublic: false,
@@ -295,6 +339,23 @@ test('the rates and visibility editors hold their layout at every window size', 
   const visibility = page.getByRole('region', { name: /Visibility/ });
   await expect(visibility.getByRole('button', { name: 'Save section' })).toBeVisible();
   await sweep(page, 'client profile with the visibility editor open');
+});
+
+test('the portfolio gallery holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await openForEditing(page);
+
+  // Closed first: a piece that carries nine files still has to summarise to one
+  // line on a phone rather than pushing the sections below it off the screen.
+  await sweep(page, 'client profile with a portfolio that carries files');
+
+  await page.getByRole('button', { name: 'Edit portfolio' }).click();
+  const portfolio = page.getByRole('region', { name: /Portfolio/ });
+  await expect(portfolio.getByLabel('Title')).toBeVisible();
+  // The grid is three across on a phone and six on a desktop; both attachment
+  // controls have to stay on screen and stay pressable at every width between.
+  await expect(portfolio.getByText('8 of 20')).toBeVisible();
+  await sweep(page, 'client profile with the portfolio editor open');
 });
 
 test('the client profile has no automatically detectable accessibility violations', async ({

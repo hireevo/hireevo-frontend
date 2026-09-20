@@ -142,46 +142,54 @@ function Piece({
   const title = record.fields.title ?? '';
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border-subtle p-4">
-      <div className="flex items-start gap-3">
-        <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
-          <TextField
-            label="Title"
-            value={title}
-            placeholder="Checkout redesign"
-            required
-            onChange={(event) => set('title', event.target.value)}
-          />
-          <TextField
-            label="Link"
-            type="url"
-            value={record.fields.url ?? ''}
-            placeholder="https://"
-            onChange={(event) => set('url', event.target.value)}
-          />
-          <TextField
-            label="What it is"
-            value={record.fields.summary ?? ''}
-            placeholder="One line is plenty"
-            className="sm:col-span-2"
-            onChange={(event) => set('summary', event.target.value)}
-          />
-        </div>
-
+    // `min-w-0` throughout: a grid or flex item defaults to `min-width: auto`,
+    // which refuses to shrink below its content. Firefox holds that line where
+    // Chromium does not, so at 320px the fields kept their intrinsic width and
+    // pushed the whole page into a sideways scroll (§6.11).
+    <section className="flex min-w-0 flex-col gap-4 rounded-lg border border-border-subtle p-4">
+      {/* The remove control gets its own row rather than sharing one with the
+          fields. Beside them it collided with the Title label at 320px — the
+          two-column grid collapses to one there and the label runs the full
+          width, straight under the button (§6.11). */}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onRemove}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-content-subtle transition-colors hover:bg-surface-danger-subtle hover:text-content-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="flex size-8 items-center justify-center rounded-md text-content-subtle transition-colors hover:bg-surface-danger-subtle hover:text-content-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <LuTrash2 aria-hidden="true" className="size-4" />
           <span className="sr-only">Remove piece{title === '' ? '' : `: ${title}`}</span>
         </button>
       </div>
 
+      <div className="grid gap-4 *:min-w-0 sm:grid-cols-2">
+        <TextField
+          label="Title"
+          value={title}
+          placeholder="Checkout redesign"
+          required
+          onChange={(event) => set('title', event.target.value)}
+        />
+        <TextField
+          label="Link"
+          type="url"
+          value={record.fields.url ?? ''}
+          placeholder="https://"
+          onChange={(event) => set('url', event.target.value)}
+        />
+        <TextField
+          label="What it is"
+          value={record.fields.summary ?? ''}
+          placeholder="One line is plenty"
+          className="sm:col-span-2"
+          onChange={(event) => set('summary', event.target.value)}
+        />
+      </div>
+
       <Gallery images={images} onRemove={detach} />
       <Documents documents={documents} onRemove={detach} />
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 *:min-w-0">
         <Attach
           kind="image"
           used={images.length}
@@ -213,7 +221,7 @@ function Gallery({ images, onRemove }: { images: DraftFile[]; onRemove: (key: st
   if (images.length === 0) return null;
 
   return (
-    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+    <ul className="grid grid-cols-3 gap-2 *:min-w-0 sm:grid-cols-4 md:grid-cols-6">
       {images.map((image) => (
         <li key={image.objectKey} className="group relative">
           <span className="block aspect-square overflow-hidden rounded-md bg-surface-muted">
@@ -255,7 +263,7 @@ function Documents({
       {documents.map((document) => (
         <li
           key={document.objectKey}
-          className="flex items-center gap-3 rounded-md border border-border-subtle px-3 py-2"
+          className="flex min-w-0 items-center gap-3 rounded-md border border-border-subtle px-3 py-2"
         >
           <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
           <span className="min-w-0 flex-1 truncate text-sm text-content">

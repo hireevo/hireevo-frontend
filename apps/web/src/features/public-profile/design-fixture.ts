@@ -1,6 +1,15 @@
 import type { PublicProfile } from './api.ts';
 
 /**
+ * A one-pixel image as a data URI.
+ *
+ * The fixture has to render without reaching storage: a layout sweep that
+ * fetched real objects would fail when the bucket is unreachable, which is a
+ * fact about the bucket rather than about the layout.
+ */
+const SWATCH = 'data:image/gif;base64,R0lGODlhAQABAIAAAMLBwQAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+/**
  * A public profile with every section shared and every field at its longest.
  *
  * The real page is rendered on the server, so its data never passes through the
@@ -77,7 +86,35 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
       url: 'https://example.com/case-studies/benefits-eligibility',
       summary:
         'Cut the time to a decision from eleven days to two, and the appeal rate by a third.',
-      files: [],
+      // A gallery with something in it: this fixture is what the public
+      // profile's resolution sweep renders, and an empty list would sweep a
+      // section that never draws the grid it exists to check.
+      files: [
+        ...Array.from({ length: 6 }, (_, index) => ({
+          kind: 'image' as const,
+          url: SWATCH,
+          thumbUrl: SWATCH,
+          objectKey: `profiles/p/portfolio/${String(index).padStart(16, '0')}.webp`,
+          thumbKey: `profiles/p/portfolio/${String(index).padStart(16, '0')}-thumb.webp`,
+          contentType: 'image/webp',
+          byteSize: 302_114,
+          width: 2048,
+          height: 1365,
+          fileName: `eligibility-${index}.png`,
+        })),
+        {
+          kind: 'document' as const,
+          url: SWATCH,
+          thumbUrl: null,
+          objectKey: 'profiles/p/portfolio/000000000000000a.pdf',
+          thumbKey: null,
+          contentType: 'application/pdf',
+          byteSize: 880_000,
+          width: null,
+          height: null,
+          fileName: 'eligibility-case-study.pdf',
+        },
+      ],
     },
   ],
   searchIndexable: false,
