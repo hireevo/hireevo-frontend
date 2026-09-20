@@ -9,19 +9,19 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Publish profile' })).toBeInTheDocument();
   });
 
-  it('blocks a click while loading, and says so out loud, without losing focus', async () => {
-    // A double submit on a loading button is how a duplicate profile gets
-    // created, so the click must not fire. It is blocked with aria-disabled and
-    // a guard rather than the disabled attribute, because a disabled element
-    // throws the keyboard user's focus to <body> the moment they submit.
+  it('refuses clicks while loading and says so out loud', async () => {
+    const user = userEvent.setup();
     const onClick = vi.fn();
     render(
       <Button loading onClick={onClick}>
         Publish profile
       </Button>,
     );
-
+    // A double submit on a loading button is how a duplicate profile gets
+    // created, so `loading` must refuse the click, not just look busy.
     const control = screen.getByRole('button', { name: /Loading/ });
+    await user.click(control);
+    expect(onClick).not.toHaveBeenCalled();
     expect(control).toHaveAttribute('aria-disabled', 'true');
     expect(control).toHaveAttribute('aria-busy', 'true');
     expect(control).not.toBeDisabled(); // still focusable
@@ -35,6 +35,44 @@ describe('Button', () => {
   it('keeps using the disabled attribute for a genuinely disabled button', () => {
     render(<Button disabled>Publish profile</Button>);
     expect(screen.getByRole('button', { name: 'Publish profile' })).toBeDisabled();
+  });
+
+  it('keeps focus on itself when it starts loading', () => {
+    // A disabled button drops focus to the page, which sends a keyboard user
+    // back to the top in the middle of saving (§6.8).
+    const { rerender } = render(<Button>Save</Button>);
+    const control = screen.getByRole('button', { name: 'Save' });
+    control.focus();
+    rerender(<Button loading>Save</Button>);
+    expect(control).not.toBeDisabled();
+    expect(control).toHaveFocus();
+  });
+
+  it('does not submit its form a second time while loading', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <Button type="submit" loading>
+          Save
+        </Button>
+      </form>,
+    );
+    await user.click(screen.getByRole('button'));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('still honours disabled on its own', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <Button disabled onClick={onClick}>
+        Save
+      </Button>,
+    );
+    await user.click(screen.getByRole('button'));
+    expect(onClick).not.toHaveBeenCalled();
+    expect(screen.getByRole('button')).toBeDisabled();
   });
 
   it('lets a caller override a default utility rather than stacking both', () => {

@@ -70,7 +70,7 @@ export async function signIn(
 
   return {
     ok: true,
-    redirectTo: '/account',
+    redirectTo: '/client-profile',
     session: { accessToken: data.accessToken, user: data.user },
   };
 }

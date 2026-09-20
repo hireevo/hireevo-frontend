@@ -196,7 +196,7 @@
     },
     "/api/v1/auth/username-available": {
       "get": {
-        "description": "Public because a username is a public identifier \u2014 confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
+        "description": "Public because a username is a public identifier — confirming one is taken reveals nothing a profile page would not. Rate limited, because an instant public answer is also a way to harvest the handles in use.",
         "operationId": "RegistrationController_usernameAvailable_v1",
         "parameters": [
           {
@@ -226,7 +226,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do \u2014 the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.",
+        "description": "Creates no account. The sign-up waits, and a six-digit code is emailed to the address; the account is created only when that code is confirmed. Answers 202 whether or not the address already has an account, so the endpoint cannot be used to discover which addresses do — the owner of an existing account is told by email instead. Signing up again at an address that is still waiting replaces the waiting details and sends a new code. A taken username answers 409, including one held by a sign-up still waiting for confirmation.",
         "operationId": "RegistrationController_register_v1",
         "parameters": [],
         "requestBody": {
@@ -321,6 +321,15 @@
       "post": {
         "operationId": "SessionController_login_v1",
         "parameters": [
+          {
+            "name": "x-captcha-token",
+            "in": "header",
+            "description": "reCAPTCHA token from the sign-in checkbox; verified only when protection is on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-Device-Model",
             "in": "header",
@@ -451,7 +460,7 @@
             }
           }
         },
-        "summary": "List the caller\u2019s active sessions",
+        "summary": "List the caller’s active sessions",
         "tags": ["auth"]
       },
       "delete": {
@@ -468,7 +477,7 @@
     },
     "/api/v1/auth/sessions/{id}": {
       "delete": {
-        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user\u2019s session id would be enough to sign them out.",
+        "description": "Ownership is enforced in the query, not assumed from the permission: without that filter, knowing another user’s session id would be enough to sign them out.",
         "operationId": "SessionController_revokeSession_v1",
         "parameters": [
           {
@@ -486,7 +495,7 @@
             "description": ""
           }
         },
-        "summary": "Revoke one of the caller\u2019s sessions",
+        "summary": "Revoke one of the caller’s sessions",
         "tags": ["auth"]
       }
     },
@@ -616,7 +625,7 @@
     },
     "/api/v1/auth/me": {
       "get": {
-        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless \u2014 this list draws the interface, it does not decide access.",
+        "description": "Clients render from permissions rather than roles, so a grant change needs no client release. The server re-checks every permission regardless — this list draws the interface, it does not decide access.",
         "operationId": "AccountController_me_v1",
         "parameters": [],
         "responses": {
@@ -650,38 +659,179 @@
     },
     "/api/v1/profiles": {
       "post": {
-        "description": "One profile per account. A second attempt answers 409.",
+        "description": "One profile per account. A second attempt — including several sent at once — answers 409 with code CONFLICT.",
         "operationId": "ProfilesController_create_v1",
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
-        "summary": "Create the caller\u2019s profile draft",
+        "summary": "Create the caller’s profile draft",
         "tags": ["profiles"]
       }
     },
     "/api/v1/profiles/me": {
       "get": {
-        "description": "The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it.",
+        "description": "The only response shape that carries the contact object. There is no route that returns it by id or slug, so guessing an identifier does not reach it. Answers 404 until the profile has been created.",
         "operationId": "ProfilesController_getOwn_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
-        "summary": "The caller\u2019s own profile, including contact details",
+        "summary": "The caller’s own profile, including contact details",
         "tags": ["profiles"]
       },
       "patch": {
-        "description": "Every request states the version it was editing. A mismatch answers 409 with the current version so the client can offer a reload or a merge \u2014 a later edit is never silently overwritten.",
+        "description": "Every request states the version it was editing. A mismatch answers 409 with code VERSION_CONFLICT and `details.currentVersion`, so the client can offer a reload — a later edit is never silently overwritten. A field sent as null is cleared; a field left out is kept.",
         "operationId": "ProfilesController_update_v1",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Saved; the response carries the new version"
+            "description": "Saved; carries the new version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Autosave the profile draft",
@@ -693,9 +843,76 @@
         "description": "Location granularity narrows rather than relabels: choosing country drops the city entirely rather than hiding its label.",
         "operationId": "ProfilesController_updateVisibility_v1",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVisibilityRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileVisibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Set what the profile shows publicly",
@@ -704,12 +921,69 @@
     },
     "/api/v1/profiles/me/publish": {
       "post": {
-        "description": "Applies a stricter schema than autosave. Failures come back as a list of fields, because the person is looking at a form and needs to know which parts to fix.",
+        "description": "Applies a stricter schema than autosave; failures answer 400 with one issue per field. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.",
         "operationId": "ProfilesController_publish_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Publish the profile",
@@ -718,11 +992,59 @@
     },
     "/api/v1/profiles/me/unpublish": {
       "post": {
+        "description": "Withdrawing a profile that is not published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.",
         "operationId": "ProfilesController_unpublish_v1",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "Withdraw the profile from public view",
@@ -735,16 +1057,124 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileRevisionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
-        "summary": "Version history of the caller\u2019s profile",
+        "summary": "Version history of the caller’s profile",
+        "tags": ["profiles"]
+      }
+    },
+    "/api/v1/profiles/me/avatar-upload": {
+      "post": {
+        "description": "The bytes go straight to storage, never through this API (ADR-004). Post the returned fields and the file to the returned URL, then claim the key with a normal PATCH of the profile. The signature states the key, the type and a size range, so storage refuses anything else.",
+        "operationId": "ProfilesController_avatarUpload_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A signed upload for the caller’s profile photo",
         "tags": ["profiles"]
       }
     },
     "/api/v1/profiles/{slug}": {
       "get": {
-        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed \u2014 identically. A 403 would confirm the profile is real and merely hidden.",
+        "description": "Answers 404 for a draft, a suspended profile, one switched to private, and a slug that never existed — identically. A 403 would confirm the profile is real and merely hidden.",
         "operationId": "ProfilesController_getPublic_v1",
         "parameters": [
           {
@@ -759,11 +1189,135 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "A published public profile",
         "tags": ["profiles"]
+      }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "description": "Public because the list is what a profile form offers and what a buyer filters by; nothing here belongs to anyone.",
+        "operationId": "TaxonomyController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Up to 100, 50 by default",
+            "schema": {}
+          },
+          {
+            "name": "query",
+            "required": false,
+            "in": "query",
+            "description": "Matches anywhere in the name",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The approved skills a profile may claim",
+        "tags": ["skills"]
+      }
+    },
+    "/api/v1/skills/suggestions": {
+      "post": {
+        "description": "Answers 202: the skill is recorded for review, not added. Suggesting the same skill again is the same request and answers the same way.",
+        "operationId": "TaxonomyController_suggest_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestSkillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillSuggestionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ask for a skill the taxonomy does not have",
+        "tags": ["skills"]
       }
     }
   },
@@ -946,6 +1500,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           }
@@ -989,6 +1547,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           }
@@ -1116,6 +1678,10 @@
               {
                 "type": "string",
                 "pattern": "\\d"
+              },
+              {
+                "type": "string",
+                "pattern": "[^A-Za-z0-9]"
               }
             ]
           },
@@ -1242,6 +1808,1453 @@
           ],
           "additionalProperties": false
         }
+      },
+      "SkillListResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["slug", "name", "category"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["skills"],
+        "additionalProperties": false
+      },
+      "SuggestSkillRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          }
+        },
+        "required": ["name"]
+      },
+      "SkillSuggestionResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "accepted", "declined"]
+          }
+        },
+        "required": ["slug", "name", "status"],
+        "additionalProperties": false
+      },
+      "ProfileConflictDetails": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "currentVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "yourVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["currentVersion", "yourVersion"],
+        "additionalProperties": false
+      },
+      "OwnProfileResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "suspended"]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "completeness": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "displayName": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          },
+          "headline": {
+            "type": ["string", "null"]
+          },
+          "overview": {
+            "type": ["string", "null"]
+          },
+          "videoIntroUrl": {
+            "type": ["string", "null"]
+          },
+          "locationCountry": {
+            "type": ["string", "null"]
+          },
+          "locationRegion": {
+            "type": ["string", "null"]
+          },
+          "locationCity": {
+            "type": ["string", "null"]
+          },
+          "serviceArea": {
+            "type": ["string", "null"]
+          },
+          "timezone": {
+            "type": ["string", "null"]
+          },
+          "remoteMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["remote", "on_site", "hybrid"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["available", "open_to_offers", "unavailable"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availabilityNote": {
+            "type": ["string", "null"]
+          },
+          "rateAmountMinor": {
+            "type": ["string", "null"]
+          },
+          "ratePeriod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["weekly", "monthly", "yearly"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rateCurrency": {
+            "type": "string"
+          },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "phoneE164": {
+                "type": ["string", "null"]
+              },
+              "contactEmail": {
+                "type": ["string", "null"]
+              },
+              "addressLine1": {
+                "type": ["string", "null"]
+              },
+              "addressLine2": {
+                "type": ["string", "null"]
+              },
+              "postalCode": {
+                "type": ["string", "null"]
+              },
+              "dateOfBirth": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": [
+              "phoneE164",
+              "contactEmail",
+              "addressLine1",
+              "addressLine2",
+              "postalCode",
+              "dateOfBirth"
+            ],
+            "additionalProperties": false
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "languages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "proficiency": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["basic", "conversational", "fluent", "native"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["name", "proficiency"],
+                  "additionalProperties": false
+                }
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "proficiency": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["beginner", "intermediate", "advanced", "expert"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "years": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "approved": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name", "proficiency", "years", "approved"],
+                  "additionalProperties": false
+                }
+              },
+              "experience": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string"
+                    },
+                    "organization": {
+                      "type": ["string", "null"]
+                    },
+                    "startDate": {
+                      "type": ["string", "null"]
+                    },
+                    "endDate": {
+                      "type": ["string", "null"]
+                    },
+                    "summary": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["role", "organization", "startDate", "endDate", "summary"],
+                  "additionalProperties": false
+                }
+              },
+              "education": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "institution": {
+                      "type": "string"
+                    },
+                    "qualification": {
+                      "type": ["string", "null"]
+                    },
+                    "fieldOfStudy": {
+                      "type": ["string", "null"]
+                    },
+                    "startDate": {
+                      "type": ["string", "null"]
+                    },
+                    "endDate": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": [
+                    "institution",
+                    "qualification",
+                    "fieldOfStudy",
+                    "startDate",
+                    "endDate"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "licenses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "type": ["string", "null"]
+                    },
+                    "issuedOn": {
+                      "type": ["string", "null"]
+                    },
+                    "expiresOn": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["name", "issuer", "issuedOn", "expiresOn"],
+                  "additionalProperties": false
+                }
+              },
+              "portfolio": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": ["string", "null"]
+                    },
+                    "summary": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "required": ["title", "url", "summary"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["languages", "skills", "experience", "education", "licenses", "portfolio"],
+            "additionalProperties": false
+          },
+          "visibility": {
+            "type": "object",
+            "properties": {
+              "profilePublic": {
+                "type": "boolean"
+              },
+              "locationGranularity": {
+                "type": "string",
+                "enum": ["hidden", "country", "region", "city"]
+              },
+              "sections": {
+                "type": "object",
+                "properties": {
+                  "nameHeadline": {
+                    "type": "boolean"
+                  },
+                  "biography": {
+                    "type": "boolean"
+                  },
+                  "location": {
+                    "type": "boolean"
+                  },
+                  "languages": {
+                    "type": "boolean"
+                  },
+                  "rate": {
+                    "type": "boolean"
+                  },
+                  "skills": {
+                    "type": "boolean"
+                  },
+                  "experience": {
+                    "type": "boolean"
+                  },
+                  "education": {
+                    "type": "boolean"
+                  },
+                  "licenses": {
+                    "type": "boolean"
+                  },
+                  "portfolio": {
+                    "type": "boolean"
+                  },
+                  "videoIntro": {
+                    "type": "boolean"
+                  },
+                  "availability": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "nameHeadline",
+                  "biography",
+                  "location",
+                  "languages",
+                  "rate",
+                  "skills",
+                  "experience",
+                  "education",
+                  "licenses",
+                  "portfolio",
+                  "videoIntro",
+                  "availability"
+                ],
+                "additionalProperties": false
+              },
+              "searchIndexable": {
+                "type": "boolean"
+              }
+            },
+            "required": ["profilePublic", "locationGranularity", "sections", "searchIndexable"],
+            "additionalProperties": false
+          },
+          "publishedAt": {
+            "type": ["string", "null"]
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "status",
+          "version",
+          "completeness",
+          "displayName",
+          "avatarUrl",
+          "headline",
+          "overview",
+          "videoIntroUrl",
+          "locationCountry",
+          "locationRegion",
+          "locationCity",
+          "serviceArea",
+          "timezone",
+          "remoteMode",
+          "availability",
+          "availabilityNote",
+          "rateAmountMinor",
+          "ratePeriod",
+          "rateCurrency",
+          "contact",
+          "sections",
+          "visibility",
+          "publishedAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateProfileRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "avatarKey": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "headline": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "overview": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 5000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "videoIntroUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "locationCountry": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "locationRegion": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "locationCity": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "serviceArea": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "remoteMode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["remote", "on_site", "hybrid"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "availability": {
+                "type": "string",
+                "enum": ["available", "open_to_offers", "unavailable"]
+              },
+              "availabilityNote": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rateAmountMinor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d{1,15}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ratePeriod": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["weekly", "monthly", "yearly"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "phoneE164": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "contactEmail": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "addressLine1": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "addressLine2": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "postalCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dateOfBirth": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "languages": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "proficiency": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["basic", "conversational", "fluent", "native"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["name"]
+                }
+              },
+              "skills": {
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "proficiency": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["beginner", "intermediate", "advanced", "expert"]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "years": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 60
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["name"]
+                }
+              },
+              "experience": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "organization": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "startDate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endDate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["role"]
+                }
+              },
+              "education": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "institution": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150
+                    },
+                    "qualification": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fieldOfStudy": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "startDate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "endDate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["institution"]
+                }
+              },
+              "licenses": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150
+                    },
+                    "issuer": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 150
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "issuedOn": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expiresOn": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["name"]
+                }
+              },
+              "portfolio": {
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150
+                    },
+                    "url": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "format": "uri"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "summary": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["title"]
+                }
+              }
+            }
+          }
+        },
+        "required": ["version"]
+      },
+      "UpdateVisibilityRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "profilePublic": {
+            "type": "boolean"
+          },
+          "locationGranularity": {
+            "type": "string",
+            "enum": ["hidden", "country", "region", "city"]
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "nameHeadline": {
+                "type": "boolean"
+              },
+              "biography": {
+                "type": "boolean"
+              },
+              "location": {
+                "type": "boolean"
+              },
+              "languages": {
+                "type": "boolean"
+              },
+              "rate": {
+                "type": "boolean"
+              },
+              "skills": {
+                "type": "boolean"
+              },
+              "experience": {
+                "type": "boolean"
+              },
+              "education": {
+                "type": "boolean"
+              },
+              "licenses": {
+                "type": "boolean"
+              },
+              "portfolio": {
+                "type": "boolean"
+              },
+              "videoIntro": {
+                "type": "boolean"
+              },
+              "availability": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "nameHeadline",
+              "biography",
+              "location",
+              "languages",
+              "rate",
+              "skills",
+              "experience",
+              "education",
+              "licenses",
+              "portfolio",
+              "videoIntro",
+              "availability"
+            ]
+          },
+          "searchIndexable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "profilePublic",
+          "locationGranularity",
+          "sections",
+          "searchIndexable"
+        ]
+      },
+      "ProfileVisibilityResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "profilePublic": {
+            "type": "boolean"
+          },
+          "locationGranularity": {
+            "type": "string",
+            "enum": ["hidden", "country", "region", "city"]
+          },
+          "sections": {
+            "type": "object",
+            "properties": {
+              "nameHeadline": {
+                "type": "boolean"
+              },
+              "biography": {
+                "type": "boolean"
+              },
+              "location": {
+                "type": "boolean"
+              },
+              "languages": {
+                "type": "boolean"
+              },
+              "rate": {
+                "type": "boolean"
+              },
+              "skills": {
+                "type": "boolean"
+              },
+              "experience": {
+                "type": "boolean"
+              },
+              "education": {
+                "type": "boolean"
+              },
+              "licenses": {
+                "type": "boolean"
+              },
+              "portfolio": {
+                "type": "boolean"
+              },
+              "videoIntro": {
+                "type": "boolean"
+              },
+              "availability": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "nameHeadline",
+              "biography",
+              "location",
+              "languages",
+              "rate",
+              "skills",
+              "experience",
+              "education",
+              "licenses",
+              "portfolio",
+              "videoIntro",
+              "availability"
+            ],
+            "additionalProperties": false
+          },
+          "searchIndexable": {
+            "type": "boolean"
+          }
+        },
+        "required": ["profilePublic", "locationGranularity", "sections", "searchIndexable"],
+        "additionalProperties": false
+      },
+      "ProfileRevisionList": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "changedAt": {
+              "type": "string"
+            },
+            "changeReason": {
+              "type": ["string", "null"]
+            }
+          },
+          "required": ["version", "changedAt", "changeReason"],
+          "additionalProperties": false
+        }
+      },
+      "AvatarUploadRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "enum": ["image/jpeg", "image/png", "image/webp"]
+          }
+        },
+        "required": ["contentType"]
+      },
+      "UploadTicket": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "key": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "maxBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["url", "fields", "key", "expiresAt", "maxBytes"],
+        "additionalProperties": false
+      },
+      "PublicProfileResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": ["string", "null"]
+          },
+          "avatarUrl": {
+            "type": ["string", "null"]
+          },
+          "headline": {
+            "type": ["string", "null"]
+          },
+          "overview": {
+            "type": ["string", "null"]
+          },
+          "location": {
+            "type": ["string", "null"]
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["available", "open_to_offers", "unavailable"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availabilityNote": {
+            "type": ["string", "null"]
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string"
+                  },
+                  "amountMinor": {
+                    "type": "string"
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": ["weekly", "monthly", "yearly"]
+                  }
+                },
+                "required": ["currency", "amountMinor", "period"],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "proficiency": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "proficiency"],
+              "additionalProperties": false
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "proficiency": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "proficiency"],
+              "additionalProperties": false
+            }
+          },
+          "experience": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "organization": {
+                  "type": ["string", "null"]
+                },
+                "startDate": {
+                  "type": ["string", "null"]
+                },
+                "endDate": {
+                  "type": ["string", "null"]
+                },
+                "summary": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["role", "organization", "startDate", "endDate", "summary"],
+              "additionalProperties": false
+            }
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "institution": {
+                  "type": "string"
+                },
+                "qualification": {
+                  "type": ["string", "null"]
+                },
+                "fieldOfStudy": {
+                  "type": ["string", "null"]
+                },
+                "startDate": {
+                  "type": ["string", "null"]
+                },
+                "endDate": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["institution", "qualification", "fieldOfStudy", "startDate", "endDate"],
+              "additionalProperties": false
+            }
+          },
+          "licenses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "issuer": {
+                  "type": ["string", "null"]
+                },
+                "issuedOn": {
+                  "type": ["string", "null"]
+                },
+                "expiresOn": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["name", "issuer", "issuedOn", "expiresOn"],
+              "additionalProperties": false
+            }
+          },
+          "portfolio": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": ["string", "null"]
+                },
+                "summary": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["title", "url", "summary"],
+              "additionalProperties": false
+            }
+          },
+          "videoIntroUrl": {
+            "type": ["string", "null"]
+          },
+          "searchIndexable": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "slug",
+          "displayName",
+          "avatarUrl",
+          "headline",
+          "overview",
+          "location",
+          "availability",
+          "availabilityNote",
+          "rate",
+          "languages",
+          "skills",
+          "experience",
+          "education",
+          "licenses",
+          "portfolio",
+          "videoIntroUrl",
+          "searchIndexable",
+          "publishedAt"
+        ],
+        "additionalProperties": false
       }
     }
   }

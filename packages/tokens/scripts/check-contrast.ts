@@ -3,8 +3,11 @@
 // its WCAG AA threshold the build fails rather than shipping unreadable text.
 import { flatten, tokens } from '../src/resolve.ts';
 
-type Level = 'body' | 'large';
-const THRESHOLD: Record<Level, number> = { body: 4.5, large: 3 };
+type Level = 'body' | 'large' | 'decorative';
+// `decorative` records an edge that carries no information — a card dividing
+// regions of a page — so that it is listed as on screen without pretending a
+// contrast requirement applies to it. Never use it for a control's boundary.
+const THRESHOLD: Record<Level, number> = { body: 4.5, large: 3, decorative: 1 };
 
 /** Documented foreground/background pairs, by semantic token name. */
 const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
@@ -23,6 +26,7 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-on-accent', 'surface-accent', 'body'],
   ['content-on-accent', 'accent-hover', 'body'],
   ['content-inverse', 'surface-inverse', 'body'],
+  ['content-inverse-muted', 'surface-inverse', 'body'],
   ['content', 'surface-accent-subtle', 'body'],
   ['content-accent', 'surface', 'body'],
   ['content-accent', 'surface-accent-subtle', 'body'],
@@ -34,6 +38,27 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['accent', 'surface', 'large'],
   ['accent-soft', 'surface', 'large'],
   ['accent-soft', 'surface-subtle', 'large'],
+  // The workspace dashboard (apps/web/src/features/workspace).
+  ['content-link', 'surface-subtle', 'body'],
+  ['content-accent', 'surface-subtle', 'body'],
+  ['content-subtle', 'surface-subtle', 'body'],
+  ['content-accent', 'surface-muted', 'body'],
+  ['content-link', 'surface-accent-subtle', 'body'],
+  ['content-link', 'surface-muted', 'large'],
+  ['content-on-accent', 'accent', 'body'],
+  ['content-on-accent', 'border-strong', 'large'],
+  ['content-muted', 'surface-subtle', 'body'],
+  ['border-subtle', 'surface', 'decorative'],
+  // Profile setup (apps/web/src/features/profile-setup): "Remove" on an entry
+  // panel, the locked Save and next, and focus inside the approved-skill bar.
+  ['content-warning', 'surface-subtle', 'body'],
+  ['content-muted', 'surface-muted', 'body'],
+  ['focus', 'surface-accent-subtle', 'large'],
+  // The client profile's completion card (features/profile/completion-card.tsx).
+  ['content-muted', 'surface-accent-subtle', 'body'],
+  ['content-subtle', 'surface-accent-subtle', 'body'],
+  // "Remove" on an entry panel, once it is hovered or focused.
+  ['content-danger', 'surface-subtle', 'body'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);

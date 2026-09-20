@@ -115,6 +115,17 @@ test.describe('account journey', () => {
     await page.getByLabel('E-mail').fill(email);
     await page.getByLabel('Password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL('**/client-profile');
+
+    // Signing in lands on the client profile, which carries no navigation of its
+    // own, so the workspace is one address away and the account page one click
+    // from its header. That click, rather than a second `goto`, is what keeps
+    // the check below about a token an ordinary request carried.
+    await page.goto('/dashboard');
+    await page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('link', { name: 'Account' })
+      .click();
     await page.waitForURL('**/account');
 
     // Read back from `/auth/me`, so this only appears if the access token was
@@ -128,6 +139,18 @@ test.describe('account journey', () => {
     await page.reload();
     await expect(page.getByText(email).first()).toBeVisible();
 
+    // The profile editor against the real API. Every other profile test answers
+    // its own preflight, which is how a CORS policy without PATCH shipped: the
+    // autosave never left the browser and every mocked test still passed.
+    // Reloading afterwards proves the save reached the database, not just state.
+    await page.goto('/profile/setup');
+    await page.getByLabel('Display name').fill('Journey Tester');
+    await expect(page.getByText('Autosaved', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    await expect(page.getByLabel('Display name')).toHaveValue('Journey Tester');
+
+    await page.goto('/account');
+    await expect(page.getByText(email).first()).toBeVisible();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await page.waitForURL('**/sign-in');
 
@@ -230,6 +253,12 @@ test.describe('account journey', () => {
 
     await page.getByLabel('Password').fill(newPassword);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL('**/client-profile');
+    await page.goto('/dashboard');
+    await page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('link', { name: 'Account' })
+      .click();
     await page.waitForURL('**/account');
     await expect(page.getByText(email).first()).toBeVisible();
   });

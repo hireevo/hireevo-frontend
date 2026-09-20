@@ -32,7 +32,7 @@ async function answer(page: Page, endpoint: string, body: unknown) {
   });
 }
 
-test('someone already signed in is taken past sign-in to their account', async ({ page }) => {
+test('someone already signed in is taken past sign-in to their workspace', async ({ page }) => {
   // The refresh cookie belongs to the API, so a restored session is answered
   // here: this is about where the app sends one, not about restoring it.
   const user = {
@@ -50,8 +50,13 @@ test('someone already signed in is taken past sign-in to their account', async (
   await answer(page, 'me', user);
 
   await page.goto('/');
-  await page.waitForURL('**/account');
-  await expect(page.getByText(user.email).first()).toBeVisible();
+  await page.waitForURL('**/client-profile');
+  await expect(
+    page.getByRole('heading', { name: 'Build a profile that wins briefs', level: 1 }),
+  ).toBeVisible();
+  // Only where the app sends them: this test answers the auth endpoints alone,
+  // and what the client profile shows of someone's profile is checked in
+  // client-profile-layout.spec.ts, which answers the profile API too.
 });
 
 test('the design system showcase renders', async ({ page }) => {

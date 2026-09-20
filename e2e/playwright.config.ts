@@ -36,7 +36,8 @@ export default defineConfig({
       // The panel is hidden below `lg`, so its geometry has nothing to check
       // at a phone width. The resolution sweep resizes one page from 320px to
       // 4K, which a phone's fixed screen cannot be; the desktop engines run it.
-      testIgnore: /auth-journey\.spec\.ts|marketing-panel\.spec\.ts|resolution-sweep\.spec\.ts/,
+      testIgnore:
+        /auth-journey\.spec\.ts|marketing-panel\.spec\.ts|resolution-sweep\.spec\.ts|workspace-layout\.spec\.ts|client-profile-layout\.spec\.ts|profile-setup-layout\.spec\.ts|public-profile-layout\.spec\.ts/,
     },
     // Layout is where rendering engines disagree — container query units,
     // `dvh`, blend modes, flex and grid sizing — so the layout suites run on
@@ -46,12 +47,14 @@ export default defineConfig({
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testMatch: /(responsive|resolution-sweep)\.spec\.ts/,
+      testMatch:
+        /(responsive|resolution-sweep|workspace-layout|client-profile-layout|profile-setup-layout|public-profile-layout)\.spec\.ts/,
     },
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testMatch: /(responsive|resolution-sweep)\.spec\.ts/,
+      testMatch:
+        /(responsive|resolution-sweep|workspace-layout|client-profile-layout|profile-setup-layout|public-profile-layout)\.spec\.ts/,
     },
     // A phone Safari, not just a narrow desktop one: touch, mobile viewport
     // handling and the dynamic toolbar are what break layouts on real iPhones.

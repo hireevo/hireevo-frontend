@@ -11,6 +11,7 @@ const ROUTES = [
   '/recover',
   '/confirm-email',
   '/reset-password?token=example',
+  '/design-system/workspace',
 ];
 
 for (const path of ROUTES) {

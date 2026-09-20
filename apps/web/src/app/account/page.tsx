@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Where signing in lands, until the freelancer workspace exists.
+ * The account behind the workspace — reached from the dashboard's header.
  *
  * It reads the signed-in user back from the API rather than trusting what the
  * sign-in response said, which is what makes it worth having: it proves the

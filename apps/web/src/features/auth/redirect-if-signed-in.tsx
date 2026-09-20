@@ -19,7 +19,7 @@ export function RedirectIfSignedIn() {
   const { status } = useSession();
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/account');
+    if (status === 'authenticated') router.replace('/client-profile');
   }, [router, status]);
 
   return null;
