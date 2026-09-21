@@ -447,6 +447,12 @@ export function ProfileBuilder() {
             label: completion.label,
             headline: completion.headline,
             items: completion.items,
+            // Editing and publishing are two buttons now, not one that changed
+            // its mind. Publishing used to replace the edit button once the
+            // profile reached a hundred per cent, which left a finished profile
+            // with no way back into editing — so the moment someone filled in
+            // their last section was the moment they could no longer change any
+            // of it.
             action: editMode
               ? {
                   label: 'Done editing',
@@ -455,9 +461,18 @@ export function ProfileBuilder() {
                     setOpen(null);
                   },
                 }
-              : completion.percent === 100
-                ? { label: publishing ? 'Publishing…' : 'Publish', onClick: () => void publish() }
-                : { label: 'Complete your profile', onClick: () => setEditMode(true) },
+              : {
+                  label: completion.percent === 100 ? 'Edit profile' : 'Complete your profile',
+                  onClick: () => setEditMode(true),
+                },
+            // Always offered, at any percentage. What may actually be published
+            // is the API's rule rather than this card's, and it answers with the
+            // fields that are missing — which is a better thing to read than a
+            // button that is simply not there.
+            secondaryAction: {
+              label: publishing ? 'Publishing…' : 'Publish',
+              onClick: () => void publish(),
+            },
           }}
         />
         {publishError === null ? null : (

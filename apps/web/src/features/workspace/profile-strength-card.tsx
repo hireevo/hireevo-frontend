@@ -8,6 +8,9 @@ import type { ProfileStrength } from './types.ts';
 /** The button at the foot of the card, whether it navigates or acts in place. */
 const ACTION = 'mt-6 h-11 rounded-lg font-semibold';
 
+/** Directly under the first, so the two read as one pair rather than two rows. */
+const SECONDARY_ACTION = 'mt-3 h-11 rounded-lg font-semibold';
+
 export function ProfileStrengthCard({
   strength,
   compact = false,
@@ -125,6 +128,30 @@ export function ProfileStrengthCard({
         <Button type="button" fullWidth onClick={strength.action.onClick} className={ACTION}>
           {strength.action.label}
           <LuArrowRight aria-hidden="true" className="size-4" />
+        </Button>
+      )}
+
+      {/* No arrow on this one, and a quieter variant: it is the same card's
+          second choice, not a second way forward. */}
+      {strength.secondaryAction === undefined ? null : 'href' in strength.secondaryAction ? (
+        <Link
+          href={strength.secondaryAction.href}
+          className={cn(
+            buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }),
+            SECONDARY_ACTION,
+          )}
+        >
+          {strength.secondaryAction.label}
+        </Link>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth
+          onClick={strength.secondaryAction.onClick}
+          className={SECONDARY_ACTION}
+        >
+          {strength.secondaryAction.label}
         </Button>
       )}
     </Card>

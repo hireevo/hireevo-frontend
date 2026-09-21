@@ -44,6 +44,43 @@ const NO_SECTIONS = {
   portfolio: [],
 };
 
+/** Every section the strength card counts, so the profile reads as finished. */
+const COMPLETE = {
+  overview: 'I map difficult journeys and ship accessible services.',
+  videoIntroUrl: 'https://vimeo.com/123456789',
+  sections: {
+    languages: [{ name: 'Urdu', proficiency: 'native', starred: true }],
+    skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
+    experience: [
+      {
+        role: 'Lead designer',
+        organization: 'Erste',
+        startDate: '2022-02-01',
+        endDate: null,
+        summary: 'Led discovery.',
+      },
+    ],
+    education: [
+      {
+        institution: 'University of Applied Arts Vienna',
+        qualification: 'MA',
+        fieldOfStudy: 'Service Design',
+        startDate: '2013-09-01',
+        endDate: '2017-06-30',
+      },
+    ],
+    licenses: [
+      {
+        name: 'Accessibility Fundamentals',
+        issuer: 'IDF',
+        issuedOn: '2025-03-10',
+        expiresOn: null,
+      },
+    ],
+    portfolio: [{ title: 'Checkout redesign', url: null, summary: null, files: [] }],
+  },
+} as Partial<OwnProfile>;
+
 const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
   ({
     id: 'p1',
@@ -279,6 +316,35 @@ describe('ProfileBuilder', () => {
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
     const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
     expect(sections).toMatchObject({ languages: [{ name: 'German', starred: false }] });
+  });
+
+  /**
+   * The defect this pair of buttons exists for.
+   *
+   * Publishing used to replace the edit button at a hundred per cent, so the
+   * moment somebody filled in their last section was the moment they could no
+   * longer change any of it — and starring a language, which only exists in
+   * edit mode, became unreachable on exactly the profiles most likely to want
+   * it.
+   */
+  it('still offers a way into editing once the profile is finished', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored(COMPLETE) });
+    const user = await open();
+
+    const edit = await screen.findByRole('button', { name: /Edit profile/ });
+    expect(screen.queryByRole('button', { name: /Complete your profile/ })).not.toBeInTheDocument();
+
+    await user.click(edit);
+    expect(screen.getByRole('button', { name: 'Edit portfolio' })).toBeInTheDocument();
+  });
+
+  it('offers Publish whether the profile is finished or not', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored() });
+    await open();
+    expect(await screen.findByRole('button', { name: /^Publish/ })).toBeInTheDocument();
+
+    // And the button that sits above it still asks for the missing sections.
+    expect(screen.getByRole('button', { name: /Complete your profile/ })).toBeInTheDocument();
   });
 
   it('lets go of the browser draft once the save it was protecting lands', async () => {

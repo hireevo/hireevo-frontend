@@ -48,6 +48,15 @@ export type ProfileStrength = {
   headline: string;
   items: StrengthItem[];
   action: StrengthAction;
+  /**
+   * A second, quieter action under the first.
+   *
+   * Publishing lives here on the profile itself. It used to replace the edit
+   * button at a hundred per cent, which meant a finished profile had no way
+   * back into editing at all — the one state where the button was needed most.
+   * Two buttons, so neither has to take the other's place.
+   */
+  secondaryAction?: StrengthAction;
 };
 
 export type SellerStatus = {
