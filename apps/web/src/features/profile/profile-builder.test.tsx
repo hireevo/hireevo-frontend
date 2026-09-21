@@ -269,6 +269,46 @@ describe('ProfileBuilder', () => {
   });
 
   /**
+   * The card beside the name shows what was starred, and only that.
+   *
+   * It is the same card the published profile draws, so it has to say the same
+   * thing — otherwise the owner arranges one list and the world reads another.
+   * Editing is the exception: everything is listed then, because starring
+   * happens here and a language hidden from its own editor cannot be unstarred.
+   */
+  it('lists only starred languages beside the name, and all of them in the section', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [
+            { name: 'Urdu', proficiency: 'native', starred: true },
+            { name: 'German', proficiency: 'fluent', starred: false },
+          ],
+        },
+      }),
+    });
+    const user = await open();
+
+    // Scoped to the card beside the name: both languages exist on the page,
+    // and the whole point is which of them this card shows.
+    const nameCard = () => section(/Your name and details/);
+    expect(await screen.findByText('About')).toBeInTheDocument();
+    expect(nameCard().getByText(/Urdu/)).toBeInTheDocument();
+    expect(nameCard().queryByText(/German/)).not.toBeInTheDocument();
+
+    // The unstarred one is not missing, it is in the section that owns the
+    // list — which is also the only place it can be starred from.
+    await user.click(screen.getByRole('button', { name: /Complete your profile|Edit profile/ }));
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+
+    expect(
+      section(/Languages/).getByRole('button', { name: 'Show German beside my name' }),
+    ).toBeInTheDocument();
+  });
+
+  /**
    * Starring is the only thing on this screen that changes another page.
    *
    * The header on the published profile lists the starred languages and
@@ -288,7 +328,10 @@ describe('ProfileBuilder', () => {
     });
     const user = await openForEditing();
 
-    await user.click(await screen.findByRole('button', { name: 'Show German beside my name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+    await user.click(
+      await section(/Languages/).findByRole('button', { name: 'Show German beside my name' }),
+    );
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
@@ -308,8 +351,11 @@ describe('ProfileBuilder', () => {
     });
     const user = await openForEditing();
 
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
     await user.click(
-      await screen.findByRole('button', { name: 'Stop showing German beside my name' }),
+      await section(/Languages/).findByRole('button', {
+        name: 'Stop showing German beside my name',
+      }),
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -472,14 +518,15 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '30');
   });
 
-  it('removes a language from the header', async () => {
+  it('removes a language from the section that owns the list', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: withLanguage() });
     const user = await openForEditing();
-    expect(await screen.findByRole('button', { name: 'Remove English' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
 
-    await user.click(screen.getByRole('button', { name: 'Remove English' }));
+    const languages = section(/Languages/);
+    await user.click(await languages.findByRole('button', { name: 'Remove English' }));
 
-    expect(screen.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
+    expect(languages.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
   });
 
@@ -534,7 +581,7 @@ describe('ProfileBuilder', () => {
     for (const name of [
       'Edit display name: Sophie',
       'Edit location: Austria',
-      'Add languages',
+      'Edit languages',
       'Save',
     ]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
@@ -543,7 +590,7 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
 
-    for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Add languages']) {
+    for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Edit languages']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();

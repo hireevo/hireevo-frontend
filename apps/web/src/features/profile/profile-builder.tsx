@@ -54,6 +54,7 @@ import {
 } from './draft.ts';
 import { EditButton } from './edit-button.tsx';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
+import { LanguagesSection } from './languages-section.tsx';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { SectionCard } from './section-card.tsx';
 import {
@@ -75,6 +76,7 @@ type OpenSection =
   | 'experience'
   | 'education'
   | 'certifications'
+  | 'languages'
   | 'portfolio'
   | 'video'
   | 'visibility'
@@ -593,6 +595,13 @@ export function ProfileBuilder() {
             ) : undefined}
           </SectionCard>
         </div>
+
+        <LanguagesSection
+          open={open === 'languages'}
+          action={actionFor('languages', 'languages')}
+          languages={draft.languages}
+          onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
+        />
 
         <PortfolioSection
           open={open === 'portfolio'}

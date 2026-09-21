@@ -67,7 +67,12 @@ const PROFILE = {
   // and so the draft this suite writes is the newer of the two, which is what
   // reopening the page has to prefer.
   sections: {
-    languages: [],
+    // Two, one starred: the card beside the name shows only the starred one and
+    // the languages section shows both, so an empty list would sweep neither.
+    languages: [
+      { name: 'Urdu', proficiency: 'native', starred: true },
+      { name: 'English', proficiency: 'fluent', starred: false },
+    ],
     skills: [],
     experience: [],
     education: [],
@@ -339,6 +344,22 @@ test('the rates and visibility editors hold their layout at every window size', 
   const visibility = page.getByRole('region', { name: /Visibility/ });
   await expect(visibility.getByRole('button', { name: 'Save section' })).toBeVisible();
   await sweep(page, 'client profile with the visibility editor open');
+});
+
+test('the languages section holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await openForEditing(page);
+
+  await page.getByRole('button', { name: 'Edit languages' }).click();
+  const languages = page.getByRole('region', { name: /Languages/ });
+  await expect(languages.getByRole('button', { name: /Stop showing Urdu/ })).toBeVisible();
+
+  // Opened on the add form as well: it carries the widest thing in the
+  // section — a full-width select and a row of buttons — and it is the part
+  // that has to fold onto a phone.
+  await languages.getByRole('button', { name: 'Add languages' }).click();
+  await expect(languages.getByLabel('Proficiency level')).toBeVisible();
+  await sweep(page, 'client profile with the languages editor open');
 });
 
 test('the portfolio gallery holds its layout at every window size', async ({ page }) => {
