@@ -69,6 +69,7 @@ export function PortfolioSection({
               primary: record.fields.title ?? '',
               secondary: describe(record),
               body: record.fields.summary ?? '',
+              media: <PieceThumbnails record={record} />,
             }))}
           />
         )
@@ -96,19 +97,54 @@ export function PortfolioSection({
   );
 }
 
-/** What a closed section says about a piece: its link, or what it carries. */
+/**
+ * What a closed section says about a piece: its link, and any documents.
+ *
+ * Images are not counted here — the closed piece shows their previews (see
+ * PieceThumbnails), which say more than "1 image" ever could. Documents have no
+ * preview, so they are still named.
+ */
 function describe(record: ProfileRecord): string {
   const files = record.files ?? [];
-  const images = files.filter((file) => file.kind === 'image').length;
-  const documents = files.length - images;
+  const documents = files.filter((file) => file.kind === 'document').length;
 
   const parts = [
     record.fields.url ?? '',
-    images === 0 ? '' : `${images} image${images === 1 ? '' : 's'}`,
     documents === 0 ? '' : `${documents} document${documents === 1 ? '' : 's'}`,
   ].filter((part) => part !== '');
 
   return parts.join(' · ');
+}
+
+/**
+ * The image previews a closed piece shows, so a portfolio reads as the work it
+ * is rather than a count of it. `thumbUrl` is the API's for a saved image and a
+ * blob for one this tab still holds — the same field either way.
+ */
+function PieceThumbnails({ record }: { record: ProfileRecord }) {
+  const images = (record.files ?? []).filter((file) => file.kind === 'image');
+  if (images.length === 0) return null;
+
+  return (
+    <ul className="grid grid-cols-3 gap-2 *:min-w-0 sm:grid-cols-4 md:grid-cols-6">
+      {images.map((image) => (
+        <li
+          key={image.objectKey}
+          className="block aspect-square overflow-hidden rounded-md bg-surface-muted"
+        >
+          {/* Not `next/image`: the source is either object storage, whose host
+              is configuration, or a blob this tab is holding. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image.thumbUrl ?? ''}
+            alt={image.fileName ?? ''}
+            loading="lazy"
+            className="size-full object-cover"
+          />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function Piece({
