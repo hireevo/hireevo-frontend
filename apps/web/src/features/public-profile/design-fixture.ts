@@ -79,6 +79,7 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
       issuer: 'Interaction Design Foundation',
       issuedOn: '2025-03-10',
       expiresOn: null,
+      files: [],
     },
   ],
   portfolio: [

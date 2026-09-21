@@ -110,7 +110,7 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
         skills: skills.items.map((item) => item.values),
         experience: experience.items.map((item) => item.values),
         education: education.items.map((item) => item.values),
-        licenses: licenses.items.map((item) => item.values),
+        licenses: licenses.items.map((item) => ({ fields: item.values, files: item.files ?? [] })),
       }),
     [languages.items, skills.items, experience.items, education.items, licenses.items],
   );

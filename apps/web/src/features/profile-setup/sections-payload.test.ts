@@ -47,10 +47,14 @@ describe('toSectionsPayload', () => {
   it('sends an empty optional field as nothing at all', () => {
     expect(
       toSectionsPayload({
-        licenses: [{ name: 'Accessibility', issuer: '', issued: '2025-03-10', expires: '' }],
+        licenses: [
+          { fields: { name: 'Accessibility', issuer: '', issued: '2025-03-10', expires: '' } },
+        ],
       }),
     ).toEqual({
-      licenses: [{ name: 'Accessibility', issuer: null, issuedOn: '2025-03-10', expiresOn: null }],
+      licenses: [
+        { name: 'Accessibility', issuer: null, issuedOn: '2025-03-10', expiresOn: null, files: [] },
+      ],
     });
   });
 });
@@ -117,13 +121,29 @@ describe('fromSavedSections', () => {
             issuer: 'IDF',
             issuedOn: '2025-03-10',
             expiresOn: null,
+            files: [],
           },
         ],
       }),
     );
 
-    expect(toSectionsPayload({ licenses: shown.licenses }).licenses).toEqual([
-      { name: 'Accessibility', issuer: 'IDF', issuedOn: '2025-03-10', expiresOn: null },
+    // `fromSavedSections` returns the fields flat, the way `useEntries.reset`
+    // takes them; the editor wraps them back into `{ fields, files }` on save,
+    // which is what this mirrors.
+    expect(
+      toSectionsPayload({
+        licenses: shown.licenses.map((license) => ({
+          fields: {
+            name: license.name,
+            issuer: license.issuer,
+            issued: license.issued,
+            expires: license.expires,
+          },
+          files: license.files,
+        })),
+      }).licenses,
+    ).toEqual([
+      { name: 'Accessibility', issuer: 'IDF', issuedOn: '2025-03-10', expiresOn: null, files: [] },
     ]);
   });
 });

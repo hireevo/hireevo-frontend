@@ -86,5 +86,8 @@ export function entriesFrom<F extends string>(
       F,
       string
     >,
+    // Certifications carry their attachments through the draft too, so a scan
+    // uploaded before the tab closed is still there when it opens again.
+    ...(item.files === undefined ? {} : { files: item.files }),
   }));
 }

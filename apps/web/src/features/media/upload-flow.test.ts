@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { uploadPortfolioDocument, uploadPortfolioImage, uploadProfilePhoto } from './upload.ts';
+import { uploadDocument, uploadImage, uploadProfilePhoto } from './upload.ts';
 
 const client = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn() }));
 vi.mock('@/lib/api.ts', () => ({ api: client }));
@@ -84,7 +84,7 @@ describe('uploading a portfolio image', () => {
     );
 
     const file = new File(['x'], 'checkout.png', { type: 'image/png' });
-    const result = await uploadPortfolioImage(file);
+    const result = await uploadImage(file, 'portfolio');
 
     expect(result).toMatchObject({
       ok: true,
@@ -122,10 +122,11 @@ describe('uploading a portfolio image', () => {
       ticketFor('profiles/p1/portfolio/bbbb000000000000-thumb.webp'),
     );
 
-    await uploadPortfolioImage(
+    await uploadImage(
       Object.defineProperty(new File(['x'], 'huge.png', { type: 'image/png' }), 'size', {
         value: 9_000_000,
       }),
+      'portfolio',
     );
 
     const bodies = (
@@ -139,7 +140,10 @@ describe('uploading a portfolio image', () => {
   it('stops without uploading when the image cannot be read', async () => {
     compressed.compressImage.mockResolvedValueOnce({ ok: false, message: 'That image…' });
 
-    const result = await uploadPortfolioImage(new File(['x'], 'x.heic', { type: 'image/heic' }));
+    const result = await uploadImage(
+      new File(['x'], 'x.heic', { type: 'image/heic' }),
+      'portfolio',
+    );
 
     expect(result).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
@@ -152,7 +156,7 @@ describe('uploading a portfolio image', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
 
     expect(
-      await uploadPortfolioImage(new File(['x'], 'a.png', { type: 'image/png' })),
+      await uploadImage(new File(['x'], 'a.png', { type: 'image/png' }), 'portfolio'),
     ).toMatchObject({ ok: false });
   });
 });
@@ -167,7 +171,7 @@ describe('uploading a portfolio document', () => {
       { value: 880_000 },
     );
 
-    expect(await uploadPortfolioDocument(file)).toEqual({
+    expect(await uploadDocument(file, 'portfolio')).toEqual({
       ok: true,
       // No `thumbUrl`: a document has no thumbnail to show.
       value: {
@@ -189,7 +193,7 @@ describe('uploading a portfolio document', () => {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
-    expect(await uploadPortfolioDocument(file)).toMatchObject({ ok: false });
+    expect(await uploadDocument(file, 'portfolio')).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
   });
 
@@ -200,7 +204,7 @@ describe('uploading a portfolio document', () => {
       { value: 11_000_000 },
     );
 
-    const result = await uploadPortfolioDocument(file);
+    const result = await uploadDocument(file, 'portfolio');
     expect(result).toMatchObject({ ok: false });
     expect(result.ok ? '' : result.message).toMatch(/10MB/);
     expect(client.POST).not.toHaveBeenCalled();
@@ -213,8 +217,52 @@ describe('uploading a portfolio document', () => {
       { value: 0 },
     );
 
-    expect(await uploadPortfolioDocument(file)).toMatchObject({ ok: false });
+    expect(await uploadDocument(file, 'portfolio')).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
+  });
+});
+
+describe('uploading a certification', () => {
+  it('asks for the certification roles, so the object lands in its own folder', async () => {
+    compressed.compressImage.mockResolvedValueOnce(imageOk());
+    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/certification/aaaa000000000000.webp'));
+    client.POST.mockResolvedValueOnce(
+      ticketFor('profiles/p1/certification/bbbb000000000000-thumb.webp'),
+    );
+
+    const result = await uploadImage(
+      new File(['x'], 'diploma.png', { type: 'image/png' }),
+      'certification',
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: 'image', objectKey: 'profiles/p1/certification/aaaa000000000000.webp' },
+    });
+    const roles = (client.POST.mock.calls as Array<[string, { body: { role: string } }]>).map(
+      ([, options]) => options.body.role,
+    );
+    expect(roles).toEqual(['certification-image', 'certification-thumbnail']);
+  });
+
+  it('sends a certificate PDF under the certification-document role', async () => {
+    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/certification/cccc000000000000.pdf'));
+
+    const file = Object.defineProperty(
+      new File(['x'], 'license.pdf', { type: 'application/pdf' }),
+      'size',
+      { value: 640_000 },
+    );
+
+    const result = await uploadDocument(file, 'certification');
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: 'document', objectKey: 'profiles/p1/certification/cccc000000000000.pdf' },
+    });
+    const asked = (client.POST.mock.calls as Array<[string, { body: { role: string } }]>).map(
+      ([, options]) => options.body.role,
+    );
+    expect(asked).toEqual(['certification-document']);
   });
 });
 

@@ -86,7 +86,7 @@ export type SectionLists = {
   skills?: readonly Fields[];
   experience?: readonly Fields[];
   education?: readonly Fields[];
-  licenses?: readonly Fields[];
+  licenses?: readonly CertificationInput[];
   portfolio?: readonly PortfolioInput[];
 };
 
@@ -94,10 +94,13 @@ export type SectionLists = {
  * A portfolio piece as the editor holds it: its text and its attachments.
  *
  * The other sections are text alone, so they travel as a bare field map. This
- * one carries files that are already in storage, each of which the save is
- * about to claim.
+ * one — and a certification — carries files that are already in storage, each of
+ * which the save is about to claim.
  */
 export type PortfolioInput = { fields: Fields; files?: readonly DraftFile[] };
+
+/** A certification as the editor holds it: its text and its attached scans. */
+export type CertificationInput = { fields: Fields; files?: readonly DraftFile[] };
 
 /**
  * Keeps only the entries something names, and only the lists that were passed.
@@ -158,13 +161,22 @@ export function toSectionsPayload(lists: SectionLists): SectionsPayload {
   }));
   if (education !== undefined) payload.education = education;
 
-  const licenses = listOf(lists.licenses, 'name', (fields, name) => ({
-    name,
-    issuer: text(fields.issuer),
-    // The form calls these "Issued" and "Expires"; the API names the columns.
-    issuedOn: text(fields.issued),
-    expiresOn: text(fields.expires),
-  }));
+  const licenses = listOf(
+    lists.licenses?.map((certification) => certification.fields),
+    'name',
+    (fields, name) => ({
+      name,
+      issuer: text(fields.issuer),
+      // The form calls these "Issued" and "Expires"; the API names the columns.
+      issuedOn: text(fields.issued),
+      expiresOn: text(fields.expires),
+      // Matched back by the field map's identity rather than by index: an
+      // unnamed certification is dropped by `listOf`, so positions shift.
+      files: (
+        lists.licenses?.find((certification) => certification.fields === fields)?.files ?? []
+      ).map(toClaim),
+    }),
+  );
   if (licenses !== undefined) payload.licenses = licenses;
 
   const portfolio = listOf(
@@ -240,6 +252,7 @@ export function fromSavedSections(
       issuer: shown(entry.issuer),
       issued: shown(entry.issuedOn),
       expires: shown(entry.expiresOn),
+      files: entry.files,
     })),
     portfolio: sections.portfolio.map((entry) => ({
       title: entry.title,

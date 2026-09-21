@@ -103,30 +103,67 @@ export async function uploadProfilePhoto(file: File): Promise<Uploaded<string>> 
 }
 
 /**
- * One portfolio image, as two objects and the row that will point at them.
+ * Which section a file is being attached to.
+ *
+ * A portfolio piece and a certification carry files the same way and to the
+ * same ceilings, and differ only in the upload role — and so the storage folder
+ * — the object lands in. One set of functions serves both, told apart by this.
+ */
+export type FileGroup = 'portfolio' | 'certification';
+
+/**
+ * The upload role each group uses for each kind of object.
+ *
+ * A key issued under a certification role lands in a different folder from a
+ * portfolio one, so the API's ownership check refuses a key claimed on the
+ * wrong section even when the caller really owns it (see `claimKey` server side).
+ */
+const ROLES = {
+  portfolio: {
+    image: 'portfolio-image',
+    thumbnail: 'portfolio-thumbnail',
+    document: 'portfolio-document',
+  },
+  certification: {
+    image: 'certification-image',
+    thumbnail: 'certification-thumbnail',
+    document: 'certification-document',
+  },
+} as const satisfies Record<
+  FileGroup,
+  { image: UploadRole; thumbnail: UploadRole; document: UploadRole }
+>;
+
+/**
+ * One image, as two objects and the row that will point at them.
  *
  * The thumbnail goes up alongside the full image rather than being derived
  * later: twenty full-size images is several megabytes before a visitor has
  * clicked anything, and on a phone that is the difference between a profile
- * that loads and one that is closed.
+ * that loads and one that is closed. `group` picks the section the object is
+ * stored for; the compression and the shape are identical for both, to the same
+ * ceilings the API signs.
  */
-export async function uploadPortfolioImage(file: File): Promise<Uploaded<DraftFile>> {
-  const compressed = await compressImage(file, {
-    full: LIMITS.portfolioImage,
-    thumb: LIMITS.portfolioThumbnail,
-  });
+export async function uploadImage(file: File, group: FileGroup): Promise<Uploaded<DraftFile>> {
+  const limits =
+    group === 'portfolio'
+      ? { full: LIMITS.portfolioImage, thumb: LIMITS.portfolioThumbnail }
+      : { full: LIMITS.certificationImage, thumb: LIMITS.certificationThumbnail };
+  const compressed = await compressImage(file, limits);
   if (!compressed.ok) return compressed;
 
   const { full, thumb, width, height } = compressed.image;
 
+  // The role comes from a typed lookup, so the string is a real upload role,
+  // and WebP is valid for both the full and the thumbnail role of either group.
   const uploadedFull = await put(
-    { role: 'portfolio-image', contentType: 'image/webp', byteSize: full.size },
+    { role: ROLES[group].image, contentType: 'image/webp', byteSize: full.size },
     full,
   );
   if (!uploadedFull.ok) return uploadedFull;
 
   const uploadedThumb = await put(
-    { role: 'portfolio-thumbnail', contentType: 'image/webp', byteSize: thumb.size },
+    { role: ROLES[group].thumbnail, contentType: 'image/webp', byteSize: thumb.size },
     thumb,
   );
   if (!uploadedThumb.ok) return uploadedThumb;
@@ -150,20 +187,21 @@ export async function uploadPortfolioImage(file: File): Promise<Uploaded<DraftFi
 }
 
 /**
- * One portfolio document, uploaded as it is.
+ * One document, uploaded as it is.
  *
  * Not re-encoded: rewriting somebody's PDF in a browser risks handing back a
- * broken one, and a case study that will not open is worse than a large one.
- * The size limit is the whole of the bargain, and it is enforced here so the
- * person is told before a slow upload rather than after it.
+ * broken one, and a document that will not open is worse than a large one. The
+ * size limit is the whole of the bargain, and it is enforced here so the person
+ * is told before a slow upload rather than after it.
  */
-export async function uploadPortfolioDocument(file: File): Promise<Uploaded<DraftFile>> {
+export async function uploadDocument(file: File, group: FileGroup): Promise<Uploaded<DraftFile>> {
   if (file.type !== 'application/pdf') {
     return { ok: false, message: 'Attach a PDF. Export from Word or Pages if you need to.' };
   }
 
-  if (file.size > LIMITS.portfolioDocument) {
-    const megabytes = Math.floor(LIMITS.portfolioDocument / 1_000_000);
+  const limit = group === 'portfolio' ? LIMITS.portfolioDocument : LIMITS.certificationDocument;
+  if (file.size > limit) {
+    const megabytes = Math.floor(limit / 1_000_000);
     return { ok: false, message: `That document is over ${megabytes}MB. Try a smaller file.` };
   }
 
@@ -172,7 +210,7 @@ export async function uploadPortfolioDocument(file: File): Promise<Uploaded<Draf
   }
 
   const uploaded = await put(
-    { role: 'portfolio-document', contentType: 'application/pdf', byteSize: file.size },
+    { role: ROLES[group].document, contentType: 'application/pdf', byteSize: file.size },
     file,
   );
   if (!uploaded.ok) return uploaded;
@@ -201,10 +239,21 @@ export const LIMITS = {
   portfolioImage: 5_000_000,
   portfolioThumbnail: 200_000,
   portfolioDocument: 10_000_000,
+  certificationImage: 5_000_000,
+  certificationThumbnail: 200_000,
+  certificationDocument: 10_000_000,
 } as const;
 
-/** What a person may attach to one piece, mirrored from `PORTFOLIO_FILE_LIMITS`. */
-export const PIECE_LIMITS = { images: 20, documents: 5 } as const;
+/**
+ * What a person may attach to one piece or one certification.
+ *
+ * The same ceiling for both, mirrored from `PORTFOLIO_FILE_LIMITS` /
+ * `LICENSE_FILE_LIMITS`, which the API keeps equal.
+ */
+export const FILE_LIMITS = { images: 20, documents: 5 } as const;
+
+/** @deprecated Use {@link FILE_LIMITS}. Kept so existing imports keep resolving. */
+export const PIECE_LIMITS = FILE_LIMITS;
 
 /** The types the file picker offers, which are the types the API will sign. */
 export const ACCEPT = {

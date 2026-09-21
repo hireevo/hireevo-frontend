@@ -2,7 +2,23 @@
 
 import { useRef, useState } from 'react';
 
-export type Entry<F extends string> = { key: string; values: Record<F, string> };
+import type { DraftFile } from '@/features/media/upload.ts';
+
+/**
+ * One entry's fields, and — for the sections that carry them — its attachments.
+ *
+ * `files` is only ever set on certifications, which attach a scan or a PDF of
+ * the certificate the way a portfolio piece attaches its images. Every other
+ * list leaves it absent, so it costs those sections nothing.
+ */
+export type Entry<F extends string> = {
+  key: string;
+  values: Record<F, string>;
+  files?: DraftFile[];
+};
+
+/** An entry as it is seeded — its fields, and optionally its attachments. */
+export type EntryInput<F extends string> = Partial<Record<F, string>> & { files?: DraftFile[] };
 export type EntryErrors = Readonly<Record<string, string>>;
 
 /** The key an entry field's error is kept under. */
@@ -78,11 +94,15 @@ export function useEntries<F extends string>(
    * a saved one. Nothing takes focus: this is the page catching up with the
    * server, not something the person just added.
    */
-  function reset(rows: readonly Partial<Record<F, string>>[]) {
-    const replacement = rows.map((values) => {
+  function reset(rows: readonly EntryInput<F>[]) {
+    const replacement = rows.map(({ files, ...values }) => {
       const key = `${prefix}-${next.current}`;
       next.current += 1;
-      return { key, values: { ...blank(fields), ...values } };
+      return {
+        key,
+        values: { ...blank(fields), ...values },
+        ...(files === undefined ? {} : { files }),
+      };
     });
     setItems(
       replacement.length > 0
@@ -110,6 +130,16 @@ export function useEntries<F extends string>(
     setErrors((current) => withoutKey(current, errorKey(key, field)));
   }
 
+  /**
+   * Replaces one entry's attachments.
+   *
+   * Only certifications use this; the files ride beside the fields rather than
+   * inside them because a file is a record of several values, not a string.
+   */
+  function setFiles(key: string, files: DraftFile[]) {
+    setItems((current) => current.map((item) => (item.key === key ? { ...item, files } : item)));
+  }
+
   const filled = (item: Entry<F>) =>
     fields.every((field) => optional.includes(field) || item.values[field].trim() !== '');
 
@@ -120,6 +150,7 @@ export function useEntries<F extends string>(
     add,
     remove,
     update,
+    setFiles,
     reset,
     showErrors: (found: EntryErrors) => setErrors(found),
     /** Some entry still has an empty field. */
