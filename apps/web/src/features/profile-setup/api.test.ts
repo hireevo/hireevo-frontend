@@ -7,7 +7,6 @@ import {
   saveProfile,
   saveVisibility,
   toPayload,
-  uploadAvatar,
   type OwnProfile,
 } from './api.ts';
 
@@ -188,55 +187,6 @@ describe('saveVisibility', () => {
   it('reports a version conflict as a conflict', async () => {
     client.PUT.mockResolvedValueOnce(failed(409, 'VERSION_CONFLICT'));
     expect(await saveVisibility(settings)).toMatchObject({ ok: false, kind: 'conflict' });
-  });
-});
-
-describe('uploadAvatar', () => {
-  const ticket = {
-    url: 'https://storage.example/hireevo',
-    fields: { key: 'avatars/p1/abc.png', policy: 'p', 'x-amz-signature': 's' },
-    key: 'avatars/p1/abc.png',
-    expiresAt: '2026-09-16T10:00:00Z',
-    maxBytes: 5_000_000,
-  };
-  const file = (type = 'image/png', size = 1000) =>
-    Object.defineProperty(new File(['x'], 'photo.png', { type }), 'size', { value: size });
-
-  it('sends the bytes to storage, not through the API, and answers with the key to claim', async () => {
-    client.POST.mockResolvedValueOnce(ok(ticket));
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
-
-    expect(await uploadAvatar(file())).toEqual({ ok: true, key: ticket.key });
-
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(ticket.url);
-    const sent = init.body as FormData;
-    // The signed fields come before the file, which is what S3-compatible
-    // storage requires of a pre-signed post.
-    expect([...sent.keys()]).toEqual(['key', 'policy', 'x-amz-signature', 'file']);
-
-    vi.unstubAllGlobals();
-  });
-
-  it('refuses a file the profile cannot store, before asking for a ticket', async () => {
-    expect(await uploadAvatar(file('image/gif'))).toMatchObject({ ok: false });
-    expect(client.POST).not.toHaveBeenCalled();
-  });
-
-  it('refuses a file over the size the ticket allows', async () => {
-    client.POST.mockResolvedValueOnce(ok(ticket));
-    const result = await uploadAvatar(file('image/png', 6_000_000));
-    expect(result).toMatchObject({ ok: false });
-    expect(result.ok ? '' : result.message).toMatch(/5MB/);
-  });
-
-  it('says the photo was not stored when storage refuses it', async () => {
-    client.POST.mockResolvedValueOnce(ok(ticket));
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
-
-    expect(await uploadAvatar(file())).toMatchObject({ ok: false });
-    vi.unstubAllGlobals();
   });
 });
 

@@ -4,9 +4,8 @@ import { useId, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { AvatarPicker } from './avatar-picker.tsx';
-import type { ProfileDraft, ProfileLanguage } from './draft.ts';
+import type { ProfileDraft } from './draft.ts';
 import { InlineEdit } from './inline-edit.tsx';
-import { LanguageAdder } from './language-adder.tsx';
 
 const CONTROL = 'h-9 rounded-lg px-3 text-[0.8125rem] font-semibold';
 
@@ -125,11 +124,16 @@ export function ProfileHeaderCard({
   editable,
   onChange,
 }: ProfileHeaderCardProps) {
-  const addLanguage = (language: ProfileLanguage) =>
-    onChange({ languages: [...draft.languages, language] });
-
-  const removeLanguage = (name: string) =>
-    onChange({ languages: draft.languages.filter((language) => language.name !== name) });
+  /**
+   * Only the starred ones sit beside the name.
+   *
+   * Adding, starring and removing all happen in the Languages section further
+   * down the page. This card is the one the published profile draws, so it
+   * shows what that shows and nothing else — and a control that added a
+   * language here would have been in the one place a new language usually does
+   * not appear.
+   */
+  const starred = draft.languages.filter((language) => language.starred);
 
   return (
     // Wraps only below `sm`, where three columns leave none of them usable.
@@ -193,19 +197,16 @@ export function ProfileHeaderCard({
             />
           </span>
 
-          <span className="inline-flex flex-wrap items-center gap-2">
-            <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
-            {draft.languages.map((language) => (
-              <Chip
-                key={language.name}
-                {...(editable ? { onRemove: () => removeLanguage(language.name) } : {})}
-                removeLabel={`Remove ${language.name}`}
-              >
-                {language.name} &middot; {language.proficiency}
-              </Chip>
-            ))}
-            {editable ? <LanguageAdder chosen={draft.languages} onAdd={addLanguage} /> : null}
-          </span>
+          {starred.length === 0 ? null : (
+            <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
+              <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+              {starred.map((language) => (
+                <Chip key={language.name}>
+                  {language.name} &middot; {language.proficiency}
+                </Chip>
+              ))}
+            </span>
+          )}
         </div>
       </div>
 

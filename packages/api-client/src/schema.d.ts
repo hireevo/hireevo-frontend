@@ -385,7 +385,7 @@ export interface paths {
         put?: never;
         /**
          * Publish the profile
-         * @description Applies a stricter schema than autosave; failures answer 400 with one issue per field. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
+         * @description Nothing is required: a half-written profile is its owner’s to publish, and the visibility settings decide what any of it reveals. A suspended profile answers 403. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
          */
         post: operations["ProfilesController_publish_v1"];
         delete?: never;
@@ -431,7 +431,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profiles/me/avatar-upload": {
+    "/api/v1/profiles/me/uploads": {
         parameters: {
             query?: never;
             header?: never;
@@ -441,10 +441,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * A signed upload for the caller’s profile photo
-         * @description The bytes go straight to storage, never through this API (ADR-004). Post the returned fields and the file to the returned URL, then claim the key with a normal PATCH of the profile. The signature states the key, the type and a size range, so storage refuses anything else.
+         * A signed upload for one of the caller’s files
+         * @description The bytes go straight to storage, never through this API (ADR-004). PUT the file to the returned URL with the returned headers, then claim the key with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for a portfolio image or document. The role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else.
          */
-        post: operations["ProfilesController_avatarUpload_v1"];
+        post: operations["ProfilesController_requestUpload_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -684,6 +684,7 @@ export interface components {
                 languages: {
                     name: string;
                     proficiency: ("basic" | "conversational" | "fluent" | "native") | null;
+                    starred: boolean;
                 }[];
                 skills: {
                     name: string;
@@ -715,6 +716,19 @@ export interface components {
                     title: string;
                     url: string | null;
                     summary: string | null;
+                    files: {
+                        /** @enum {string} */
+                        kind: "image" | "document";
+                        url: string;
+                        thumbUrl: string | null;
+                        objectKey: string;
+                        thumbKey: string | null;
+                        contentType: string;
+                        byteSize: number;
+                        width: number | null;
+                        height: number | null;
+                        fileName: string | null;
+                    }[];
                 }[];
             };
             visibility: {
@@ -772,6 +786,7 @@ export interface components {
                 languages?: {
                     name: string;
                     proficiency?: ("basic" | "conversational" | "fluent" | "native") | null;
+                    starred?: boolean;
                 }[];
                 skills?: {
                     name: string;
@@ -802,6 +817,17 @@ export interface components {
                     title: string;
                     url?: string | null;
                     summary?: string | null;
+                    files?: {
+                        /** @enum {string} */
+                        kind: "image" | "document";
+                        objectKey: string;
+                        thumbKey?: string | null;
+                        contentType: string;
+                        byteSize: number;
+                        width?: number | null;
+                        height?: number | null;
+                        fileName?: string | null;
+                    }[];
                 }[];
             };
         };
@@ -851,18 +877,39 @@ export interface components {
             changedAt: string;
             changeReason: string | null;
         }[];
-        AvatarUploadRequest: {
+        UploadRequest: {
+            /** @constant */
+            role: "avatar";
             /** @enum {string} */
             contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-image";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-thumbnail";
+            /** @constant */
+            contentType: "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-document";
+            /** @enum {string} */
+            contentType: "application/pdf";
+            byteSize: number;
         };
         UploadTicket: {
             url: string;
-            fields: {
+            headers: {
                 [key: string]: string;
             };
             key: string;
             expiresAt: string;
-            maxBytes: number;
+            byteSize: number;
         };
         PublicProfileResponse: {
             slug: string;
@@ -882,6 +929,7 @@ export interface components {
             languages: {
                 name: string;
                 proficiency: string | null;
+                starred: boolean;
             }[];
             skills: {
                 name: string;
@@ -911,6 +959,19 @@ export interface components {
                 title: string;
                 url: string | null;
                 summary: string | null;
+                files: {
+                    /** @enum {string} */
+                    kind: "image" | "document";
+                    url: string;
+                    thumbUrl: string | null;
+                    objectKey: string;
+                    thumbKey: string | null;
+                    contentType: string;
+                    byteSize: number;
+                    width: number | null;
+                    height: number | null;
+                    fileName: string | null;
+                }[];
             }[];
             videoIntroUrl: string | null;
             searchIndexable: boolean;
@@ -1675,15 +1736,6 @@ export interface operations {
                     "application/json": components["schemas"]["OwnProfileResponse"];
                 };
             };
-            /** @description The request failed validation; `details.issues` names each field */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
             /** @description Not signed in */
             401: {
                 headers: {
@@ -1823,7 +1875,7 @@ export interface operations {
             };
         };
     };
-    ProfilesController_avatarUpload_v1: {
+    ProfilesController_requestUpload_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1832,7 +1884,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AvatarUploadRequest"];
+                "application/json": components["schemas"]["UploadRequest"];
             };
         };
         responses: {

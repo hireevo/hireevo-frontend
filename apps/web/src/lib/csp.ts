@@ -41,6 +41,17 @@ export function buildContentSecurityPolicy(nonce: string): string {
     connect: recaptchaEnabled ? ' https://www.google.com' : '',
   };
 
+  // The browser sends each file straight to storage and then loads it back
+  // (ADR-004), so both directives have to name those origins — a policy that
+  // does not blocks the upload before a request leaves the tab.
+  const storage =
+    env.NEXT_PUBLIC_STORAGE_ORIGINS === undefined
+      ? ''
+      : ` ${env.NEXT_PUBLIC_STORAGE_ORIGINS.split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin !== '')
+          .join(' ')}`;
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -56,9 +67,11 @@ export function buildContentSecurityPolicy(nonce: string): string {
     // without a nonce, and injecting a stylesheet is not script execution.
     // Tightening this is a separate change in how styles are delivered.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https:",
+    // `blob:` is the preview of a file chosen a moment ago, which this tab
+    // holds and has not uploaded yet.
+    `img-src 'self' blob: data: https:${storage}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin}${developmentOnly.connect}${recaptcha.connect}`,
+    `connect-src 'self' ${apiOrigin}${storage}${developmentOnly.connect}${recaptcha.connect}`,
     "manifest-src 'self'",
     // Only present when reCAPTCHA is on; the checkbox and any challenge render
     // in an iframe from google.com.

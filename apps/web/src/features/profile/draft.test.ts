@@ -11,31 +11,31 @@ describe('completionOf', () => {
     const completion = completionOf(NOTHING_FILLED);
     expect(completion.percent).toBe(0);
     expect(completion.done).toBe(0);
-    expect(completion.total).toBe(6);
+    expect(completion.total).toBe(7);
   });
 
-  it('matches the state the design draws', () => {
-    // The frame shows About, skills and work experience done, the other three
-    // rows to do, and "50% complete". If those ever disagree, it shows here.
+  it('lists every section as its own row, education and certifications apart', () => {
     const completion = completionOf(filled('about', 'skills', 'experience'));
-    expect(completion.percent).toBe(50);
+    // About (10) + Skills (20) + Work experience (10) = 40.
+    expect(completion.percent).toBe(40);
     expect(completion.done).toBe(3);
-    expect(completion.label).toBe('Strong');
+    expect(completion.label).toBe('Getting there');
     expect(completion.items.map((item) => [item.label, item.done])).toEqual([
       ['About section', true],
       ['Skills & expertise', true],
       ['Work experience', true],
-      ['Education & certifications', false],
+      ['Education', false],
+      ['Certifications', false],
       ['Portfolio', false],
       ['Add a video intro', false],
     ]);
   });
 
-  it('is worth twenty for what a buyer decides on, and ten for the rest', () => {
-    for (const section of ['skills', 'experience', 'portfolio'] as const) {
+  it('is worth twenty for skills, education and portfolio, and ten for the rest', () => {
+    for (const section of ['skills', 'education', 'portfolio'] as const) {
       expect(completionOf(filled(section)).percent).toBe(20);
     }
-    for (const section of ['about', 'education', 'certifications', 'videoIntro'] as const) {
+    for (const section of ['about', 'experience', 'certifications', 'videoIntro'] as const) {
       expect(completionOf(filled(section)).percent).toBe(10);
     }
   });
@@ -50,17 +50,17 @@ describe('completionOf', () => {
     expect(everything.label).toBe('Complete');
   });
 
-  it('counts education and certifications separately, and lists them together', () => {
-    const half = completionOf(filled('education'));
-    expect(half.percent).toBe(10);
-    // The row the design draws is one row, and it is not finished yet.
-    expect(half.items.find((item) => item.label === 'Education & certifications')?.done).toBe(
-      false,
-    );
+  it('counts education and certifications as two separate rows', () => {
+    const edu = completionOf(filled('education'));
+    // Education alone is worth twenty, and finishes only its own row.
+    expect(edu.percent).toBe(20);
+    expect(edu.items.find((item) => item.label === 'Education')?.done).toBe(true);
+    expect(edu.items.find((item) => item.label === 'Certifications')?.done).toBe(false);
 
     const both = completionOf(filled('education', 'certifications'));
-    expect(both.percent).toBe(20);
-    expect(both.items.find((item) => item.label === 'Education & certifications')?.done).toBe(true);
+    // Certifications adds its own ten.
+    expect(both.percent).toBe(30);
+    expect(both.items.find((item) => item.label === 'Certifications')?.done).toBe(true);
   });
 
   it('does not count visibility or rates, which are settings rather than profile', () => {

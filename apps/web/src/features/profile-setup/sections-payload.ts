@@ -1,3 +1,4 @@
+import { toClaim, type DraftFile } from '@/features/media/upload.ts';
 import type { Schema } from '@hireevo/api-client';
 
 /** The lists as the API accepts them. */
@@ -70,14 +71,33 @@ const skillLevel = (value: string | undefined): SkillLevel =>
 
 type Fields = Record<string, string>;
 
+/**
+ * A language as the editor holds it: its text, and whether it is starred.
+ *
+ * Starred is a boolean and the other sections travel as string maps, so it
+ * rides beside the fields rather than inside them. Encoding it as the string
+ * "true" would have worked today and rotted the first time someone compared it
+ * to a real boolean.
+ */
+export type LanguageInput = { fields: Fields; starred: boolean };
+
 export type SectionLists = {
-  languages?: readonly Fields[];
+  languages?: readonly LanguageInput[];
   skills?: readonly Fields[];
   experience?: readonly Fields[];
   education?: readonly Fields[];
   licenses?: readonly Fields[];
-  portfolio?: readonly Fields[];
+  portfolio?: readonly PortfolioInput[];
 };
+
+/**
+ * A portfolio piece as the editor holds it: its text and its attachments.
+ *
+ * The other sections are text alone, so they travel as a bare field map. This
+ * one carries files that are already in storage, each of which the save is
+ * about to claim.
+ */
+export type PortfolioInput = { fields: Fields; files?: readonly DraftFile[] };
 
 /**
  * Keeps only the entries something names, and only the lists that were passed.
@@ -100,10 +120,17 @@ function listOf<T>(
 export function toSectionsPayload(lists: SectionLists): SectionsPayload {
   const payload: SectionsPayload = {};
 
-  const languages = listOf(lists.languages, 'name', (fields, name) => ({
-    name,
-    proficiency: languageLevel(fields.proficiency),
-  }));
+  const languages = listOf(
+    lists.languages?.map((language) => language.fields),
+    'name',
+    (fields, name) => ({
+      name,
+      proficiency: languageLevel(fields.proficiency),
+      // Matched back by the field map's identity rather than by index: an
+      // unnamed language is dropped by `listOf`, so positions shift.
+      starred: lists.languages?.find((language) => language.fields === fields)?.starred ?? false,
+    }),
+  );
   if (languages !== undefined) payload.languages = languages;
 
   const skills = listOf(lists.skills, 'name', (fields, name) => ({
@@ -140,11 +167,18 @@ export function toSectionsPayload(lists: SectionLists): SectionsPayload {
   }));
   if (licenses !== undefined) payload.licenses = licenses;
 
-  const portfolio = listOf(lists.portfolio, 'title', (fields, title) => ({
-    title,
-    url: text(fields.url),
-    summary: text(fields.summary),
-  }));
+  const portfolio = listOf(
+    lists.portfolio?.map((piece) => piece.fields),
+    'title',
+    (fields, title) => ({
+      title,
+      url: text(fields.url),
+      summary: text(fields.summary),
+      // Matched back by the field map's identity rather than by index: an
+      // untitled piece is dropped by `listOf`, so positions shift.
+      files: (lists.portfolio?.find((piece) => piece.fields === fields)?.files ?? []).map(toClaim),
+    }),
+  );
   if (portfolio !== undefined) payload.portfolio = portfolio;
 
   return payload;
@@ -180,6 +214,7 @@ export function fromSavedSections(
     languages: sections.languages.map((entry) => ({
       name: entry.name,
       proficiency: labelled(entry.proficiency, languageOptions),
+      starred: entry.starred,
     })),
     skills: sections.skills.map((entry) => ({
       name: entry.name,
@@ -210,6 +245,7 @@ export function fromSavedSections(
       title: entry.title,
       url: shown(entry.url),
       summary: shown(entry.summary),
+      files: entry.files,
     })),
   };
 }

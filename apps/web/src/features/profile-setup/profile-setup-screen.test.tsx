@@ -500,7 +500,7 @@ describe('sectionsSavedIn', () => {
           rateAmountMinor: '100',
           sections: {
             ...NO_SECTIONS,
-            languages: [{ name: 'Urdu', proficiency: 'native' }],
+            languages: [{ name: 'Urdu', proficiency: 'native', starred: true }],
             skills: [{ name: 'Figma', proficiency: null, years: null, approved: true }],
           },
           visibility: {

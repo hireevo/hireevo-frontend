@@ -44,6 +44,43 @@ const NO_SECTIONS = {
   portfolio: [],
 };
 
+/** Every section the strength card counts, so the profile reads as finished. */
+const COMPLETE = {
+  overview: 'I map difficult journeys and ship accessible services.',
+  videoIntroUrl: 'https://vimeo.com/123456789',
+  sections: {
+    languages: [{ name: 'Urdu', proficiency: 'native', starred: true }],
+    skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
+    experience: [
+      {
+        role: 'Lead designer',
+        organization: 'Erste',
+        startDate: '2022-02-01',
+        endDate: null,
+        summary: 'Led discovery.',
+      },
+    ],
+    education: [
+      {
+        institution: 'University of Applied Arts Vienna',
+        qualification: 'MA',
+        fieldOfStudy: 'Service Design',
+        startDate: '2013-09-01',
+        endDate: '2017-06-30',
+      },
+    ],
+    licenses: [
+      {
+        name: 'Accessibility Fundamentals',
+        issuer: 'IDF',
+        issuedOn: '2025-03-10',
+        expiresOn: null,
+      },
+    ],
+    portfolio: [{ title: 'Checkout redesign', url: null, summary: null, files: [] }],
+  },
+} as Partial<OwnProfile>;
+
 const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
   ({
     id: 'p1',
@@ -90,7 +127,12 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
 
 /** A profile with a language on it, for the chips beside the person's name. */
 const withLanguage = () =>
-  stored({ sections: { ...NO_SECTIONS, languages: [{ name: 'English', proficiency: null }] } });
+  stored({
+    sections: {
+      ...NO_SECTIONS,
+      languages: [{ name: 'English', proficiency: null, starred: true }],
+    },
+  });
 
 const bar = () => screen.getByRole('progressbar', { name: 'Profile strength' });
 const section = (name: RegExp) => within(screen.getByRole('region', { name }));
@@ -140,7 +182,7 @@ describe('ProfileBuilder', () => {
     // name is text here and gains its pencil only in edit mode.
     expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 7 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -152,7 +194,7 @@ describe('ProfileBuilder', () => {
         locationCountry: 'AT',
         sections: {
           ...NO_SECTIONS,
-          languages: [{ name: 'German', proficiency: 'fluent' }],
+          languages: [{ name: 'German', proficiency: 'fluent', starred: false }],
           skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
         },
       }),
@@ -226,6 +268,131 @@ describe('ProfileBuilder', () => {
     expect(sections).toMatchObject({ skills: [{ name: 'Figma' }] });
   });
 
+  /**
+   * The card beside the name shows what was starred, and only that.
+   *
+   * It is the same card the published profile draws, so it has to say the same
+   * thing — otherwise the owner arranges one list and the world reads another.
+   * Editing is the exception: everything is listed then, because starring
+   * happens here and a language hidden from its own editor cannot be unstarred.
+   */
+  it('lists only starred languages beside the name, and all of them in the section', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [
+            { name: 'Urdu', proficiency: 'native', starred: true },
+            { name: 'German', proficiency: 'fluent', starred: false },
+          ],
+        },
+      }),
+    });
+    const user = await open();
+
+    // Scoped to the card beside the name: both languages exist on the page,
+    // and the whole point is which of them this card shows.
+    const nameCard = () => section(/Your name and details/);
+    expect(await screen.findByText('About')).toBeInTheDocument();
+    expect(nameCard().getByText(/Urdu/)).toBeInTheDocument();
+    expect(nameCard().queryByText(/German/)).not.toBeInTheDocument();
+
+    // The unstarred one is not missing, it is in the section that owns the
+    // list — which is also the only place it can be starred from.
+    await user.click(screen.getByRole('button', { name: /Complete your profile|Edit profile/ }));
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+
+    expect(
+      section(/Languages/).getByRole('button', { name: 'Show German beside my name' }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Starring is the only thing on this screen that changes another page.
+   *
+   * The header on the published profile lists the starred languages and
+   * nothing else, so the flag has to survive the trip from a click here,
+   * through the draft, into the save. Every step of that is somewhere it could
+   * be dropped silently — the language would still save, just never appear.
+   */
+  it('sends a starred language as starred', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [{ name: 'German', proficiency: 'fluent', starred: false }],
+        },
+      }),
+    });
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+    await user.click(
+      await section(/Languages/).findByRole('button', { name: 'Show German beside my name' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    expect(sections).toMatchObject({ languages: [{ name: 'German', starred: true }] });
+  });
+
+  it('unstars one that was starred', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [{ name: 'German', proficiency: 'fluent', starred: true }],
+        },
+      }),
+    });
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+    await user.click(
+      await section(/Languages/).findByRole('button', {
+        name: 'Stop showing German beside my name',
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    expect(sections).toMatchObject({ languages: [{ name: 'German', starred: false }] });
+  });
+
+  /**
+   * The defect this pair of buttons exists for.
+   *
+   * Publishing used to replace the edit button at a hundred per cent, so the
+   * moment somebody filled in their last section was the moment they could no
+   * longer change any of it — and starring a language, which only exists in
+   * edit mode, became unreachable on exactly the profiles most likely to want
+   * it.
+   */
+  it('still offers a way into editing once the profile is finished', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored(COMPLETE) });
+    const user = await open();
+
+    const edit = await screen.findByRole('button', { name: /Edit profile/ });
+    expect(screen.queryByRole('button', { name: /Complete your profile/ })).not.toBeInTheDocument();
+
+    await user.click(edit);
+    expect(screen.getByRole('button', { name: 'Edit portfolio' })).toBeInTheDocument();
+  });
+
+  it('offers Publish whether the profile is finished or not', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored() });
+    await open();
+    expect(await screen.findByRole('button', { name: /^Publish/ })).toBeInTheDocument();
+
+    // And the button that sits above it still asks for the missing sections.
+    expect(screen.getByRole('button', { name: /Complete your profile/ })).toBeInTheDocument();
+  });
+
   it('lets go of the browser draft once the save it was protecting lands', async () => {
     const user = await openForEditing();
     await user.click(screen.getByRole('button', { name: 'Edit About' }));
@@ -256,6 +423,42 @@ describe('ProfileBuilder', () => {
     expect(section(/Skills and expertise/).getByText('Figma')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
     expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  it('keeps every kind of section in the browser draft as it is typed', async () => {
+    // One section from each way the page persists work — a profile value, a
+    // second value, and two of the dated lists that each save on their own — so
+    // a section is never the one left out of the draft that survives the tab.
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+
+    await user.click(screen.getByRole('button', { name: 'Edit video intro' }));
+    await user.type(
+      await section(/Video intro/).findByLabelText('Link to your video'),
+      'https://vimeo.com/42',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
+    await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
+
+    await user.click(screen.getByRole('button', { name: 'Edit work experience' }));
+    await user.type(await section(/Work experience/).findByLabelText('Organization'), 'Acme');
+
+    await afterTheDraftIsWritten();
+
+    const raw = window.localStorage.getItem('hireevo.client-profile-draft.user-1');
+    expect(raw).not.toBeNull();
+    const draft = JSON.parse(raw ?? '{}') as {
+      identity: Record<string, string>;
+      skills: unknown[];
+      experience: unknown[];
+    };
+    expect(draft.identity.overview).toBe('Kept for later.');
+    expect(draft.identity.videoIntroUrl).toBe('https://vimeo.com/42');
+    expect(JSON.stringify(draft.skills)).toContain('Figma');
+    expect(JSON.stringify(draft.experience)).toContain('Acme');
   });
 
   it('opens the skills editor inside its card and closes back to a summary', async () => {
@@ -315,14 +518,15 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '30');
   });
 
-  it('removes a language from the header', async () => {
+  it('removes a language from the section that owns the list', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: withLanguage() });
     const user = await openForEditing();
-    expect(await screen.findByRole('button', { name: 'Remove English' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
 
-    await user.click(screen.getByRole('button', { name: 'Remove English' }));
+    const languages = section(/Languages/);
+    await user.click(await languages.findByRole('button', { name: 'Remove English' }));
 
-    expect(screen.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
+    expect(languages.queryByRole('button', { name: 'Remove English' })).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
   });
 
@@ -377,7 +581,7 @@ describe('ProfileBuilder', () => {
     for (const name of [
       'Edit display name: Sophie',
       'Edit location: Austria',
-      'Add languages',
+      'Edit languages',
       'Save',
     ]) {
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
@@ -386,7 +590,7 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: /Complete your profile/ }));
 
-    for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Add languages']) {
+    for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Edit languages']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
@@ -397,15 +601,35 @@ describe('ProfileBuilder', () => {
     const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);
 
-    // The corner opens the section; the control inside it adds a piece.
+    // The corner opens the section; the control inside it adds a piece. There
+    // is no Save on the piece: a portfolio piece is edited in place, because
+    // attaching twenty images to it is something done over more than one
+    // sitting rather than inside one submit.
     await user.click(screen.getByRole('button', { name: 'Edit portfolio' }));
     await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
     await user.type(portfolio().getByLabelText('Title'), 'Checkout redesign');
-    await user.click(portfolio().getByRole('button', { name: 'Save' }));
     await user.click(portfolio().getByRole('button', { name: 'Close' }));
 
     expect(portfolio().getByText('Checkout redesign')).toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
+  });
+
+  it('keeps editing a piece it has already added, rather than only adding and deleting', async () => {
+    const user = await openForEditing();
+    const portfolio = () => section(/Portfolio/);
+
+    await user.click(screen.getByRole('button', { name: 'Edit portfolio' }));
+    await user.click(await portfolio().findByRole('button', { name: 'Add portfolio' }));
+
+    const title = portfolio().getByLabelText('Title');
+    await user.type(title, 'Checkout');
+    await user.type(title, ' redesign');
+
+    expect(title).toHaveValue('Checkout redesign');
+    // Both attachment controls are there from the start, each stating how much
+    // room is left, so nobody has to guess whether twenty is the limit.
+    expect(portfolio().getByText('0 of 20')).toBeInTheDocument();
+    expect(portfolio().getByText('0 of 5')).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {

@@ -28,16 +28,18 @@ describe('toSectionsPayload', () => {
     expect(
       toSectionsPayload({
         languages: [
-          { name: 'Urdu', proficiency: 'Native or bilingual' },
-          { name: 'German', proficiency: 'Conversational' },
-          { name: 'French', proficiency: '' },
+          { fields: { name: 'Urdu', proficiency: 'Native or bilingual' }, starred: true },
+          { fields: { name: 'German', proficiency: 'Conversational' }, starred: false },
+          { fields: { name: 'French', proficiency: '' }, starred: false },
         ],
       }),
     ).toEqual({
       languages: [
-        { name: 'Urdu', proficiency: 'native' },
-        { name: 'German', proficiency: 'conversational' },
-        { name: 'French', proficiency: null },
+        // Starred travels with the entry it belongs to, matched by the field
+        // map rather than by index — the unnamed ones are dropped on the way.
+        { name: 'Urdu', proficiency: 'native', starred: true },
+        { name: 'German', proficiency: 'conversational', starred: false },
+        { name: 'French', proficiency: null, starred: false },
       ],
     });
   });
@@ -93,7 +95,7 @@ describe('fromSavedSections', () => {
   it('names a stored level the way its own list offers it', () => {
     const shown = fromSavedSections(
       saved({
-        languages: [{ name: 'Urdu', proficiency: 'native' }],
+        languages: [{ name: 'Urdu', proficiency: 'native', starred: true }],
         skills: [{ name: 'Figma', proficiency: 'expert', years: 7, approved: true }],
       }),
       {

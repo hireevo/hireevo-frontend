@@ -48,7 +48,7 @@ test('shows every section a freelancer can share', async ({ page }) => {
   for (const name of [
     'About',
     'Video intro',
-    'Skills',
+    'Skills and expertise',
     'Languages',
     'Work experience',
     'Education',
@@ -60,7 +60,33 @@ test('shows every section a freelancer can share', async ({ page }) => {
 
   // The rate is shown in its currency rather than in minor units, and says
   // what it buys — the fixture prices a week.
-  await expect(page.getByText('per week')).toBeVisible();
+  // Scoped to the sidebar: the period also appears in prose elsewhere on the
+  // page, and an assertion that matches two things is one that will start
+  // failing for a reason nobody intended.
+  await expect(page.getByRole('complementary').getByText('/ week', { exact: true })).toBeVisible();
+});
+
+/**
+ * Starring is what decides the header, and the section is what decides nothing.
+ *
+ * Worth a test of its own because the two lists come from the same array and
+ * the difference between them is one `.filter`. Losing it would not fail a type
+ * check or look wrong in a screenshot — the header would simply go back to
+ * listing every language, which is the behaviour this feature replaced.
+ */
+test('shows only starred languages beside the name, and all of them in the section', async ({
+  page,
+}) => {
+  await open(page);
+
+  const header = page.getByRole('banner').or(page.locator('main > div > section').first());
+  await expect(header.getByText('Urdu (native)')).toBeVisible();
+  await expect(header.getByText('Portuguese', { exact: false })).toBeHidden();
+
+  const languages = page.getByRole('region', { name: 'Languages' });
+  for (const name of ['Urdu', 'English', 'Portuguese']) {
+    await expect(languages.getByText(name, { exact: true })).toBeVisible();
+  }
 });
 
 test('sends a visitor to the video rather than framing it', async ({ page }) => {
