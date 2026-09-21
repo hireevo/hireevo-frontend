@@ -385,7 +385,7 @@ export interface paths {
         put?: never;
         /**
          * Publish the profile
-         * @description Applies a stricter schema than autosave; failures answer 400 with one issue per field. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
+         * @description Nothing is required: a half-written profile is its owner’s to publish, and the visibility settings decide what any of it reveals. A suspended profile answers 403. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.
          */
         post: operations["ProfilesController_publish_v1"];
         delete?: never;
@@ -1734,15 +1734,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnProfileResponse"];
-                };
-            };
-            /** @description The request failed validation; `details.issues` names each field */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Not signed in */

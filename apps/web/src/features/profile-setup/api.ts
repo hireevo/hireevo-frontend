@@ -302,7 +302,14 @@ export type PublishResult =
   | { ok: false; kind: 'conflict'; message: string }
   | { ok: false; kind: 'failed'; message: string };
 
-/** Publishes the profile. The API checks it against a stricter schema than a save. */
+/**
+ * Publishes the profile.
+ *
+ * Nothing about the profile is required — a half-written one is its owner's to
+ * publish. The `incomplete` shape stays because it describes any field-level
+ * refusal the API might make in future, not the completeness gate that used to
+ * produce it.
+ */
 export async function publishProfile(): Promise<PublishResult> {
   try {
     const { data, error, response } = await api.POST('/api/v1/profiles/me/publish');

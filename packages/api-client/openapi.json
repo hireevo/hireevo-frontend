@@ -921,7 +921,7 @@
     },
     "/api/v1/profiles/me/publish": {
       "post": {
-        "description": "Applies a stricter schema than autosave; failures answer 400 with one issue per field. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.",
+        "description": "Nothing is required: a half-written profile is its owner’s to publish, and the visibility settings decide what any of it reveals. A suspended profile answers 403. Publishing a profile that is already published changes nothing and answers 200. An edit landing at the same moment answers 409 VERSION_CONFLICT.",
         "operationId": "ProfilesController_publish_v1",
         "parameters": [],
         "responses": {
@@ -931,16 +931,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OwnProfileResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The request failed validation; `details.issues` names each field",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
