@@ -431,6 +431,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/me/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller’s own profile as the public would see it
+         * @description The same serializer the public route uses, over the same row, so a preview cannot show something the published page would not. Unlike that route it does not require the profile to be published or public — a preview exists to be looked at before publishing, and only its owner can reach it.
+         */
+        get: operations["ProfilesController_preview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles/me/uploads": {
         parameters: {
             query?: never;
@@ -901,58 +921,6 @@ export interface components {
             changedAt: string;
             changeReason: string | null;
         }[];
-        UploadRequest: {
-            /** @constant */
-            role: "avatar";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-image";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-thumbnail";
-            /** @constant */
-            contentType: "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-document";
-            /** @enum {string} */
-            contentType: "application/pdf";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-image";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-thumbnail";
-            /** @constant */
-            contentType: "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-document";
-            /** @enum {string} */
-            contentType: "application/pdf";
-            byteSize: number;
-        };
-        UploadTicket: {
-            url: string;
-            headers: {
-                [key: string]: string;
-            };
-            key: string;
-            expiresAt: string;
-            byteSize: number;
-        };
         PublicProfileResponse: {
             slug: string;
             displayName: string | null;
@@ -1031,6 +999,58 @@ export interface components {
             videoIntroUrl: string | null;
             searchIndexable: boolean;
             publishedAt: string | null;
+        };
+        UploadRequest: {
+            /** @constant */
+            role: "avatar";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-image";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-thumbnail";
+            /** @constant */
+            contentType: "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "portfolio-document";
+            /** @enum {string} */
+            contentType: "application/pdf";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-image";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-thumbnail";
+            /** @constant */
+            contentType: "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-document";
+            /** @enum {string} */
+            contentType: "application/pdf";
+            byteSize: number;
+        };
+        UploadTicket: {
+            url: string;
+            headers: {
+                [key: string]: string;
+            };
+            key: string;
+            expiresAt: string;
+            byteSize: number;
         };
     };
     responses: never;
@@ -1899,6 +1919,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileRevisionList"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ProfilesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileResponse"];
                 };
             };
             /** @description Not signed in */

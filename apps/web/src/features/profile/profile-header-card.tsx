@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useId, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
@@ -37,64 +38,63 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
     }
   }
 
-  // Both are drawn either way, as the design draws them. Before publishing they
-  // are refused rather than hidden, and say why: the API answers 404 for a
-  // profile that is not published, so the link would lead nowhere and the
-  // preview would open a missing page. `aria-disabled` rather than `disabled`
-  // keeps them in the tab order with their reason attached.
-  if (path === null || !published) {
-    const locked = cn(
-      buttonVariants({ variant: 'secondary', size: 'sm' }),
-      CONTROL,
-      'cursor-not-allowed bg-surface-muted text-content-muted hover:bg-surface-muted',
-    );
-
-    return (
-      <div className={COLUMN}>
-        <div className="flex items-center gap-2">
-          <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
-            <LuShare2 aria-hidden="true" className="size-3.5" />
-            Share
-          </button>
-          <button type="button" aria-disabled="true" aria-describedby={reasonId} className={locked}>
-            <LuExternalLink aria-hidden="true" className="size-3.5" />
-            Preview
-          </button>
-        </div>
-        {/* Under the buttons rather than beside them: the design's corner is
-            these two controls, and a sentence in front of them moves them. */}
-        <p id={reasonId} className="text-xs text-content-subtle">
-          Publish to share or preview
-        </p>
-      </div>
-    );
-  }
+  // Preview does not wait for publishing. It reads
+  // `/profiles/me/preview`, which serialises the owner's own profile through
+  // the same rules the public page uses — so the one moment somebody wants to
+  // see what they are about to put in front of buyers is a moment they can.
+  //
+  // Share still does wait, because there is nothing to share: the public route
+  // answers 404 until the profile is published, so a copied link would lead
+  // nowhere. It is refused rather than hidden, and says why. `aria-disabled`
+  // rather than `disabled` keeps it in the tab order with its reason attached.
+  const shareable = path !== null && published;
 
   return (
     <div className={COLUMN}>
       <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={() => void share()}
-          className={CONTROL}
-        >
-          <LuShare2 aria-hidden="true" className="size-3.5" />
-          Share
-        </Button>
-        <a
-          href={path}
-          target="_blank"
-          rel="noreferrer"
+        {shareable ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => void share()}
+            className={CONTROL}
+          >
+            <LuShare2 aria-hidden="true" className="size-3.5" />
+            Share
+          </Button>
+        ) : (
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-describedby={reasonId}
+            className={cn(
+              buttonVariants({ variant: 'secondary', size: 'sm' }),
+              CONTROL,
+              'cursor-not-allowed bg-surface-muted text-content-muted hover:bg-surface-muted',
+            )}
+          >
+            <LuShare2 aria-hidden="true" className="size-3.5" />
+            Share
+          </button>
+        )}
+
+        <Link
+          href="/profile/preview"
           className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), CONTROL)}
         >
           <LuExternalLink aria-hidden="true" className="size-3.5" />
           Preview
-        </a>
+        </Link>
       </div>
-      <p role="status" aria-live="polite" className="text-xs text-content-subtle">
-        {copied ? 'Link copied' : ''}
+
+      {/* Under the buttons rather than beside them: the design's corner is
+          these two controls, and a sentence in front of them moves them. */}
+      <p
+        {...(shareable ? { role: 'status', 'aria-live': 'polite' } : { id: reasonId })}
+        className="text-xs text-content-subtle"
+      >
+        {shareable ? (copied ? 'Link copied' : '') : 'Publish to share a link'}
       </p>
     </div>
   );
