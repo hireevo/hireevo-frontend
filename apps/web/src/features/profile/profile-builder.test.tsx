@@ -614,6 +614,44 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '20');
   });
 
+  it('shows a preview of a portfolio piece’s images, not a count of them', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              files: [
+                {
+                  kind: 'image',
+                  url: 'https://storage.test/full.png',
+                  thumbUrl: 'https://storage.test/thumb.png',
+                  objectKey: 'obj-1',
+                  thumbKey: 'thumb-1',
+                  contentType: 'image/png',
+                  byteSize: 1024,
+                  width: 800,
+                  height: 600,
+                  fileName: 'checkout.png',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    // The closed section shows the image itself, not the words "1 image".
+    const preview = await section(/Portfolio/).findByRole('img', { name: 'checkout.png' });
+    expect(preview).toHaveAttribute('src', 'https://storage.test/thumb.png');
+    expect(section(/Portfolio/).queryByText(/\bimage\b/)).not.toBeInTheDocument();
+  });
+
   it('keeps editing a piece it has already added, rather than only adding and deleting', async () => {
     const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);
