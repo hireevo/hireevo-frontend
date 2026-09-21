@@ -1,4 +1,5 @@
 import type { PublicProfile } from './api.ts';
+import type { MakerStats } from './maker-stats.ts';
 
 /**
  * A one-pixel image as a data URI.
@@ -119,4 +120,24 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
   ],
   searchIndexable: false,
   publishedAt: '2026-09-01T00:00:00.000Z',
+};
+
+/**
+ * The marketplace figures the design draws, for the preview only.
+ *
+ * Nothing here comes from the API — it cannot, because none of these fields
+ * exist yet. They live in the fixture so the sidebar can be reviewed and swept
+ * at its real height; the published page is passed no stats at all and renders
+ * that part of the design empty until there is something true to put in it.
+ */
+export const DESIGN_MAKER_STATS: MakerStats = {
+  jobSuccessRate: 100,
+  completedBriefs: 24,
+  responseTimeHours: 2,
+  fullTimeAvailability: true,
+  badges: [
+    { label: 'Punctual', tone: 'merit' },
+    { label: 'Verified Pro', tone: 'trust' },
+  ],
+  contactHref: '#contact-preview',
 };

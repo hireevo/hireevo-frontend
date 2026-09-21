@@ -48,7 +48,7 @@ test('shows every section a freelancer can share', async ({ page }) => {
   for (const name of [
     'About',
     'Video intro',
-    'Skills',
+    'Skills and expertise',
     'Languages',
     'Work experience',
     'Education',
@@ -60,7 +60,10 @@ test('shows every section a freelancer can share', async ({ page }) => {
 
   // The rate is shown in its currency rather than in minor units, and says
   // what it buys — the fixture prices a week.
-  await expect(page.getByText('per week')).toBeVisible();
+  // Scoped to the sidebar: the period also appears in prose elsewhere on the
+  // page, and an assertion that matches two things is one that will start
+  // failing for a reason nobody intended.
+  await expect(page.getByRole('complementary').getByText('/ week', { exact: true })).toBeVisible();
 });
 
 test('sends a visitor to the video rather than framing it', async ({ page }) => {

@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
-import { DESIGN_PUBLIC_PROFILE } from '@/features/public-profile/design-fixture.ts';
+import {
+  DESIGN_MAKER_STATS,
+  DESIGN_PUBLIC_PROFILE,
+} from '@/features/public-profile/design-fixture.ts';
 import { PublicProfileScreen } from '@/features/public-profile/public-profile-screen.tsx';
 
 export const metadata: Metadata = {
@@ -27,7 +30,11 @@ export default function PublicProfilePreviewPage() {
       >
         Design preview with sample content — none of it is account data.
       </aside>
-      <PublicProfileScreen profile={DESIGN_PUBLIC_PROFILE} />
+      {/* The stats are passed only here. The API does not return them yet, so
+          the published page renders none of them rather than showing a figure
+          nobody earned — but the design still has to be reviewable and swept
+          in full, which is what a fixture is for (§1.6). */}
+      <PublicProfileScreen profile={DESIGN_PUBLIC_PROFILE} stats={DESIGN_MAKER_STATS} />
     </>
   );
 }
