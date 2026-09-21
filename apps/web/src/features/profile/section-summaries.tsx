@@ -5,6 +5,7 @@
  * and filled, showing what is in it. A section that shows nothing once it has
  * something in it reads as empty, and the person fills it in twice.
  */
+import { type ReactNode } from 'react';
 
 /** "2022-02-01" as "Feb 2022". An unparseable date is shown as it was typed. */
 export function monthYear(iso: string): string {
@@ -31,6 +32,8 @@ export type SummaryRow = {
   primary: string;
   secondary: string;
   body?: string;
+  /** Anything the row shows below its text — the portfolio's image previews. */
+  media?: ReactNode;
 };
 
 export function SummaryList({ rows }: { rows: readonly SummaryRow[] }) {
@@ -47,6 +50,7 @@ export function SummaryList({ rows }: { rows: readonly SummaryRow[] }) {
               {row.body}
             </p>
           )}
+          {row.media === undefined ? null : <div className="mt-3">{row.media}</div>}
         </li>
       ))}
     </ul>

@@ -40,6 +40,12 @@ const imageOk = (width = 2048, height = 1365) => ({
 
 let sent: Array<[string, RequestInit]>;
 
+// Bound, because pulling a method off its object and putting it back later is
+// exactly what `unbound-method` is there to catch — and these two do belong to
+// `URL`.
+const realCreateObjectURL = URL.createObjectURL.bind(URL);
+const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+
 beforeEach(() => {
   vi.clearAllMocks();
   sent = [];
@@ -50,10 +56,23 @@ beforeEach(() => {
       return Promise.resolve({ ok: true });
     }),
   );
+  // Only these two are swapped, not the whole `URL` global: everything else
+  // here still needs the real constructor.
+  //
+  // These blobs have their `size` overridden so a test can describe a 300 KB
+  // image without holding 300 KB, and jsdom's own `createObjectURL` reaches
+  // inside the blob it is given — which made a jsdom upgrade fail two tests
+  // that are not about object URLs at all. What they assert is that a preview
+  // URL is produced and handed back, which a stub answers without pinning the
+  // environment's internals.
+  URL.createObjectURL = vi.fn(() => 'blob:preview-for-this-tab');
+  URL.revokeObjectURL = vi.fn();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  URL.createObjectURL = realCreateObjectURL;
+  URL.revokeObjectURL = realRevokeObjectURL;
 });
 
 describe('uploading a portfolio image', () => {
