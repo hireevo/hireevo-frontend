@@ -75,6 +75,7 @@ const COMPLETE = {
         issuer: 'IDF',
         issuedOn: '2025-03-10',
         expiresOn: null,
+        files: [],
       },
     ],
     portfolio: [{ title: 'Checkout redesign', url: null, summary: null, files: [] }],

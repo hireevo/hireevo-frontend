@@ -69,6 +69,9 @@ describe('what this app believes about uploads', () => {
     ['portfolio-image', LIMITS.portfolioImage],
     ['portfolio-thumbnail', LIMITS.portfolioThumbnail],
     ['portfolio-document', LIMITS.portfolioDocument],
+    ['certification-image', LIMITS.certificationImage],
+    ['certification-thumbnail', LIMITS.certificationThumbnail],
+    ['certification-document', LIMITS.certificationDocument],
   ])('agrees with the API about the largest a %s may be', (role, believed) => {
     expect(variantFor(role).properties.byteSize.maximum).toBe(believed);
   });

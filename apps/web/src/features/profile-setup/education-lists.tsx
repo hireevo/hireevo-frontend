@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import { cn } from '@hireevo/ui-web';
+import { AttachmentsEditor } from '@/features/media/attachments.tsx';
 import type { EDUCATION_FIELDS, LICENSE_FIELDS } from './entries-validation.ts';
 import { DATE_INPUT, border } from './entry-fields.ts';
 import { EntryPanel, ListHeader } from './entry-panel.tsx';
@@ -171,6 +172,18 @@ export function LicenseList({
                   >
                     {(control) => <input {...control} {...bind('expires')} {...DATE_INPUT} />}
                   </SetupField>
+                  {/* The scan or PDF of the certificate, attached the same way a
+                      portfolio piece attaches its images. Full width so the
+                      gallery and the pickers are not squeezed into one column. */}
+                  <div className="flex flex-col gap-3 sm:col-span-2">
+                    <AttachmentsEditor
+                      files={item.files ?? []}
+                      group="certification"
+                      onChange={(files) => licenses.setFiles(item.key, files)}
+                      imageLabel="Add images"
+                      documentLabel="Add PDF"
+                    />
+                  </div>
                 </div>
               )}
             </EntryPanel>

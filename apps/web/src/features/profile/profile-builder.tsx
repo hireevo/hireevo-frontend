@@ -55,6 +55,7 @@ import {
 import { EditButton } from './edit-button.tsx';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
+import { FileThumbnails } from '@/features/media/attachments.tsx';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { SectionCard } from './section-card.tsx';
 import {
@@ -163,7 +164,10 @@ export function ProfileBuilder() {
         skills: skills.items.map((item) => item.values),
         experience: experience.items.map((item) => item.values),
         education: education.items.map((item) => item.values),
-        licenses: licenses.items.map((item) => item.values),
+        licenses: licenses.items.map((item) => ({
+          fields: item.values,
+          files: item.files ?? [],
+        })),
         portfolio: portfolio.map((record) => ({
           fields: record.fields,
           files: record.files ?? [],
@@ -590,6 +594,7 @@ export function ProfileBuilder() {
                   key: item.key,
                   primary: item.values.name,
                   secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+                  media: <FileThumbnails files={item.files ?? []} />,
                 }))}
               />
             ) : undefined}

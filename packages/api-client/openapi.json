@@ -2145,9 +2145,81 @@
                     },
                     "expiresOn": {
                       "type": ["string", "null"]
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["image", "document"]
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "thumbUrl": {
+                            "type": ["string", "null"]
+                          },
+                          "objectKey": {
+                            "type": "string"
+                          },
+                          "thumbKey": {
+                            "type": ["string", "null"]
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "byteSize": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "width": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "height": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "fileName": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "url",
+                          "thumbUrl",
+                          "objectKey",
+                          "thumbKey",
+                          "contentType",
+                          "byteSize",
+                          "width",
+                          "height",
+                          "fileName"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
-                  "required": ["name", "issuer", "issuedOn", "expiresOn"],
+                  "required": ["name", "issuer", "issuedOn", "expiresOn", "files"],
                   "additionalProperties": false
                 }
               },
@@ -2840,6 +2912,83 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "files": {
+                      "maxItems": 25,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["image", "document"]
+                          },
+                          "objectKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "thumbKey": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 500
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "contentType": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "byteSize": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 10000000
+                          },
+                          "width": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 20000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "height": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 20000
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "fileName": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": ["kind", "objectKey", "contentType", "byteSize"]
+                      }
                     }
                   },
                   "required": ["name"]
@@ -3222,6 +3371,63 @@
               }
             },
             "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-image"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 5000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-thumbnail"
+              },
+              "contentType": {
+                "type": "string",
+                "const": "image/webp"
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 200000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-document"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["application/pdf"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
           }
         ]
       },
@@ -3417,9 +3623,81 @@
                 },
                 "expiresOn": {
                   "type": ["string", "null"]
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["image", "document"]
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "thumbUrl": {
+                        "type": ["string", "null"]
+                      },
+                      "objectKey": {
+                        "type": "string"
+                      },
+                      "thumbKey": {
+                        "type": ["string", "null"]
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "byteSize": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "width": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "height": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "fileName": {
+                        "type": ["string", "null"]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "url",
+                      "thumbUrl",
+                      "objectKey",
+                      "thumbKey",
+                      "contentType",
+                      "byteSize",
+                      "width",
+                      "height",
+                      "fileName"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               },
-              "required": ["name", "issuer", "issuedOn", "expiresOn"],
+              "required": ["name", "issuer", "issuedOn", "expiresOn", "files"],
               "additionalProperties": false
             }
           },

@@ -331,6 +331,7 @@ export function PublicProfileScreen({
                     <p className="mt-1 text-sm text-content-subtle">
                       {[entry.issuer, yearOf(entry.issuedOn)].filter(Boolean).join(' • ')}
                     </p>
+                    <CertificateFiles files={entry.files} name={entry.name} />
                   </li>
                 ))}
               </ol>
@@ -521,6 +522,74 @@ function RecordCard({ stats }: { stats: MakerStats }) {
  * Every cover reserves its space from the stored dimensions, so the titles
  * below do not jump down the page as the images arrive.
  */
+/**
+ * The scans and PDFs attached to one certification, as a reader sees them.
+ *
+ * The images are shown as thumbnails that open the full scan; documents are
+ * links, the same way a portfolio piece renders its own — a certificate is
+ * proof, so the point is that it can be looked at.
+ */
+function CertificateFiles({
+  files,
+  name,
+}: {
+  files: PublicProfile['licenses'][number]['files'];
+  name: string;
+}) {
+  const images = files.filter((file) => file.kind === 'image');
+  const documents = files.filter((file) => file.kind === 'document');
+
+  if (images.length === 0 && documents.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {images.length === 0 ? null : (
+        <ul className="grid grid-cols-3 gap-2 *:min-w-0 sm:grid-cols-4">
+          {images.map((image) => (
+            <li key={image.objectKey}>
+              <a
+                href={image.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block aspect-square overflow-hidden rounded-md bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+              >
+                {/* Not `next/image`: the source is object storage, whose host is
+                    configuration rather than something the optimiser is told
+                    about at build time. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.thumbUrl ?? image.url}
+                  alt={image.fileName ?? name}
+                  loading="lazy"
+                  className="size-full object-cover"
+                />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {documents.length === 0 ? null : (
+        <ul className="flex flex-col gap-1.5">
+          {documents.map((document) => (
+            <li key={document.objectKey}>
+              <a
+                href={document.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-fit max-w-full items-center gap-2 rounded-sm text-sm text-content-muted hover:text-content-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                <LuFileText aria-hidden="true" className="size-4 shrink-0" />
+                <span className="truncate">{document.fileName ?? 'Certificate'}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }) {
   const images = piece.files.filter((file) => file.kind === 'image');
   const documents = piece.files.filter((file) => file.kind === 'document');
