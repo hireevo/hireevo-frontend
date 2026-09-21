@@ -711,6 +711,19 @@ export interface components {
                     issuer: string | null;
                     issuedOn: string | null;
                     expiresOn: string | null;
+                    files: {
+                        /** @enum {string} */
+                        kind: "image" | "document";
+                        url: string;
+                        thumbUrl: string | null;
+                        objectKey: string;
+                        thumbKey: string | null;
+                        contentType: string;
+                        byteSize: number;
+                        width: number | null;
+                        height: number | null;
+                        fileName: string | null;
+                    }[];
                 }[];
                 portfolio: {
                     title: string;
@@ -812,6 +825,17 @@ export interface components {
                     issuer?: string | null;
                     issuedOn?: string | null;
                     expiresOn?: string | null;
+                    files?: {
+                        /** @enum {string} */
+                        kind: "image" | "document";
+                        objectKey: string;
+                        thumbKey?: string | null;
+                        contentType: string;
+                        byteSize: number;
+                        width?: number | null;
+                        height?: number | null;
+                        fileName?: string | null;
+                    }[];
                 }[];
                 portfolio?: {
                     title: string;
@@ -901,6 +925,24 @@ export interface components {
             /** @enum {string} */
             contentType: "application/pdf";
             byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-image";
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-thumbnail";
+            /** @constant */
+            contentType: "image/webp";
+            byteSize: number;
+        } | {
+            /** @constant */
+            role: "certification-document";
+            /** @enum {string} */
+            contentType: "application/pdf";
+            byteSize: number;
         };
         UploadTicket: {
             url: string;
@@ -954,6 +996,19 @@ export interface components {
                 issuer: string | null;
                 issuedOn: string | null;
                 expiresOn: string | null;
+                files: {
+                    /** @enum {string} */
+                    kind: "image" | "document";
+                    url: string;
+                    thumbUrl: string | null;
+                    objectKey: string;
+                    thumbKey: string | null;
+                    contentType: string;
+                    byteSize: number;
+                    width: number | null;
+                    height: number | null;
+                    fileName: string | null;
+                }[];
             }[];
             portfolio: {
                 title: string;
