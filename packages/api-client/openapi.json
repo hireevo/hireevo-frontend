@@ -2035,9 +2035,12 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "starred": {
+                      "type": "boolean"
                     }
                   },
-                  "required": ["name", "proficiency"],
+                  "required": ["name", "proficiency", "starred"],
                   "additionalProperties": false
                 }
               },
@@ -2634,6 +2637,9 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "starred": {
+                      "type": "boolean"
                     }
                   },
                   "required": ["name"]
@@ -3330,9 +3336,12 @@
                 },
                 "proficiency": {
                   "type": ["string", "null"]
+                },
+                "starred": {
+                  "type": "boolean"
                 }
               },
-              "required": ["name", "proficiency"],
+              "required": ["name", "proficiency", "starred"],
               "additionalProperties": false
             }
           },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
+import { LuExternalLink, LuGlobe, LuMapPin, LuShare2, LuStar } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { AvatarPicker } from './avatar-picker.tsx';
 import type { ProfileDraft, ProfileLanguage } from './draft.ts';
@@ -131,6 +131,19 @@ export function ProfileHeaderCard({
   const removeLanguage = (name: string) =>
     onChange({ languages: draft.languages.filter((language) => language.name !== name) });
 
+  /**
+   * Starring decides which languages appear beside the name on the published
+   * profile. Every one is still listed here, starred or not — this is where
+   * they are managed, and a language hidden from its own editor is one nobody
+   * can unstar.
+   */
+  const toggleStar = (name: string) =>
+    onChange({
+      languages: draft.languages.map((language) =>
+        language.name === name ? { ...language, starred: !language.starred } : language,
+      ),
+    });
+
   return (
     // Wraps only below `sm`, where three columns leave none of them usable.
     // From there the row holds: photo, details, and the two public controls in
@@ -201,6 +214,24 @@ export function ProfileHeaderCard({
                 {...(editable ? { onRemove: () => removeLanguage(language.name) } : {})}
                 removeLabel={`Remove ${language.name}`}
               >
+                {!editable ? null : (
+                  <button
+                    type="button"
+                    onClick={() => toggleStar(language.name)}
+                    aria-pressed={language.starred}
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-accent-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    <LuStar
+                      aria-hidden="true"
+                      className={`size-3.5 ${language.starred ? 'fill-current text-content-warning' : 'text-content-subtle'}`}
+                    />
+                    <span className="sr-only">
+                      {language.starred
+                        ? `Stop showing ${language.name} beside my name`
+                        : `Show ${language.name} beside my name`}
+                    </span>
+                  </button>
+                )}
                 {language.name} &middot; {language.proficiency}
               </Chip>
             ))}

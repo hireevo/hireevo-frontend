@@ -155,8 +155,8 @@ export function ProfileBuilder() {
     () =>
       toSectionsPayload({
         languages: languages.map((language) => ({
-          name: language.name,
-          proficiency: language.proficiency,
+          fields: { name: language.name, proficiency: language.proficiency },
+          starred: language.starred,
         })),
         skills: skills.items.map((item) => item.values),
         experience: experience.items.map((item) => item.values),
@@ -209,6 +209,7 @@ export function ProfileBuilder() {
         languages: saved.languages.map((language) => ({
           name: language.name,
           proficiency: asProficiency(language.proficiency),
+          starred: language.starred,
         })),
         records: {
           ...current.records,

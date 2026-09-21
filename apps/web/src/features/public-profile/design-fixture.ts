@@ -40,9 +40,9 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
   },
   videoIntroUrl: 'https://vimeo.com/123456789',
   languages: [
-    { name: 'Urdu', proficiency: 'native' },
-    { name: 'English', proficiency: 'fluent' },
-    { name: 'Portuguese', proficiency: 'conversational' },
+    { name: 'Urdu', proficiency: 'native', starred: true },
+    { name: 'English', proficiency: 'fluent', starred: false },
+    { name: 'Portuguese', proficiency: 'conversational', starred: false },
   ],
   skills: [
     {

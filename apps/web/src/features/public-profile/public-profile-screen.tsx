@@ -133,7 +133,11 @@ export function PublicProfileScreen({
       0;
 
   const name = profile.displayName ?? 'HireEvo profile';
+  // Only the starred ones sit beside the name. Someone may list six languages
+  // and work in two of them; the rest are still in the languages section below,
+  // which is where a reader goes to find out.
   const languageLine = profile.languages
+    .filter((language) => language.starred)
     .map((language) =>
       language.proficiency === null ? language.name : `${language.name} (${language.proficiency})`,
     )
@@ -291,50 +295,46 @@ export function PublicProfileScreen({
             </Card>
           )}
 
-          {profile.education.length === 0 && profile.licenses.length === 0 ? null : (
-            <div className="grid gap-5 *:min-w-0 sm:grid-cols-2">
-              {profile.education.length === 0 ? null : (
-                <Card title="Education">
-                  <ol className="mt-4 flex flex-col gap-4">
-                    {profile.education.map((entry, index) => (
-                      <li key={`education-${index}`}>
-                        <h3 className="text-base font-bold text-content-accent">
-                          {entry.qualification ?? entry.institution}
-                        </h3>
-                        {entry.qualification === null ? null : (
-                          <p className="mt-1 text-sm font-medium text-content-link">
-                            {entry.institution}
-                          </p>
-                        )}
-                        {yearOf(entry.endDate) === null ? null : (
-                          <p className="mt-1 text-sm text-content-subtle">
-                            Graduated {yearOf(entry.endDate)}
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                </Card>
-              )}
+          {profile.education.length === 0 ? null : (
+            <Card title="Education">
+              <ol className="mt-4 flex flex-col gap-4">
+                {profile.education.map((entry, index) => (
+                  <li key={`education-${index}`}>
+                    <h3 className="text-base font-bold text-content-accent">
+                      {entry.qualification ?? entry.institution}
+                    </h3>
+                    {entry.qualification === null ? null : (
+                      <p className="mt-1 text-sm font-medium text-content-link">
+                        {entry.institution}
+                      </p>
+                    )}
+                    {yearOf(entry.endDate) === null ? null : (
+                      <p className="mt-1 text-sm text-content-subtle">
+                        Graduated {yearOf(entry.endDate)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
 
-              {profile.licenses.length === 0 ? null : (
-                <Card title="Certifications">
-                  <ol className="mt-4 flex flex-col">
-                    {profile.licenses.map((entry, index) => (
-                      <li
-                        key={`license-${index}`}
-                        className={index === 0 ? '' : 'mt-4 border-t border-border-subtle pt-4'}
-                      >
-                        <h3 className="text-base font-bold text-content-accent">{entry.name}</h3>
-                        <p className="mt-1 text-sm text-content-subtle">
-                          {[entry.issuer, yearOf(entry.issuedOn)].filter(Boolean).join(' • ')}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
-                </Card>
-              )}
-            </div>
+          {profile.licenses.length === 0 ? null : (
+            <Card title="Certifications">
+              <ol className="mt-4 flex flex-col">
+                {profile.licenses.map((entry, index) => (
+                  <li
+                    key={`license-${index}`}
+                    className={index === 0 ? '' : 'mt-4 border-t border-border-subtle pt-4'}
+                  >
+                    <h3 className="text-base font-bold text-content-accent">{entry.name}</h3>
+                    <p className="mt-1 text-sm text-content-subtle">
+                      {[entry.issuer, yearOf(entry.issuedOn)].filter(Boolean).join(' • ')}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </Card>
           )}
 
           {profile.languages.length === 0 ? null : (

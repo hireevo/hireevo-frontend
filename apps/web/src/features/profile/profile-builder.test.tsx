@@ -90,7 +90,12 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
 
 /** A profile with a language on it, for the chips beside the person's name. */
 const withLanguage = () =>
-  stored({ sections: { ...NO_SECTIONS, languages: [{ name: 'English', proficiency: null }] } });
+  stored({
+    sections: {
+      ...NO_SECTIONS,
+      languages: [{ name: 'English', proficiency: null, starred: true }],
+    },
+  });
 
 const bar = () => screen.getByRole('progressbar', { name: 'Profile strength' });
 const section = (name: RegExp) => within(screen.getByRole('region', { name }));
@@ -152,7 +157,7 @@ describe('ProfileBuilder', () => {
         locationCountry: 'AT',
         sections: {
           ...NO_SECTIONS,
-          languages: [{ name: 'German', proficiency: 'fluent' }],
+          languages: [{ name: 'German', proficiency: 'fluent', starred: false }],
           skills: [{ name: 'Service design', proficiency: 'expert', years: 7, approved: true }],
         },
       }),
@@ -224,6 +229,56 @@ describe('ProfileBuilder', () => {
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
     const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
     expect(sections).toMatchObject({ skills: [{ name: 'Figma' }] });
+  });
+
+  /**
+   * Starring is the only thing on this screen that changes another page.
+   *
+   * The header on the published profile lists the starred languages and
+   * nothing else, so the flag has to survive the trip from a click here,
+   * through the draft, into the save. Every step of that is somewhere it could
+   * be dropped silently — the language would still save, just never appear.
+   */
+  it('sends a starred language as starred', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [{ name: 'German', proficiency: 'fluent', starred: false }],
+        },
+      }),
+    });
+    const user = await openForEditing();
+
+    await user.click(await screen.findByRole('button', { name: 'Show German beside my name' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    expect(sections).toMatchObject({ languages: [{ name: 'German', starred: true }] });
+  });
+
+  it('unstars one that was starred', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          languages: [{ name: 'German', proficiency: 'fluent', starred: true }],
+        },
+      }),
+    });
+    const user = await openForEditing();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Stop showing German beside my name' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    expect(sections).toMatchObject({ languages: [{ name: 'German', starred: false }] });
   });
 
   it('lets go of the browser draft once the save it was protecting lands', async () => {

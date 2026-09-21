@@ -684,6 +684,7 @@ export interface components {
                 languages: {
                     name: string;
                     proficiency: ("basic" | "conversational" | "fluent" | "native") | null;
+                    starred: boolean;
                 }[];
                 skills: {
                     name: string;
@@ -785,6 +786,7 @@ export interface components {
                 languages?: {
                     name: string;
                     proficiency?: ("basic" | "conversational" | "fluent" | "native") | null;
+                    starred?: boolean;
                 }[];
                 skills?: {
                     name: string;
@@ -927,6 +929,7 @@ export interface components {
             languages: {
                 name: string;
                 proficiency: string | null;
+                starred: boolean;
             }[];
             skills: {
                 name: string;

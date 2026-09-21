@@ -71,8 +71,18 @@ const skillLevel = (value: string | undefined): SkillLevel =>
 
 type Fields = Record<string, string>;
 
+/**
+ * A language as the editor holds it: its text, and whether it is starred.
+ *
+ * Starred is a boolean and the other sections travel as string maps, so it
+ * rides beside the fields rather than inside them. Encoding it as the string
+ * "true" would have worked today and rotted the first time someone compared it
+ * to a real boolean.
+ */
+export type LanguageInput = { fields: Fields; starred: boolean };
+
 export type SectionLists = {
-  languages?: readonly Fields[];
+  languages?: readonly LanguageInput[];
   skills?: readonly Fields[];
   experience?: readonly Fields[];
   education?: readonly Fields[];
@@ -110,10 +120,17 @@ function listOf<T>(
 export function toSectionsPayload(lists: SectionLists): SectionsPayload {
   const payload: SectionsPayload = {};
 
-  const languages = listOf(lists.languages, 'name', (fields, name) => ({
-    name,
-    proficiency: languageLevel(fields.proficiency),
-  }));
+  const languages = listOf(
+    lists.languages?.map((language) => language.fields),
+    'name',
+    (fields, name) => ({
+      name,
+      proficiency: languageLevel(fields.proficiency),
+      // Matched back by the field map's identity rather than by index: an
+      // unnamed language is dropped by `listOf`, so positions shift.
+      starred: lists.languages?.find((language) => language.fields === fields)?.starred ?? false,
+    }),
+  );
   if (languages !== undefined) payload.languages = languages;
 
   const skills = listOf(lists.skills, 'name', (fields, name) => ({
@@ -197,6 +214,7 @@ export function fromSavedSections(
     languages: sections.languages.map((entry) => ({
       name: entry.name,
       proficiency: labelled(entry.proficiency, languageOptions),
+      starred: entry.starred,
     })),
     skills: sections.skills.map((entry) => ({
       name: entry.name,

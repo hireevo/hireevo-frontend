@@ -104,7 +104,9 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
   const collect = useCallback(
     () =>
       toSectionsPayload({
-        languages: languages.items.map((item) => item.values),
+        // The wizard collects a language and its level; starring is done on
+        // the profile itself, where the header it affects is visible.
+        languages: languages.items.map((item) => ({ fields: item.values, starred: false })),
         skills: skills.items.map((item) => item.values),
         experience: experience.items.map((item) => item.values),
         education: education.items.map((item) => item.values),

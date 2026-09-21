@@ -5,7 +5,12 @@ export const PROFICIENCIES = ['Basic', 'Conversational', 'Fluent', 'Native or bi
 
 export type Proficiency = (typeof PROFICIENCIES)[number];
 
-export type ProfileLanguage = { name: string; proficiency: Proficiency };
+export type ProfileLanguage = {
+  name: string;
+  proficiency: Proficiency;
+  /** Shown beside the person's name on their public profile. */
+  starred: boolean;
+};
 
 /** The sections that hold a list of entries rather than a single value. */
 export type RecordSectionId = 'workExperience' | 'education' | 'certifications' | 'portfolio';
