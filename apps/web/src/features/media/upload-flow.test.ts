@@ -349,4 +349,22 @@ describe('uploading a profile photo', () => {
     );
     expect(asked[0]).toMatchObject({ role: 'avatar' });
   });
+
+  it('refuses a photo over 2MB before compressing or uploading it', async () => {
+    // The ceiling is on the file as it was chosen. Compression would bring
+    // almost anything under what storage accepts, so without this a limit on
+    // what someone may upload would not exist at all.
+    const file = Object.defineProperty(
+      new File(['x'], 'huge.jpg', { type: 'image/jpeg' }),
+      'size',
+      { value: 2_400_000 },
+    );
+
+    const result = await uploadProfilePhoto(file);
+
+    expect(result).toMatchObject({ ok: false });
+    expect(result.ok ? '' : result.message).toMatch(/2MB/);
+    expect(compressed.compressImage).not.toHaveBeenCalled();
+    expect(client.POST).not.toHaveBeenCalled();
+  });
 });

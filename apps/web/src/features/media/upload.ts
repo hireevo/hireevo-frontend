@@ -134,6 +134,17 @@ function send(
  * for a thumbnail would be stored and never read.
  */
 export async function uploadProfilePhoto(file: File): Promise<Uploaded<string>> {
+  // The file as it was chosen, before anything re-encodes it. A photo straight
+  // off a phone would compress to well under this and pass either way, so the
+  // ceiling is on what a person may hand over rather than on what is stored: a
+  // deliberate product limit, and one they can act on — crop it, or export it
+  // smaller — which "your photo was rejected by storage" is not.
+  if (file.size > AVATAR_SOURCE_LIMIT) {
+    const megabytes = Math.floor(AVATAR_SOURCE_LIMIT / 1_000_000);
+    return { ok: false, message: `That photo is over ${megabytes}MB. Choose a smaller one.` };
+  }
+  if (file.size === 0) return { ok: false, message: 'That file is empty.' };
+
   const compressed = await compressImage(file, {
     full: LIMITS.avatar,
     thumb: LIMITS.portfolioThumbnail,
@@ -294,6 +305,15 @@ export async function uploadDocument(
  * These are asserted against the generated contract by `upload.spec.ts`, which
  * is what keeps a copy from drifting into a lie (§6.1).
  */
+/**
+ * The largest profile photo a person may choose.
+ *
+ * Separate from `LIMITS.avatar`, which is the ceiling on the re-encoded object
+ * the browser sends: this one is about the file in the picker, and it is the
+ * number the message quotes.
+ */
+export const AVATAR_SOURCE_LIMIT = 2_000_000;
+
 export const LIMITS = {
   avatar: 2_000_000,
   portfolioImage: 5_000_000,
