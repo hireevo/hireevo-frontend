@@ -266,8 +266,8 @@ async function fillEverything(page: Page) {
   await skills.getByRole('group', { name: 'Language 1' }).getByRole('combobox').fill('Portuguese');
   await skills.getByRole('button', { name: 'Add language' }).click();
   await skills.getByRole('group', { name: 'Language 2' }).getByRole('combobox').fill('portuguese');
-  await skills.getByRole('button', { name: 'Add approved skill' }).click();
   const skill1 = skills.getByRole('group', { name: 'Skill 1' });
+  await skill1.getByLabel('Skill', { exact: true }).fill('Accessibility');
   await skill1.getByLabel('Proficiency', { exact: true }).fill('Intermediate');
   await skill1.getByLabel('Years', { exact: true }).fill('99');
   await skills.getByRole('button', { name: 'Add skill' }).click();
