@@ -270,6 +270,34 @@ describe('ProfileBuilder', () => {
   });
 
   /**
+   * Preview does not wait for publishing; Share does.
+   *
+   * The one moment somebody wants to see what they are about to put in front of
+   * buyers is the moment before they publish, and that was exactly when the
+   * button refused. Share still waits, because until the profile is published
+   * the public route answers 404 and a copied link would lead nowhere.
+   */
+  it('offers Preview on an unpublished profile, and withholds Share', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'draft' }) });
+    await open();
+
+    const preview = await screen.findByRole('link', { name: 'Preview' });
+    expect(preview).toHaveAttribute('href', '/profile/preview');
+
+    expect(screen.getByRole('button', { name: 'Share' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('Publish to share a link')).toBeInTheDocument();
+  });
+
+  it('offers Share once the profile is published', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'published' }) });
+    await open();
+
+    const share = await screen.findByRole('button', { name: 'Share' });
+    expect(share).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByText('Publish to share a link')).not.toBeInTheDocument();
+  });
+
+  /**
    * The card beside the name shows what was starred, and only that.
    *
    * It is the same card the published profile draws, so it has to say the same

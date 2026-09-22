@@ -1091,6 +1091,57 @@
         "tags": ["profiles"]
       }
     },
+    "/api/v1/profiles/me/preview": {
+      "get": {
+        "description": "The same serializer the public route uses, over the same row, so a preview cannot show something the published page would not. Unlike that route it does not require the profile to be published or public — a preview exists to be looked at before publishing, and only its owner can reach it.",
+        "operationId": "ProfilesController_preview_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The caller’s own profile as the public would see it",
+        "tags": ["profiles"]
+      }
+    },
     "/api/v1/profiles/me/uploads": {
       "post": {
         "description": "The bytes go straight to storage, never through this API (ADR-004). PUT the file to the returned URL with the returned headers, then claim the key with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for a portfolio image or document. The role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else.",
@@ -3293,175 +3344,6 @@
           "additionalProperties": false
         }
       },
-      "UploadRequest": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "avatar"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 2000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-image"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 5000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-thumbnail"
-              },
-              "contentType": {
-                "type": "string",
-                "const": "image/webp"
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 200000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-document"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["application/pdf"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 10000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-image"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 5000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-thumbnail"
-              },
-              "contentType": {
-                "type": "string",
-                "const": "image/webp"
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 200000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-document"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["application/pdf"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 10000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          }
-        ]
-      },
-      "UploadTicket": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "headers": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "key": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string"
-          },
-          "byteSize": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": ["url", "headers", "key", "expiresAt", "byteSize"],
-        "additionalProperties": false
-      },
       "PublicProfileResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -3822,6 +3704,175 @@
           "searchIndexable",
           "publishedAt"
         ],
+        "additionalProperties": false
+      },
+      "UploadRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "avatar"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 2000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-image"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 5000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-thumbnail"
+              },
+              "contentType": {
+                "type": "string",
+                "const": "image/webp"
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 200000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "portfolio-document"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["application/pdf"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-image"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["image/jpeg", "image/png", "image/webp"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 5000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-thumbnail"
+              },
+              "contentType": {
+                "type": "string",
+                "const": "image/webp"
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 200000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "certification-document"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": ["application/pdf"]
+              },
+              "byteSize": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": ["role", "contentType", "byteSize"]
+          }
+        ]
+      },
+      "UploadTicket": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "key": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["url", "headers", "key", "expiresAt", "byteSize"],
         "additionalProperties": false
       }
     }
