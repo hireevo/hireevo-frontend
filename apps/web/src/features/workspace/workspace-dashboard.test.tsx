@@ -189,9 +189,13 @@ describe('WorkspaceDashboard for a signed-in user', () => {
   it('links only to screens that exist', () => {
     renderReal();
     for (const link of screen.getAllByRole('link')) {
-      expect(['/dashboard', '/client-profile', '/profile/setup', '/account']).toContain(
-        link.getAttribute('href'),
-      );
+      expect([
+        '/dashboard',
+        '/client-profile',
+        '/profile/setup',
+        '/profile/preview',
+        '/account',
+      ]).toContain(link.getAttribute('href'));
     }
   });
 
@@ -256,10 +260,16 @@ describe('the header dropdowns', () => {
       'href',
       '/profile/setup',
     );
-    // Listed so the menu shows what is coming, but not a link to a 404.
-    expect(panel.getByText('View public profile')).toBeInTheDocument();
-    expect(panel.queryByRole('link', { name: /View public profile/ })).not.toBeInTheDocument();
-    expect(panel.getAllByText('Soon')).toHaveLength(2);
+    // These screens exist, so each is a real link rather than an inert "Soon".
+    expect(panel.getByRole('link', { name: 'View public profile' })).toHaveAttribute(
+      'href',
+      '/profile/preview',
+    );
+    expect(panel.getByRole('link', { name: 'Profile visibility' })).toHaveAttribute(
+      'href',
+      '/client-profile',
+    );
+    expect(panel.queryByText('Soon')).not.toBeInTheDocument();
   });
 
   it('keeps one dropdown open at a time', async () => {

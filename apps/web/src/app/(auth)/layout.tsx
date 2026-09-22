@@ -1,3 +1,4 @@
+import { RedirectIfSignedIn } from '@/features/auth/redirect-if-signed-in.tsx';
 import { Showcase } from './_components/showcase.tsx';
 import { Wordmark } from './_components/wordmark.tsx';
 
@@ -35,6 +36,10 @@ import { Wordmark } from './_components/wordmark.tsx';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-rhythm grid min-h-dvh grid-cols-1 bg-surface-subtle lg:grid-cols-[minmax(0,674fr)_minmax(0,766fr)]">
+      {/* Signed-in visitors are sent past every auth screen, not only sign-in:
+          the guard belongs to the route group, so a new screen in it is covered
+          without remembering to ask (§6.6). */}
+      <RedirectIfSignedIn />
       <div className="flex min-w-0 flex-col px-6 py-8 sm:px-10 lg:pt-[calc(8px+0.46*var(--fit))] lg:pr-0 lg:pb-[calc(24px+0.16*var(--fit))] lg:pl-[8.902%] min-[2000px]:pl-0">
         <div className="mx-auto flex w-full max-w-[530px] flex-1 flex-col lg:mx-0 lg:max-w-none min-[2000px]:mx-auto min-[2000px]:max-w-[555px]">
           {/* The mark is 30px inside a 39px block in the file, so the block —
