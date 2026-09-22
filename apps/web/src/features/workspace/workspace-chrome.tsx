@@ -6,7 +6,7 @@ import {
   useAvailability,
   type AvailabilityControl,
 } from '@/features/profile-setup/use-availability.ts';
-import { workspaceSnapshot } from './snapshot.ts';
+import { chromeSnapshot } from './snapshot.ts';
 import { StatusBar } from './status-bar.tsx';
 import type { NavItem, SellerStatus } from './types.ts';
 import { WorkspaceHeader } from './workspace-header.tsx';
@@ -62,20 +62,22 @@ export function SessionChrome() {
   // authenticated, so a missing user here is a transition, not a state to draw.
   if (user === null) return null;
 
-  const snapshot = workspaceSnapshot(user);
+  const snapshot = chromeSnapshot(user);
 
   return (
     <WorkspaceChrome
       nav={snapshot.nav}
       utilities={snapshot.utilities}
       user={snapshot.user}
-      // Whether the profile is live is the profile's answer, not the snapshot's:
-      // the rest of the bar is still the design's content.
-      seller={
-        snapshot.seller === null
-          ? null
-          : { ...snapshot.seller, profileLive: availability.published }
-      }
+      // The strip's real parts, and only those: whether the profile is live and
+      // the availability the switch saves. There is no membership module yet, so
+      // no tier and no upgrade are shown — an empty tier is nothing invented.
+      seller={{
+        tier: '',
+        upgrade: null,
+        profileLive: availability.published,
+        available: availability.on,
+      }}
       availability={availability}
       onSignOut={() => void signOut().then(() => router.replace('/sign-in'))}
     />

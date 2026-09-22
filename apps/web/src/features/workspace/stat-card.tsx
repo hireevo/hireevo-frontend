@@ -1,12 +1,12 @@
 import type { IconType } from 'react-icons';
-import { LuAward, LuBriefcaseBusiness, LuGauge, LuTrendingUp } from 'react-icons/lu';
+import { LuAward, LuBadgeCheck, LuBriefcaseBusiness, LuTrendingUp } from 'react-icons/lu';
 import { Badge, Card } from '@hireevo/ui-web';
 import type { Stat, StatId } from './types.ts';
 
 const ICONS: Record<StatId, IconType> = {
   skills: LuAward,
   portfolio: LuBriefcaseBusiness,
-  services: LuGauge,
+  certifications: LuBadgeCheck,
 };
 
 export function StatCard({ stat }: { stat: Stat }) {

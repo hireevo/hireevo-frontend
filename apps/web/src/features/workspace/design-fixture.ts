@@ -58,9 +58,9 @@ export const DESIGN_SNAPSHOT: WorkspaceSnapshot = {
   },
   editProfile: { label: 'Edit profile', href: '/profile/setup' },
   stats: [
-    { id: 'skills', label: 'Skills', value: 0, trend: '+2 this month' },
-    { id: 'portfolio', label: 'Portfolio projects', value: 0, trend: '+1 this month' },
-    { id: 'services', label: 'Service offering', value: 0, trend: 'Ready to publish' },
+    { id: 'skills', label: 'Skills', value: 8, trend: '+2 this month' },
+    { id: 'portfolio', label: 'Portfolio projects', value: 4, trend: '+1 this month' },
+    { id: 'certifications', label: 'Certifications', value: 2, trend: null },
   ],
   cards: [
     {
