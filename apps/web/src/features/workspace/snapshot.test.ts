@@ -194,7 +194,7 @@ describe('dashboardData', () => {
       data.editProfile.href,
       'href' in data.strength.action ? data.strength.action.href : null,
       ...data.cards.map((card) => card.action?.href ?? null),
-    ].filter((href): href is string => href !== null);
+    ].filter((href) => href !== null);
     for (const href of hrefs) expect(['/client-profile']).toContain(href);
   });
 });
