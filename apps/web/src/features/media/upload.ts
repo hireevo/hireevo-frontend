@@ -46,7 +46,11 @@ export type Uploaded<T> = { ok: true; value: T } | { ok: false; message: string 
  * claimed with the next save of the profile, so an upload nobody finished
  * changes nothing — it is an orphan object rather than a change to a profile.
  */
-async function put(request: UploadRequest, blob: Blob): Promise<Uploaded<string>> {
+async function put(
+  request: UploadRequest,
+  blob: Blob,
+  onProgress?: (fraction: number) => void,
+): Promise<Uploaded<string>> {
   // The contract ties the role to its content type and its own ceiling, so the
   // whole request is built by the caller and passed through rather than
   // assembled from loose arguments here — a mismatched pair would not compile.
@@ -66,23 +70,61 @@ async function put(request: UploadRequest, blob: Blob): Promise<Uploaded<string>
     return { ok: false, message: UNREACHABLE };
   }
 
-  try {
-    // The signature covers the length as well as the type, so this body has to
-    // be exactly the blob that was measured a moment ago. `Content-Length` is
-    // deliberately not set here — a browser refuses to let a page set it and
-    // fills it in from the body, which is what makes the signed length
-    // describe the bytes that actually arrive.
-    const response = await fetch(ticket.url, {
-      method: 'PUT',
-      headers: ticket.headers,
-      body: blob,
-    });
-    if (!response.ok) return { ok: false, message: REFUSED };
-  } catch {
-    return { ok: false, message: REFUSED };
-  }
+  const sent = await send(ticket, blob, onProgress);
+  if (!sent) return { ok: false, message: REFUSED };
 
   return { ok: true, value: ticket.key };
+}
+
+/**
+ * The bytes, with a running count of how many have left.
+ *
+ * `XMLHttpRequest` rather than `fetch`, for the one thing it still does better:
+ * `upload.onprogress` reports bytes as they go. `fetch` resolves when the whole
+ * response is in and says nothing on the way, so a twelve-megabyte PDF on a
+ * slow connection is a page that looks frozen — which is exactly when somebody
+ * needs to see that it is moving.
+ *
+ * The signature covers the length as well as the type, so the body has to be
+ * the blob that was measured a moment ago. `Content-Length` is deliberately not
+ * set — a browser refuses to let a page set it and fills it in from the body,
+ * which is what makes the signed length describe the bytes that actually
+ * arrive.
+ */
+function send(
+  ticket: UploadTicket,
+  blob: Blob,
+  onProgress?: (fraction: number) => void,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open('PUT', ticket.url);
+    for (const [name, value] of Object.entries(ticket.headers)) {
+      request.setRequestHeader(name, value);
+    }
+
+    if (onProgress !== undefined) {
+      request.upload.onprogress = (event) => {
+        // `lengthComputable` is false where the browser cannot tell — the bar
+        // stays where it was rather than jumping to a number nobody measured.
+        if (event.lengthComputable && event.total > 0) {
+          onProgress(Math.min(1, event.loaded / event.total));
+        }
+      };
+    }
+
+    request.onload = () => {
+      const ok = request.status >= 200 && request.status < 300;
+      // Storage answered, so whatever it accepted is all of it.
+      if (ok) onProgress?.(1);
+      resolve(ok);
+    };
+    request.onerror = () => resolve(false);
+    request.onabort = () => resolve(false);
+    request.ontimeout = () => resolve(false);
+
+    request.send(blob);
+  });
 }
 
 /**
@@ -144,7 +186,11 @@ const ROLES = {
  * stored for; the compression and the shape are identical for both, to the same
  * ceilings the API signs.
  */
-export async function uploadImage(file: File, group: FileGroup): Promise<Uploaded<DraftFile>> {
+export async function uploadImage(
+  file: File,
+  group: FileGroup,
+  onProgress?: (fraction: number) => void,
+): Promise<Uploaded<DraftFile>> {
   const limits =
     group === 'portfolio'
       ? { full: LIMITS.portfolioImage, thumb: LIMITS.portfolioThumbnail }
@@ -154,17 +200,26 @@ export async function uploadImage(file: File, group: FileGroup): Promise<Uploade
 
   const { full, thumb, width, height } = compressed.image;
 
+  // An image is two objects, and the bar has to describe both as one upload.
+  // Split by their real sizes rather than in half: a thumbnail is a twentieth
+  // of the full image, so halving it would park the bar at 50% for the whole of
+  // the part that actually takes time.
+  const total = full.size + thumb.size;
+  const report = (done: number, fraction: number) => onProgress?.((done + fraction) / total);
+
   // The role comes from a typed lookup, so the string is a real upload role,
   // and WebP is valid for both the full and the thumbnail role of either group.
   const uploadedFull = await put(
     { role: ROLES[group].image, contentType: 'image/webp', byteSize: full.size },
     full,
+    (fraction) => report(0, fraction * full.size),
   );
   if (!uploadedFull.ok) return uploadedFull;
 
   const uploadedThumb = await put(
     { role: ROLES[group].thumbnail, contentType: 'image/webp', byteSize: thumb.size },
     thumb,
+    (fraction) => report(full.size, fraction * thumb.size),
   );
   if (!uploadedThumb.ok) return uploadedThumb;
 
@@ -194,7 +249,11 @@ export async function uploadImage(file: File, group: FileGroup): Promise<Uploade
  * size limit is the whole of the bargain, and it is enforced here so the person
  * is told before a slow upload rather than after it.
  */
-export async function uploadDocument(file: File, group: FileGroup): Promise<Uploaded<DraftFile>> {
+export async function uploadDocument(
+  file: File,
+  group: FileGroup,
+  onProgress?: (fraction: number) => void,
+): Promise<Uploaded<DraftFile>> {
   if (file.type !== 'application/pdf') {
     return { ok: false, message: 'Attach a PDF. Export from Word or Pages if you need to.' };
   }
@@ -212,6 +271,7 @@ export async function uploadDocument(file: File, group: FileGroup): Promise<Uplo
   const uploaded = await put(
     { role: ROLES[group].document, contentType: 'application/pdf', byteSize: file.size },
     file,
+    onProgress,
   );
   if (!uploaded.ok) return uploaded;
 

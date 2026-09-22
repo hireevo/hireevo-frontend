@@ -693,10 +693,12 @@ describe('ProfileBuilder', () => {
     await user.type(title, ' redesign');
 
     expect(title).toHaveValue('Checkout redesign');
-    // Both attachment controls are there from the start, each stating how much
-    // room is left, so nobody has to guess whether twenty is the limit.
-    expect(portfolio().getByText('0 of 20')).toBeInTheDocument();
-    expect(portfolio().getByText('0 of 5')).toBeInTheDocument();
+    // Both drop zones are there from the start, each stating what it takes and
+    // how much room is left, so nobody has to guess whether twenty is the limit.
+    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 20 added/)).toBeInTheDocument();
+    expect(portfolio().getByText(/Supported formats: PDF/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 5 added/)).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {
