@@ -1,15 +1,13 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { LuArrowRight, LuChevronDown } from 'react-icons/lu';
-import { Button, cn } from '@hireevo/ui-web';
-import { listSkills, suggestSkill } from './api.ts';
+import { useId, useRef } from 'react';
+import { cn } from '@hireevo/ui-web';
 import type { LANGUAGE_FIELDS, SKILL_FIELDS } from './entries-validation.ts';
 import { border } from './entry-fields.ts';
 import { EntryPanel, ListHeader } from './entry-panel.tsx';
 import { SECTION_LIMITS } from './limits.ts';
 import { CONTROL, SetupField } from './setup-field.tsx';
-import { APPROVED_SKILLS, PROFICIENCIES, languageOptions } from './skill-options.ts';
+import { PROFICIENCIES, languageOptions } from './skill-options.ts';
 import { StaticDatalist } from './static-datalist.tsx';
 import { errorKey, type Entries } from './use-entries.ts';
 
@@ -88,7 +86,14 @@ export function LanguagesList({
   );
 }
 
-/** The skills list, with the approved-taxonomy picker the design puts above it. */
+/**
+ * The skills someone lists, typed in their own words.
+ *
+ * There used to be a picker above it — a menu of approved skills, a button that
+ * copied one into the list, and a link that asked for one the taxonomy did not
+ * have. It is gone at the owner's request: the list below is where a skill is
+ * written, and the API decides afterwards whether it matches an approved one.
+ */
 export function SkillsList({
   skills,
   heading = true,
@@ -97,84 +102,8 @@ export function SkillsList({
   /** Off where the card around this list already says what it is. */
   heading?: boolean;
 }) {
-  const pickerId = useId();
   const proficiencyListId = useId();
   const addSkill = useRef<HTMLButtonElement>(null);
-  const [approved, setApproved] = useState<readonly string[]>(APPROVED_SKILLS);
-  const [picked, setPicked] = useState<string>(APPROVED_SKILLS[0]);
-  const [notice, setNotice] = useState('');
-  const asking = useRef(false);
-
-  // The approved list comes from the taxonomy the API serves. Until it answers —
-  // and if it never does — the built-in list stands in, so the picker is never
-  // an empty control.
-  useEffect(() => {
-    let active = true;
-    void listSkills().then((skills) => {
-      if (!active || skills.length === 0) return;
-      const names = skills.map((skill) => skill.name);
-      setApproved(names);
-      setPicked((current) => (names.includes(current) ? current : (names[0] as string)));
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  function addApproved() {
-    const wanted = picked.toLowerCase();
-    if (skills.items.some((item) => item.values.name.trim().toLowerCase() === wanted)) {
-      setNotice(`${picked} is already in your skills.`);
-      return;
-    }
-    // Fill the untouched entry the list starts with before adding another.
-    const untouched = skills.items.find((item) =>
-      Object.values(item.values).every((value) => value === ''),
-    );
-    if (untouched === undefined) {
-      skills.add({ name: picked });
-    } else {
-      skills.update(untouched.key, 'name', picked);
-      setTimeout(() => {
-        document
-          .querySelector<HTMLElement>(`[data-entry="${untouched.key}"] [name="proficiency"]`)
-          ?.focus();
-      }, 0);
-    }
-    setNotice(`${picked} added to your skills.`);
-  }
-
-  /**
-   * Asks for a skill the taxonomy does not have yet.
-   *
-   * It sends the first skill typed into the list that is not already approved,
-   * which is what "can't find it" means — there is nothing to ask for until the
-   * person has said what they want, so an empty list gets an entry to type into
-   * instead.
-   */
-  async function suggest() {
-    if (asking.current) return;
-    const wanted = skills.items
-      .map((item) => item.values.name.trim())
-      .find(
-        (name) =>
-          name !== '' && !approved.some((option) => option.toLowerCase() === name.toLowerCase()),
-      );
-
-    if (wanted === undefined) {
-      skills.add();
-      setNotice('Type the skill you want, then ask for it again.');
-      return;
-    }
-
-    asking.current = true;
-    setNotice(`Asking for ${wanted}…`);
-    const result = await suggestSkill(wanted);
-    asking.current = false;
-    // The button keeps focus throughout: disabling the control someone just
-    // pressed drops it (§6.8), and this is over in a moment either way.
-    setNotice(result.ok ? `${wanted} has been sent for approval.` : result.message);
-  }
 
   return (
     <>
@@ -184,54 +113,6 @@ export function SkillsList({
         addRef={addSkill}
         onAdd={() => skills.add()}
       />
-
-      <div className="mt-3 flex flex-col gap-3 rounded-lg bg-surface-accent-subtle p-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="relative sm:w-48">
-          <label htmlFor={pickerId} className="sr-only">
-            Approved skill
-          </label>
-          <select
-            id={pickerId}
-            value={picked}
-            onChange={(event) => {
-              setPicked(event.target.value);
-              setNotice('');
-            }}
-            className={cn(CONTROL, 'h-9 appearance-none border-border pr-9')}
-          >
-            {approved.map((skill) => (
-              <option key={skill} value={skill}>
-                {skill}
-              </option>
-            ))}
-          </select>
-          <LuChevronDown
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-content-subtle"
-          />
-        </div>
-        <Button
-          type="button"
-          onClick={addApproved}
-          className="h-9 w-full rounded-md px-3 text-xs font-semibold sm:w-auto"
-        >
-          Add approved skill
-        </Button>
-        <button
-          type="button"
-          onClick={() => void suggest()}
-          className="inline-flex min-h-6 items-center gap-1 self-start rounded-sm text-xs font-medium text-content-link underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
-        >
-          Can’t find it? Suggest a skill
-          <LuArrowRight aria-hidden="true" className="size-3.5" />
-        </button>
-        <p
-          role="status"
-          className={notice === '' ? 'sr-only' : 'text-xs text-content sm:basis-full'}
-        >
-          {notice}
-        </p>
-      </div>
 
       <div className="mt-3 flex flex-col gap-3">
         {skills.items.map((item, index) => {

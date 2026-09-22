@@ -35,7 +35,6 @@ const calls = vi.hoisted(() => ({
   visibility: vi.fn<typeof Api.saveVisibility>(),
   publish: vi.fn<typeof Api.publishProfile>(),
   skills: vi.fn<typeof Api.listSkills>(),
-  suggest: vi.fn<typeof Api.suggestSkill>(),
 }));
 vi.mock('./api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof Api>()),
@@ -44,7 +43,6 @@ vi.mock('./api.ts', async (importOriginal) => ({
   saveVisibility: (...args: Parameters<typeof Api.saveVisibility>) => calls.visibility(...args),
   publishProfile: (...args: Parameters<typeof Api.publishProfile>) => calls.publish(...args),
   listSkills: (...args: Parameters<typeof Api.listSkills>) => calls.skills(...args),
-  suggestSkill: (...args: Parameters<typeof Api.suggestSkill>) => calls.suggest(...args),
 }));
 
 /** The approved taxonomy, as the skills endpoint serves it. */
@@ -178,7 +176,6 @@ beforeEach(() => {
   );
   calls.publish.mockReset();
   calls.skills.mockReset().mockResolvedValue(TAXONOMY);
-  calls.suggest.mockReset().mockResolvedValue({ ok: true });
 });
 
 describe('ProfileSetupScreen', () => {
@@ -662,70 +659,12 @@ describe('Location and rate', () => {
 });
 
 describe('Languages and skills', () => {
-  it('adds an approved skill into the empty entry, then moves to its proficiency', async () => {
-    const user = renderScreen();
-    const skills = await section(/Languages and skills/);
-
-    await user.click(skills.getByRole('button', { name: 'Add approved skill' }));
-
-    const first = within(skills.getByRole('group', { name: 'Skill 1' }));
-    expect(first.getByLabelText('Skill')).toHaveValue('Accessibility');
-    await waitFor(() => expect(first.getByLabelText('Proficiency')).toHaveFocus());
-    expect(skills.getByRole('status')).toHaveTextContent('Accessibility added to your skills.');
-    expect(skills.queryByRole('group', { name: 'Skill 2' })).not.toBeInTheDocument();
-
-    await user.click(skills.getByRole('button', { name: 'Add approved skill' }));
-    expect(skills.getByRole('status')).toHaveTextContent(
-      'Accessibility is already in your skills.',
-    );
-  });
-
-  it('offers the taxonomy the API serves, not a list of its own', async () => {
-    renderScreen();
-    const skills = await section(/Languages and skills/);
-
-    const picker = skills.getByRole('combobox', { name: 'Approved skill' });
-    await waitFor(() =>
-      expect(
-        within(picker)
-          .getAllByRole('option')
-          .map((option) => option.textContent),
-      ).toEqual(['Accessibility', 'Service design', 'User research']),
-    );
-  });
-
-  it('asks for a skill the taxonomy does not have, once one has been typed', async () => {
-    const user = renderScreen();
-    const skills = await section(/Languages and skills/);
-
-    // Nothing typed yet: there is nothing to ask for, so it makes somewhere to type.
-    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
-    expect(skills.getByRole('status')).toHaveTextContent('Type the skill you want');
-    expect(calls.suggest).not.toHaveBeenCalled();
-
-    await user.type(
-      within(skills.getByRole('group', { name: 'Skill 1' })).getByLabelText('Skill'),
-      'Regulatory service design',
-    );
-    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
-
-    await waitFor(() => expect(calls.suggest).toHaveBeenCalledWith('Regulatory service design'));
-    expect(skills.getByRole('status')).toHaveTextContent('sent for approval');
-  });
-
-  it('says why a skill could not be sent', async () => {
-    calls.suggest.mockResolvedValue({ ok: false, message: 'Too many requests.' });
-    const user = renderScreen();
-    const skills = await section(/Languages and skills/);
-
-    await user.type(
-      within(skills.getByRole('group', { name: 'Skill 1' })).getByLabelText('Skill'),
-      'Regulatory service design',
-    );
-    await user.click(skills.getByRole('button', { name: /Suggest a skill/ }));
-
-    await waitFor(() => expect(skills.getByRole('status')).toHaveTextContent('Too many requests.'));
-  });
+  /*
+   * The approved-skill picker, the "Add approved skill" button and the
+   * "Suggest a skill" link were removed from this step at the owner's request,
+   * and their tests with them: a skill is typed into the list below, and the
+   * API decides afterwards whether it matches an approved one.
+   */
 
   it('adds a language with focus in it, and removes it with focus back on Add', async () => {
     const user = renderScreen();
