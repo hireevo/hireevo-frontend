@@ -98,8 +98,9 @@ describe('saveProfile', () => {
           serviceArea: null,
           timezone: null,
           remoteMode: null,
-          rateAmountMinor: null,
-          ratePeriod: null,
+          responseTime: null,
+          projectLength: null,
+          availableFrom: null,
         },
       },
     });

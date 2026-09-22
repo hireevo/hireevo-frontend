@@ -54,6 +54,12 @@ export const RatesEditor = dynamic(
   { loading: Opening },
 );
 
+export const WorkingPreferencesEditor = dynamic(
+  () =>
+    import('./working-preferences-editor.tsx').then((module) => module.WorkingPreferencesEditor),
+  { loading: Opening },
+);
+
 export const VisibilityEditor = dynamic(
   () => import('./visibility-editor.tsx').then((module) => module.VisibilityEditor),
   { loading: Opening },

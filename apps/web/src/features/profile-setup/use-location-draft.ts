@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ProfileField, ProfileValues } from './api.ts';
+import type { ProfileField, ProfileValues, RatePeriod, RateValue } from './api.ts';
 import { RATE_CURRENCY } from './api.ts';
 import { asRateInput, countryByCode, countryByName, isTimezone } from './location-options.ts';
 
@@ -29,14 +29,21 @@ export const EMPTY_LOCATION: LocationValues = {
   ratePeriod: '',
 };
 
-/** Which profile field each one of these is stored in. */
-const PROFILE_FIELD: Record<Exclude<LocationField, 'country'>, ProfileField> = {
+/**
+ * Which profile field each one of these is stored in.
+ *
+ * The country is absent because it is typed by name and stored as a code, and
+ * the two rate fields because a price is not a profile field any more: it is
+ * one entry in the list of prices, and it is carried separately below.
+ */
+const PROFILE_FIELD: Record<
+  Exclude<LocationField, 'country' | 'rateAmountMinor' | 'ratePeriod'>,
+  ProfileField
+> = {
   city: 'locationCity',
   serviceArea: 'serviceArea',
   timezone: 'timezone',
   remoteMode: 'remoteMode',
-  rateAmountMinor: 'rateAmountMinor',
-  ratePeriod: 'ratePeriod',
 };
 
 /** Every field is optional; what is filled in has to be a real value. */
@@ -81,10 +88,21 @@ function normalise(field: LocationField, value: string): string {
  * then pushes the page down under the pointer, so the click that left the field
  * — on Save and next, or Publish — lands beside its button and is lost.
  */
-export function useLocationDraft(draft: {
-  values: ProfileValues;
-  change: (field: ProfileField, value: string) => void;
-}) {
+export function useLocationDraft(
+  draft: {
+    values: ProfileValues;
+    change: (field: ProfileField, value: string) => void;
+  },
+  /**
+   * The prices and how to change them.
+   *
+   * Setting up a profile asks for one price — the headline one — and the client
+   * profile page is where the rest are added. So this step edits the first
+   * entry of the list and leaves any others alone, rather than holding a second
+   * copy of a price that the profile page would then disagree with.
+   */
+  prices: { rates: RateValue[]; onRates: (rates: RateValue[]) => void },
+) {
   const code = draft.values.locationCountry;
   const [country, setCountry] = useState(() => countryByCode(code)?.name ?? '');
   const [errors, setErrors] = useState<LocationErrors>({});
@@ -99,8 +117,28 @@ export function useLocationDraft(draft: {
     setCountry(countryByCode(code)?.name ?? '');
   }, [code]);
 
-  const { locationCity, serviceArea, timezone, remoteMode, rateAmountMinor, ratePeriod } =
-    draft.values;
+  const { locationCity, serviceArea, timezone, remoteMode } = draft.values;
+
+  // The step's own copy of the one price it edits, because half a price is
+  // something a person can have typed and the list cannot hold: an amount with
+  // no period yet is still what is in the box, and clearing it under the caret
+  // is a field fighting the person using it.
+  const stored = prices.rates[0];
+  const [rate, setRate] = useState<{ amount: string; period: RatePeriod | '' }>({
+    amount: stored?.amount ?? '',
+    period: stored?.period ?? '',
+  });
+  // A price that changes for another reason — the profile loading, or a reload
+  // after a conflict — is a new answer from the server, and the boxes follow it.
+  const fromServer = useRef(stored);
+  useEffect(() => {
+    if (stored === fromServer.current) return;
+    fromServer.current = stored;
+    setRate({ amount: stored?.amount ?? '', period: stored?.period ?? '' });
+  }, [stored]);
+
+  const rateAmountMinor = rate.amount;
+  const ratePeriod = rate.period;
 
   // Built once per change rather than once per render: what depends on it —
   // checking the step — would otherwise be rebuilt every time anything else on
@@ -120,6 +158,8 @@ export function useLocationDraft(draft: {
 
   const { change: changeProfile } = draft;
 
+  const { rates, onRates } = prices;
+
   const change = useCallback(
     (field: LocationField, value: string) => {
       const typed = normalise(field, value);
@@ -129,6 +169,23 @@ export function useLocationDraft(draft: {
         const next = match?.code ?? '';
         written.current = next;
         changeProfile('locationCountry', next);
+      } else if (field === 'rateAmountMinor' || field === 'ratePeriod') {
+        const next =
+          field === 'rateAmountMinor'
+            ? { amount: typed, period: ratePeriod }
+            : { amount: rateAmountMinor, period: typed as RatePeriod | '' };
+        setRate(next);
+        // The step's one price is the first entry; the rest, added on the
+        // profile page, are carried through untouched. Half a price is not one,
+        // so until both halves are there the list holds nothing and what was
+        // typed lives in the boxes alone.
+        const others = rates.slice(1);
+        const whole =
+          next.amount === '' || next.period === ''
+            ? others
+            : [{ period: next.period, amount: next.amount }, ...others];
+        fromServer.current = whole[0];
+        onRates(whole);
       } else {
         changeProfile(PROFILE_FIELD[field], typed);
       }
@@ -138,7 +195,7 @@ export function useLocationDraft(draft: {
         return rest;
       });
     },
-    [changeProfile],
+    [changeProfile, rates, onRates, rateAmountMinor, ratePeriod],
   );
 
   /** A country typed in any case settles to its listed name once left. */

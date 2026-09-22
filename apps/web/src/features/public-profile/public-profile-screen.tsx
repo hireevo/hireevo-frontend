@@ -13,17 +13,14 @@ import { RATE_PERIOD_LABEL, formatRate } from '@/features/profile-setup/location
 import type { PublicProfile } from './api.ts';
 import type { MakerStats } from './maker-stats.ts';
 
-/** The rate, split so the design can set the figure and the unit differently. */
-function readableRate(rate: PublicProfile['rate']): { amount: string; per: string } | null {
-  if (rate === null) return null;
-
-  // An unknown currency code is still worth showing as a number.
-  const amount =
-    formatRate(rate.amountMinor, rate.currency) ?? `${rate.amountMinor} ${rate.currency}`;
-  // "per week" reads as a sentence; beside a figure the design wants "/ week".
-  const per = (RATE_PERIOD_LABEL[rate.period] ?? rate.period).replace(/^per\s+/i, '');
-
-  return { amount, per };
+/** Each rate, split so the design can set the figure and the unit differently. */
+function readableRates(rates: PublicProfile['rates']): { amount: string; per: string }[] {
+  return rates.map((rate) => ({
+    // An unknown currency code is still worth showing as a number.
+    amount: formatRate(rate.amountMinor, rate.currency) ?? `${rate.amountMinor} ${rate.currency}`,
+    // "per week" reads as a sentence; beside a figure the design wants "/ week".
+    per: (RATE_PERIOD_LABEL[rate.period] ?? rate.period).replace(/^per\s+/i, ''),
+  }));
 }
 
 const AVAILABILITY: Record<string, { label: string; open: boolean }> = {
@@ -113,7 +110,10 @@ export function PublicProfileScreen({
   profile: PublicProfile;
   stats?: MakerStats;
 }) {
-  const rate = readableRate(profile.rate);
+  // The first is the headline figure — the list arrives shortest period first
+  // — and the rest sit under it, so a profile quoting an hour and a month says
+  // both rather than picking one for the person.
+  const [rate = null, ...otherRates] = readableRates(profile.rates);
   const availability =
     profile.availability === null ? null : (AVAILABILITY[profile.availability] ?? null);
 
@@ -234,7 +234,7 @@ export function PublicProfileScreen({
         {/* Second in the DOM so a phone reads name → rate → the rest, and
             placed into the right-hand column on a wide screen. */}
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-          <RateCard profile={profile} rate={rate} stats={stats} />
+          <RateCard profile={profile} rate={rate} others={otherRates} stats={stats} />
           <RecordCard stats={stats} />
         </aside>
 
@@ -402,10 +402,13 @@ export function PublicProfileScreen({
 function RateCard({
   profile,
   rate,
+  others,
   stats,
 }: {
   profile: PublicProfile;
   rate: { amount: string; per: string } | null;
+  /** Every other period this profile quotes, shown under the headline figure. */
+  others: { amount: string; per: string }[];
   stats: MakerStats;
 }) {
   const firstName = profile.displayName?.trim().split(/\s+/)[0] ?? null;
@@ -436,6 +439,18 @@ function RateCard({
             <span className="text-3xl font-bold break-all text-content-accent">{rate.amount}</span>
             <span className="text-sm text-content-subtle">/ {rate.per}</span>
           </p>
+          {others.length === 0 ? null : (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {others.map((other) => (
+                <li
+                  key={other.per}
+                  className="rounded-full bg-surface-subtle px-2.5 py-1 text-xs text-content-muted"
+                >
+                  <span className="font-medium text-content">{other.amount}</span> / {other.per}
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
 

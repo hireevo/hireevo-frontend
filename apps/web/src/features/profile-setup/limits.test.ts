@@ -7,6 +7,7 @@ type JsonSchema = {
   pattern?: string;
   properties?: Record<string, JsonSchema>;
   anyOf?: JsonSchema[];
+  items?: JsonSchema;
 };
 
 const schemas = (spec as unknown as { components: { schemas: Record<string, JsonSchema> } })
@@ -45,9 +46,11 @@ describe('location and rate limits', () => {
     expect(maxLengthOf(draft?.properties?.['locationCity'])).toBe(LOCATION_LIMITS.city);
   });
 
-  it('allow as many digits in the rate as the API does', () => {
-    const rate = draft?.properties?.['rateAmountMinor'];
-    const pattern = rate?.pattern ?? rate?.anyOf?.find((option) => option.pattern)?.pattern;
+  it('allow as many digits in a rate as the API does', () => {
+    // A rate is one entry of a list now, so the pattern lives on the item's
+    // amount rather than on a field of the profile.
+    const amount = draft?.properties?.['rates']?.items?.properties?.['amountMinor'];
+    const pattern = amount?.pattern ?? amount?.anyOf?.find((option) => option.pattern)?.pattern;
     expect(pattern).toBe(`^\\d{1,${LOCATION_LIMITS.rateAmountMinor}}$`);
   });
 });

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@hireevo/ui-web';
-import { publishProfile, type OwnProfile } from './api.ts';
+import { publishProfile, ratesOf, type OwnProfile, type RateValue } from './api.ts';
 import { DraftStatusCard } from './draft-status-card.tsx';
 import { EducationStep } from './education-step.tsx';
 import {
@@ -47,7 +47,7 @@ export function sectionsSavedIn(profile: OwnProfile | null): number {
   const { sections, visibility } = profile;
   return [
     identitySaved(profile),
-    profile.locationCountry !== null && profile.rateAmountMinor !== null,
+    profile.locationCountry !== null && profile.rates.length > 0,
     sections.languages.length > 0 && sections.skills.length > 0,
     sections.experience.length > 0,
     sections.education.length + sections.licenses.length > 0,
@@ -115,11 +115,25 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
     [languages.items, skills.items, experience.items, education.items, licenses.items],
   );
 
+  /**
+   * The prices. Setting up asks for one; the client profile page adds the rest,
+   * and this carries whatever is already there rather than replacing it.
+   */
+  const [rates, setRates] = useState<RateValue[]>([]);
+  const collectRates = useCallback(() => rates, [rates]);
+
   const draft = useProfileDraft({
     collect,
+    collectRates,
     ...(autosaveDelay === undefined ? {} : { autosaveDelay }),
   });
-  const location = useLocationDraft(draft);
+  const location = useLocationDraft(draft, {
+    rates,
+    onRates: (next) => {
+      setRates(next);
+      draft.touch();
+    },
+  });
   const visibility = useVisibilityDraft(draft);
 
   // The lists arrive with the profile, after the page has rendered. Filling them
@@ -146,6 +160,7 @@ export function ProfileSetupScreen({ autosaveDelay }: { autosaveDelay?: number }
       experience.reset(saved.experience);
       education.reset(saved.education);
       licenses.reset(saved.licenses);
+      setRates(ratesOf(profile));
       setSeeded(true);
       return;
     }

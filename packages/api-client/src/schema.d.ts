@@ -689,9 +689,15 @@ export interface components {
             remoteMode: ("remote" | "on_site" | "hybrid") | null;
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
-            rateAmountMinor: string | null;
-            ratePeriod: ("weekly" | "monthly" | "yearly") | null;
-            rateCurrency: string;
+            responseTime: ("within_hours" | "within_a_day" | "within_two_days" | "within_a_week") | null;
+            projectLength: ("under_a_month" | "one_to_three_months" | "three_to_six_months" | "over_six_months" | "ongoing") | null;
+            availableFrom: string | null;
+            rates: {
+                /** @enum {string} */
+                period: "hourly" | "daily" | "weekly" | "monthly" | "yearly";
+                amountMinor: string;
+                currency: string;
+            }[];
             contact: {
                 phoneE164: string | null;
                 contactEmail: string | null;
@@ -804,8 +810,14 @@ export interface components {
                 /** @enum {string} */
                 availability?: "available" | "open_to_offers" | "unavailable";
                 availabilityNote?: string | null;
-                rateAmountMinor?: string | null;
-                ratePeriod?: ("weekly" | "monthly" | "yearly") | null;
+                responseTime?: ("within_hours" | "within_a_day" | "within_two_days" | "within_a_week") | null;
+                projectLength?: ("under_a_month" | "one_to_three_months" | "three_to_six_months" | "over_six_months" | "ongoing") | null;
+                availableFrom?: string | null;
+                rates?: {
+                    /** @enum {string} */
+                    period: "hourly" | "daily" | "weekly" | "monthly" | "yearly";
+                    amountMinor: string;
+                }[];
             };
             contact?: {
                 phoneE164?: string | null;
@@ -930,12 +942,16 @@ export interface components {
             location: string | null;
             availability: ("available" | "open_to_offers" | "unavailable") | null;
             availabilityNote: string | null;
-            rate: {
-                currency: string;
-                amountMinor: string;
+            responseTime: ("within_hours" | "within_a_day" | "within_two_days" | "within_a_week") | null;
+            projectLength: ("under_a_month" | "one_to_three_months" | "three_to_six_months" | "over_six_months" | "ongoing") | null;
+            availableFrom: string | null;
+            remoteMode: ("remote" | "on_site" | "hybrid") | null;
+            rates: {
                 /** @enum {string} */
-                period: "weekly" | "monthly" | "yearly";
-            } | null;
+                period: "hourly" | "daily" | "weekly" | "monthly" | "yearly";
+                amountMinor: string;
+                currency: string;
+            }[];
             languages: {
                 name: string;
                 proficiency: string | null;
