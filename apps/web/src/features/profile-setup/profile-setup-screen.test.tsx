@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps, MouseEvent } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RATE_CURRENCY } from './api.ts';
+import { toMinorUnits } from './location-options.ts';
 import type * as Api from './api.ts';
 import type { OwnProfile } from './api.ts';
 import { sinceLabel } from './draft-status-card.tsx';
@@ -94,8 +96,10 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     timezone: null,
     remoteMode: null,
     availability: null,
-    rateAmountMinor: null,
-    ratePeriod: null,
+    rates: [],
+    responseTime: null,
+    projectLength: null,
+    availableFrom: null,
     sections: NO_SECTIONS,
     visibility: {
       profilePublic: false,
@@ -130,11 +134,36 @@ beforeEach(() => {
   scrollIntoView.mockReset();
   Element.prototype.scrollIntoView = scrollIntoView;
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
-  calls.save.mockReset().mockImplementation((version, values) => {
+  calls.save.mockReset().mockImplementation((version, values, _sections, rates) => {
     // The claimed photo is a key to send, not a field the profile answers with,
-    // and a remote mode is one of three words rather than whatever was typed.
-    const { avatarKey: _claimed, remoteMode: _mode, ratePeriod: _period, ...fields } = values;
-    return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
+    // and a remote mode, response time and project length are each one of a few
+    // words rather than whatever was typed.
+    const {
+      avatarKey: _claimed,
+      remoteMode: _mode,
+      responseTime: _responds,
+      projectLength: _length,
+      ...fields
+    } = values;
+    return Promise.resolve({
+      ok: true,
+      profile: stored({
+        ...fields,
+        version: version + 1,
+        // Answered the way the API answers: minor units and the currency they
+        // are quoted in, so what comes back is what a reload would show.
+        ...(rates === undefined
+          ? {}
+          : {
+              rates: rates.flatMap((rate) => {
+                const amountMinor = toMinorUnits(rate.amount, RATE_CURRENCY);
+                return amountMinor === null
+                  ? []
+                  : [{ period: rate.period, amountMinor, currency: RATE_CURRENCY }];
+              }),
+            }),
+      }),
+    });
   });
   calls.visibility.mockReset().mockImplementation((settings) =>
     Promise.resolve({
@@ -497,7 +526,7 @@ describe('sectionsSavedIn', () => {
         stored({
           availabilityNote: 'x',
           locationCountry: 'PK',
-          rateAmountMinor: '100',
+          rates: [{ period: 'weekly', amountMinor: '100', currency: 'USD' }],
           sections: {
             ...NO_SECTIONS,
             languages: [{ name: 'Urdu', proficiency: 'native', starred: true }],

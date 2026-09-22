@@ -58,12 +58,18 @@ test('shows every section a freelancer can share', async ({ page }) => {
     await expect(page.getByRole('region', { name })).toBeVisible();
   }
 
-  // The rate is shown in its currency rather than in minor units, and says
-  // what it buys — the fixture prices a week.
-  // Scoped to the sidebar: the period also appears in prose elsewhere on the
+  // The rates are shown in their currency rather than in minor units, and say
+  // what each buys — the fixture prices every period, shortest first, so the
+  // hour leads and the rest sit under it.
+  // Scoped to the sidebar: a period also appears in prose elsewhere on the
   // page, and an assertion that matches two things is one that will start
   // failing for a reason nobody intended.
-  await expect(page.getByRole('complementary').getByText('/ week', { exact: true })).toBeVisible();
+  const sidebar = page.getByRole('complementary');
+  await expect(sidebar.getByText('/ hour', { exact: true })).toBeVisible();
+  // The others sit under it as chips, each its own list item: the amount and
+  // the period are separate nodes there, so the row is matched rather than a
+  // text node that does not exist on its own.
+  await expect(sidebar.getByRole('listitem').filter({ hasText: '/ month' })).toBeVisible();
 });
 
 /**

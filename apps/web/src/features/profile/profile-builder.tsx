@@ -5,6 +5,7 @@ import {
   LuAward,
   LuBriefcaseBusiness,
   LuCircleDollarSign,
+  LuClock,
   LuGraduationCap,
   LuShieldCheck,
   LuStar,
@@ -22,7 +23,12 @@ import {
   SKILL_FIELDS,
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
-import { RATE_CURRENCY, publishProfile } from '@/features/profile-setup/api.ts';
+import {
+  RATE_CURRENCY,
+  publishProfile,
+  ratesOf,
+  type RateValue,
+} from '@/features/profile-setup/api.ts';
 import { profileChanged } from '@/features/profile-setup/profile-events.ts';
 import {
   RATE_PERIOD_LABEL,
@@ -53,6 +59,11 @@ import {
   type SectionsFilled,
 } from './draft.ts';
 import { EditButton } from './edit-button.tsx';
+import {
+  labelOfProjectLength,
+  labelOfRemoteMode,
+  labelOfResponseTime,
+} from './working-preferences-editor.tsx';
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
@@ -65,6 +76,7 @@ import {
   LicenseEditor,
   RatesEditor,
   SkillsEditor,
+  WorkingPreferencesEditor,
   VideoIntroEditor,
   VisibilityEditor,
 } from './section-editors.tsx';
@@ -82,6 +94,7 @@ type OpenSection =
   | 'video'
   | 'visibility'
   | 'rates'
+  | 'preferences'
   | null;
 
 /** How long to wait after a keystroke before writing the draft to this browser. */
@@ -145,6 +158,14 @@ export function ProfileBuilder() {
           records: { ...EMPTY_DRAFT.records, portfolio: stored.portfolio },
         },
   );
+  /**
+   * The prices, one per period quoted.
+   *
+   * Beside the draft rather than inside it, because they are saved the way the
+   * lists are — sent whole with the next save — and because what the browser
+   * kept is newer than what the server holds.
+   */
+  const [rates, setRates] = useState<RateValue[]>(stored?.rates ?? []);
   const [open, setOpen] = useState<OpenSection>(null);
   /** Turned on by "Complete your profile": every filled section grows a pencil. */
   const [editMode, setEditMode] = useState(false);
@@ -176,9 +197,12 @@ export function ProfileBuilder() {
     [languages, portfolio, skills.items, experience.items, education.items, licenses.items],
   );
 
+  const collectRates = useCallback(() => rates, [rates]);
+
   const identity = useProfileDraft({
     autosave: false,
     collect,
+    collectRates,
     ...(user === null ? {} : { fallbackDisplayName: displayNameOf(user) }),
     ...(stored === null ? {} : { restore: stored.identity }),
   });
@@ -195,6 +219,7 @@ export function ProfileBuilder() {
   const [seeded, setSeeded] = useState(stored !== null);
   const sent = useRef('');
   const { profile, rebaseline, touch } = identity;
+
   useEffect(() => {
     if (profile === null) return;
 
@@ -208,6 +233,7 @@ export function ProfileBuilder() {
       experience.reset(saved.experience);
       education.reset(saved.education);
       licenses.reset(saved.licenses);
+      setRates(ratesOf(profile));
       setDraft((current) => ({
         ...current,
         avatarUrl: profile.avatarUrl,
@@ -269,6 +295,7 @@ export function ProfileBuilder() {
         education: entries.education,
         licenses: entries.licenses,
         portfolio: draft.records.portfolio,
+        rates,
       });
     }, DRAFT_DELAY);
     return () => clearTimeout(id);
@@ -276,6 +303,7 @@ export function ProfileBuilder() {
     userId,
     values,
     draft,
+    rates,
     entries.skills,
     entries.experience,
     entries.education,
@@ -305,11 +333,27 @@ export function ProfileBuilder() {
     );
   }
 
-  /** The header card edits the same name, headline and country the profile holds. */
+  /**
+   * The header card edits the same name, headline and country the profile
+   * holds — and shows the photo the profile holds.
+   *
+   * The photo is read from the profile here rather than from the draft, because
+   * the draft cannot carry it: what is in this browser is what was typed, and a
+   * photo is shown from a `blob:` URL belonging to the tab that made it, which
+   * points at nothing in the next one. The saved URL used to be read only while
+   * filling the page in from the server, and that step is skipped whenever this
+   * browser holds a draft — so a photo that saved correctly and showed while
+   * the tab stayed open was gone the moment the page was opened again.
+   *
+   * A photo just chosen wins over the saved one: `avatarKey` is non-empty only
+   * between choosing one and the save that claims it, and for that moment the
+   * browser's own copy is the newer of the two.
+   */
   const headerDraft: ProfileDraft = {
     ...draft,
     displayName: values.displayName,
     title: values.headline,
+    avatarUrl: values.avatarKey === '' ? (profile?.avatarUrl ?? null) : draft.avatarUrl,
   };
 
   function patchHeader(patch: Partial<ProfileDraft>) {
@@ -333,13 +377,22 @@ export function ProfileBuilder() {
   const roles = experience.items.filter((item) => item.values.role.trim() !== '');
   const courses = education.items.filter((item) => item.values.institution.trim() !== '');
   const certificates = licenses.items.filter((item) => item.values.name.trim() !== '');
-  /** The one rate, once there is one: an amount and what it buys. */
-  const rates = (() => {
-    const minor = toMinorUnits(values.rateAmountMinor, RATE_CURRENCY);
+  /** The working preferences as they read on the card, in the design's order. */
+  const preferenceSummary = [
+    values.remoteMode === '' ? null : labelOfRemoteMode(values.remoteMode),
+    values.projectLength === '' ? null : labelOfProjectLength(values.projectLength),
+    values.responseTime === ''
+      ? null
+      : `Responds ${labelOfResponseTime(values.responseTime).toLowerCase()}`,
+    values.availableFrom === '' ? null : `Available from ${values.availableFrom}`,
+  ].filter((line) => line !== null);
+
+  /** Each price as it reads on the card: "$85.00 per hour". */
+  const rateSummary = rates.flatMap((rate) => {
+    const minor = toMinorUnits(rate.amount, RATE_CURRENCY);
     const shown = minor === null ? null : formatRate(minor, RATE_CURRENCY);
-    if (shown === null || values.ratePeriod === '') return [];
-    return [`${shown} ${RATE_PERIOD_LABEL[values.ratePeriod] ?? values.ratePeriod}`];
-  })();
+    return shown === null ? [] : [`${shown} ${RATE_PERIOD_LABEL[rate.period] ?? rate.period}`];
+  });
 
   const filled: SectionsFilled = {
     about: values.overview.trim() !== '',
@@ -431,7 +484,11 @@ export function ProfileBuilder() {
     // `minmax(0,1fr)` on the single-column track too: a grid track sized `auto`
     // takes its content’s minimum width, which pushed these cards wider than a
     // 320px screen.
-    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
+    //
+    // 908 + 48 + 338 = 1294, the three numbers the design draws. The sidebar is
+    // a fixed width rather than a fraction: it holds one card of a known size,
+    // and letting it stretch is what made it disagree with the frame.
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_338px] lg:gap-12">
       <ProfileHeaderCard
         draft={headerDraft}
         username={user?.username ?? null}
@@ -658,21 +715,45 @@ export function ProfileBuilder() {
         </SectionCard>
 
         <SectionCard
-          title="Expected rates"
-          description="Set the hourly rate buyers see, in the currency you bill in."
-          icon={<LuCircleDollarSign />}
-          editing={open === 'rates'}
-          action={actionFor('rates', 'expected rates')}
+          title="Working preferences"
+          description="How you like to work, for a buyer deciding whether to write."
+          icon={<LuClock />}
+          editing={open === 'preferences'}
+          action={actionFor('preferences', 'working preferences')}
         >
-          {open === 'rates' ? (
-            <RatesEditor
+          {open === 'preferences' ? (
+            <WorkingPreferencesEditor
               values={values}
               fieldErrors={identity.fieldErrors}
               onChange={identity.change}
             />
           ) : (
             <p className="text-sm text-content-muted">
-              {rates.length === 0 ? 'No rates set yet.' : rates.join(' · ')}
+              {preferenceSummary.length === 0
+                ? 'No working preferences set yet.'
+                : preferenceSummary.join(' · ')}
+            </p>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Expected rates"
+          description="Set a price for each period you quote for. Buyers see only the ones you fill in."
+          icon={<LuCircleDollarSign />}
+          editing={open === 'rates'}
+          action={actionFor('rates', 'expected rates')}
+        >
+          {open === 'rates' ? (
+            <RatesEditor
+              rates={rates}
+              onChange={(next) => {
+                setRates(next);
+                identity.touch();
+              }}
+            />
+          ) : (
+            <p className="text-sm text-content-muted">
+              {rateSummary.length === 0 ? 'No rates set yet.' : rateSummary.join(' · ')}
             </p>
           )}
         </SectionCard>

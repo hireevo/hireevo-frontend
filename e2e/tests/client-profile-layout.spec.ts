@@ -52,9 +52,10 @@ const PROFILE = {
   remoteMode: null,
   availability: 'available',
   availabilityNote: null,
-  rateAmountMinor: null,
-  ratePeriod: null,
-  rateCurrency: 'USD',
+  rates: [],
+  responseTime: null,
+  projectLength: null,
+  availableFrom: null,
   contact: {
     phoneE164: null,
     contactEmail: null,
@@ -332,13 +333,20 @@ test('the rates and visibility editors hold their layout at every window size', 
   test.setTimeout(FULL ? 900_000 : 240_000);
   await openForEditing(page);
 
-  // The amount and its period sit side by side, which is the pair most likely
-  // to be unusable once the column narrows to a phone.
+  // Five amount boxes, one per period: the row most likely to be unusable once
+  // the column narrows to a phone.
   await page.getByRole('button', { name: 'Edit expected rates' }).click();
   const rates = page.getByRole('region', { name: /Expected rates/ });
-  await expect(rates.getByLabel('Rate')).toBeVisible();
-  await expect(rates.getByLabel('Per')).toBeVisible();
+  await expect(rates.getByLabel('Per hour')).toBeVisible();
+  await expect(rates.getByLabel('Per year')).toBeVisible();
   await sweep(page, 'client profile with the rates editor open');
+
+  // And the working preferences beside them, four controls in one card.
+  await page.getByRole('button', { name: 'Edit working preferences' }).click();
+  const preferences = page.getByRole('region', { name: /Working preferences/ });
+  await expect(preferences.getByLabel('Usually responds')).toBeVisible();
+  await expect(preferences.getByLabel('Available from')).toBeVisible();
+  await sweep(page, 'client profile with the working preferences editor open');
 
   await page.getByRole('button', { name: 'Edit visibility' }).click();
   const visibility = page.getByRole('region', { name: /Visibility/ });

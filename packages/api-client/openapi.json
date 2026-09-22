@@ -2004,22 +2004,56 @@
           "availabilityNote": {
             "type": ["string", "null"]
           },
-          "rateAmountMinor": {
-            "type": ["string", "null"]
-          },
-          "ratePeriod": {
+          "responseTime": {
             "anyOf": [
               {
                 "type": "string",
-                "enum": ["weekly", "monthly", "yearly"]
+                "enum": ["within_hours", "within_a_day", "within_two_days", "within_a_week"]
               },
               {
                 "type": "null"
               }
             ]
           },
-          "rateCurrency": {
-            "type": "string"
+          "projectLength": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "under_a_month",
+                  "one_to_three_months",
+                  "three_to_six_months",
+                  "over_six_months",
+                  "ongoing"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availableFrom": {
+            "type": ["string", "null"]
+          },
+          "rates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": ["hourly", "daily", "weekly", "monthly", "yearly"]
+                },
+                "amountMinor": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                }
+              },
+              "required": ["period", "amountMinor", "currency"],
+              "additionalProperties": false
+            }
           },
           "contact": {
             "type": "object",
@@ -2468,9 +2502,10 @@
           "remoteMode",
           "availability",
           "availabilityNote",
-          "rateAmountMinor",
-          "ratePeriod",
-          "rateCurrency",
+          "responseTime",
+          "projectLength",
+          "availableFrom",
+          "rates",
           "contact",
           "sections",
           "visibility",
@@ -2628,27 +2663,63 @@
                   }
                 ]
               },
-              "rateAmountMinor": {
+              "responseTime": {
                 "anyOf": [
                   {
                     "type": "string",
-                    "pattern": "^\\d{1,15}$"
+                    "enum": ["within_hours", "within_a_day", "within_two_days", "within_a_week"]
                   },
                   {
                     "type": "null"
                   }
                 ]
               },
-              "ratePeriod": {
+              "projectLength": {
                 "anyOf": [
                   {
                     "type": "string",
-                    "enum": ["weekly", "monthly", "yearly"]
+                    "enum": [
+                      "under_a_month",
+                      "one_to_three_months",
+                      "three_to_six_months",
+                      "over_six_months",
+                      "ongoing"
+                    ]
                   },
                   {
                     "type": "null"
                   }
                 ]
+              },
+              "availableFrom": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rates": {
+                "maxItems": 5,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "period": {
+                      "type": "string",
+                      "enum": ["hourly", "daily", "weekly", "monthly", "yearly"]
+                    },
+                    "amountMinor": {
+                      "type": "string",
+                      "pattern": "^\\d{1,15}$"
+                    }
+                  },
+                  "required": ["period", "amountMinor"]
+                }
               }
             }
           },
@@ -3380,29 +3451,67 @@
           "availabilityNote": {
             "type": ["string", "null"]
           },
-          "rate": {
+          "responseTime": {
             "anyOf": [
               {
-                "type": "object",
-                "properties": {
-                  "currency": {
-                    "type": "string"
-                  },
-                  "amountMinor": {
-                    "type": "string"
-                  },
-                  "period": {
-                    "type": "string",
-                    "enum": ["weekly", "monthly", "yearly"]
-                  }
-                },
-                "required": ["currency", "amountMinor", "period"],
-                "additionalProperties": false
+                "type": "string",
+                "enum": ["within_hours", "within_a_day", "within_two_days", "within_a_week"]
               },
               {
                 "type": "null"
               }
             ]
+          },
+          "projectLength": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "under_a_month",
+                  "one_to_three_months",
+                  "three_to_six_months",
+                  "over_six_months",
+                  "ongoing"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availableFrom": {
+            "type": ["string", "null"]
+          },
+          "remoteMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["remote", "on_site", "hybrid"]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "enum": ["hourly", "daily", "weekly", "monthly", "yearly"]
+                },
+                "amountMinor": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                }
+              },
+              "required": ["period", "amountMinor", "currency"],
+              "additionalProperties": false
+            }
           },
           "languages": {
             "type": "array",
@@ -3693,7 +3802,11 @@
           "location",
           "availability",
           "availabilityNote",
-          "rate",
+          "responseTime",
+          "projectLength",
+          "availableFrom",
+          "remoteMode",
+          "rates",
           "languages",
           "skills",
           "experience",

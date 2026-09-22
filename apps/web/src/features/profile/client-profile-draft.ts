@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProfileValues } from '@/features/profile-setup/api.ts';
+import type { ProfileValues, RateValue } from '@/features/profile-setup/api.ts';
 import type { Entry } from '@/features/profile-setup/use-entries.ts';
 import type { ProfileLanguage, ProfileRecord } from './draft.ts';
 
@@ -18,7 +18,7 @@ import type { ProfileLanguage, ProfileRecord } from './draft.ts';
  * see each other's draft, and a version so an older shape is dropped rather
  * than half read.
  */
-const VERSION = 4;
+const VERSION = 5;
 
 export type StoredDraft = {
   version: number;
@@ -31,6 +31,8 @@ export type StoredDraft = {
   education: Entry<string>[];
   licenses: Entry<string>[];
   portfolio: ProfileRecord[];
+  /** Optional: a draft written before prices were a list still opens. */
+  rates?: RateValue[];
 };
 
 export type DraftContents = Omit<StoredDraft, 'version'>;

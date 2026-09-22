@@ -31,13 +31,19 @@ export const DESIGN_PUBLIC_PROFILE: PublicProfile = {
   location: 'Lahore, Punjab, PK',
   availability: 'open_to_offers',
   availabilityNote: 'Open to one discovery engagement starting October 2026, remote or in Lahore',
-  rate: {
-    currency: 'USD',
-    // Fifteen digits: the widest a rate can be, so the row is measured at its
-    // worst rather than at a comfortable number.
-    amountMinor: '999999999999999',
-    period: 'weekly',
-  },
+  // Every period at once, and the widest a rate can be: fifteen digits, so the
+  // card is measured at its worst rather than at a comfortable number.
+  rates: [
+    { currency: 'USD', amountMinor: '999999999999999', period: 'hourly' },
+    { currency: 'USD', amountMinor: '250000', period: 'daily' },
+    { currency: 'USD', amountMinor: '1200000', period: 'weekly' },
+    { currency: 'USD', amountMinor: '4800000', period: 'monthly' },
+    { currency: 'USD', amountMinor: '50000000', period: 'yearly' },
+  ],
+  responseTime: 'within_a_day',
+  projectLength: 'three_to_six_months',
+  availableFrom: '2026-10-01',
+  remoteMode: 'hybrid',
   videoIntroUrl: 'https://vimeo.com/123456789',
   languages: [
     { name: 'Urdu', proficiency: 'native', starred: true },

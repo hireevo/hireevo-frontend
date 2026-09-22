@@ -180,8 +180,8 @@ export function LicenseList({
                       files={item.files ?? []}
                       group="certification"
                       onChange={(files) => licenses.setFiles(item.key, files)}
-                      imageLabel="Add images"
-                      documentLabel="Add PDF"
+                      imageLabel="Certificate images"
+                      documentLabel="Certificate PDFs"
                     />
                   </div>
                 </div>

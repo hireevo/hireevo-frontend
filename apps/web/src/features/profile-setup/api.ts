@@ -8,7 +8,27 @@ export type UploadTicket = Schema<'UploadTicket'>;
 export type VisibilitySettings = Schema<'UpdateVisibilityRequest'>;
 export type ProfileVisibility = Schema<'ProfileVisibilityResponse'>;
 export type ApprovedSkill = Schema<'SkillListResponse'>['skills'][number];
-export type RatePeriod = NonNullable<OwnProfile['ratePeriod']>;
+export type RatePeriod = OwnProfile['rates'][number]['period'];
+
+/**
+ * A price as the form holds it: the period it buys, and the amount as it is
+ * typed — 85 is eighty-five dollars, not eighty-five cents.
+ *
+ * A list, because a profile quotes one price per period and somebody who
+ * charges by the hour for small jobs and by the month for a retainer quotes
+ * both. The currency is not here: no screen offers a choice, and the API
+ * answers with the one every rate is quoted in.
+ */
+export type RateValue = { period: RatePeriod; amount: string };
+
+/** Every period a price may be given for, shortest first, as the editor lists them. */
+export const RATE_PERIODS = [
+  'hourly',
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly',
+] as const satisfies readonly RatePeriod[];
 
 /**
  * The one currency every rate is quoted in.
@@ -40,8 +60,9 @@ export const PROFILE_FIELDS = [
   'serviceArea',
   'timezone',
   'remoteMode',
-  'rateAmountMinor',
-  'ratePeriod',
+  'responseTime',
+  'projectLength',
+  'availableFrom',
   'avatarKey',
 ] as const;
 
@@ -93,14 +114,42 @@ export function valuesOf(profile: OwnProfile): ProfileValues {
     serviceArea: shown(profile.serviceArea),
     timezone: shown(profile.timezone),
     remoteMode: shown(profile.remoteMode),
-    // Filled in as it was typed: the API stores minor units, the field holds
-    // what a person would say out loud.
-    rateAmountMinor: toTypedAmount(shown(profile.rateAmountMinor), profile.rateCurrency),
-    ratePeriod: shown(profile.ratePeriod),
+    responseTime: shown(profile.responseTime),
+    projectLength: shown(profile.projectLength),
+    availableFrom: shown(profile.availableFrom),
     // Never sent back as a key: the response carries the URL it is served from,
     // and a claim only happens when a new photo has just been uploaded.
     avatarKey: '',
   };
+}
+
+/**
+ * The prices as the form holds them: one entry per period that has an amount.
+ *
+ * Kept in the API's own order — the list comes back shortest period first —
+ * rather than re-sorted here, so the editor and the profile agree about which
+ * price leads.
+ */
+export function ratesOf(profile: OwnProfile): RateValue[] {
+  return profile.rates.map((rate) => ({
+    period: rate.period,
+    amount: toTypedAmount(rate.amountMinor, rate.currency),
+  }));
+}
+
+/**
+ * Back into what the API stores: minor units, and only the periods priced.
+ *
+ * An entry whose amount is empty or zero is dropped rather than sent as nought
+ * — a price of zero is not a price — and the whole list is always sent, so
+ * removing the last one clears the prices instead of leaving the old one
+ * stored.
+ */
+export function toRatesPayload(rates: RateValue[]) {
+  return rates.flatMap((rate) => {
+    const amountMinor = toMinorUnits(rate.amount, RATE_CURRENCY);
+    return amountMinor === null ? [] : [{ period: rate.period, amountMinor }];
+  });
 }
 
 /** An empty field is sent as null, which clears it; the API treats an absent key as "keep". */
@@ -119,11 +168,9 @@ export function toPayload(values: ProfileValues) {
     serviceArea: clear(values.serviceArea),
     timezone: clear(values.timezone),
     remoteMode: clear(values.remoteMode) as 'remote' | 'on_site' | 'hybrid' | null,
-    // Back into the minor units the API stores. A rate with no period and a
-    // period with no rate are both refused by the contract, so the pair is
-    // cleared together rather than half-sent.
-    rateAmountMinor: toMinorUnits(values.rateAmountMinor, RATE_CURRENCY),
-    ratePeriod: (clear(values.ratePeriod) as RatePeriod | null) ?? null,
+    responseTime: clear(values.responseTime) as OwnProfile['responseTime'],
+    projectLength: clear(values.projectLength) as OwnProfile['projectLength'],
+    availableFrom: clear(values.availableFrom),
     // Absent unless a photo was just claimed: sending null would clear the one
     // already on the profile every time anything else was saved.
     ...(values.avatarKey.trim() === '' ? {} : { avatarKey: values.avatarKey.trim() }),
@@ -175,12 +222,18 @@ export async function saveProfile(
   version: number,
   values: ProfileValues,
   sections?: SectionsPayload,
+  rates?: RateValue[],
 ): Promise<SaveResult> {
   try {
     const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {
       body: {
         version,
-        profile: toPayload(values),
+        // Absent unless this save knows about the prices: the API leaves them
+        // alone when the key is missing, and an empty list is what clears them.
+        profile: {
+          ...toPayload(values),
+          ...(rates === undefined ? {} : { rates: toRatesPayload(rates) }),
+        },
         ...(sections === undefined ? {} : { sections }),
       },
     });

@@ -1,6 +1,8 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RATE_CURRENCY } from '@/features/profile-setup/api.ts';
+import { toMinorUnits } from '@/features/profile-setup/location-options.ts';
 import type * as ProfileApi from '@/features/profile-setup/api.ts';
 import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import { ProfileBuilder } from './profile-builder.tsx';
@@ -101,8 +103,10 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     timezone: null,
     remoteMode: null,
     availability: null,
-    rateAmountMinor: null,
-    rateCurrency: null,
+    rates: [],
+    responseTime: null,
+    projectLength: null,
+    availableFrom: null,
     sections: NO_SECTIONS,
     visibility: {
       profilePublic: false,
@@ -167,11 +171,36 @@ beforeEach(() => {
     { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
     { slug: 'service-design', name: 'Service design', category: 'Design' },
   ]);
-  calls.save.mockReset().mockImplementation((version, values) => {
+  calls.save.mockReset().mockImplementation((version, values, _sections, rates) => {
     // The claimed photo is a key to send, not a field the profile answers with,
-    // and a remote mode is one of three words rather than whatever was typed.
-    const { avatarKey: _claimed, remoteMode: _mode, ratePeriod: _period, ...fields } = values;
-    return Promise.resolve({ ok: true, profile: stored({ ...fields, version: version + 1 }) });
+    // and a remote mode, response time and project length are each one of a few
+    // words rather than whatever was typed.
+    const {
+      avatarKey: _claimed,
+      remoteMode: _mode,
+      responseTime: _responds,
+      projectLength: _length,
+      ...fields
+    } = values;
+    return Promise.resolve({
+      ok: true,
+      profile: stored({
+        ...fields,
+        version: version + 1,
+        // Answered the way the API answers: minor units and the currency they
+        // are quoted in, so what comes back is what a reload would show.
+        ...(rates === undefined
+          ? {}
+          : {
+              rates: rates.flatMap((rate) => {
+                const amountMinor = toMinorUnits(rate.amount, RATE_CURRENCY);
+                return amountMinor === null
+                  ? []
+                  : [{ period: rate.period, amountMinor, currency: RATE_CURRENCY }];
+              }),
+            }),
+      }),
+    });
   });
 });
 
@@ -454,6 +483,34 @@ describe('ProfileBuilder', () => {
     expect(calls.save).not.toHaveBeenCalled();
   });
 
+  /**
+   * The photo lives on the server; the browser draft holds what was typed.
+   *
+   * A photo is shown from a `blob:` URL belonging to the tab that made it, so a
+   * draft cannot carry one — and the step that reads the saved URL off the
+   * profile is skipped whenever this browser holds a draft. Without this test
+   * the page goes back to showing no photo at all the second time it is opened,
+   * for somebody whose photo saved perfectly well.
+   */
+  it('shows the saved photo when the page reopens on a draft', async () => {
+    const photo = 'https://media.test/profiles/p/avatar/0011223344556677.webp';
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ avatarUrl: photo }) });
+
+    const user = await openForEditing();
+    expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+    await afterTheDraftIsWritten();
+
+    // The tab is closed and opened again, on the draft this browser kept.
+    cleanup();
+    await openForEditing();
+
+    expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
+    expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
+  });
+
   it('keeps every kind of section in the browser draft as it is typed', async () => {
     // One section from each way the page persists work — a profile value, a
     // second value, and two of the dated lists that each save on their own — so
@@ -693,10 +750,12 @@ describe('ProfileBuilder', () => {
     await user.type(title, ' redesign');
 
     expect(title).toHaveValue('Checkout redesign');
-    // Both attachment controls are there from the start, each stating how much
-    // room is left, so nobody has to guess whether twenty is the limit.
-    expect(portfolio().getByText('0 of 20')).toBeInTheDocument();
-    expect(portfolio().getByText('0 of 5')).toBeInTheDocument();
+    // Both drop zones are there from the start, each stating what it takes and
+    // how much room is left, so nobody has to guess whether twenty is the limit.
+    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 20 added/)).toBeInTheDocument();
+    expect(portfolio().getByText(/Supported formats: PDF/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 5 added/)).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {
@@ -726,10 +785,13 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Rate'), '85');
-    await user.selectOptions(rates.getByLabelText('Per'), 'weekly');
+    // A box per period, so somebody who charges by the hour for small jobs and
+    // by the month for a retainer can say both.
+    await user.type(await rates.findByLabelText('Per hour'), '85');
+    await user.type(rates.getByLabelText('Per month'), '5200');
 
-    expect(rates.getByLabelText('Rate')).toHaveValue('85');
+    expect(rates.getByLabelText('Per hour')).toHaveValue('85');
+    expect(rates.getByLabelText('Per month')).toHaveValue('5200');
   });
 
   /**
@@ -737,20 +799,22 @@ describe('ProfileBuilder', () => {
    * the two are a hundred apart. It used to be typed in minor units behind a
    * "$", so anyone who typed what they charge priced their week at 85 cents.
    */
-  it('sends the rate as minor units, not as the number that was typed', async () => {
+  it('sends every price as minor units, not as the numbers that were typed', async () => {
     const user = await openForEditing();
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
     const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Rate'), '85.50');
-    await user.selectOptions(rates.getByLabelText('Per'), 'monthly');
+    await user.type(await rates.findByLabelText('Per month'), '85.50');
+    await user.type(rates.getByLabelText('Per hour'), '45');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
+    // Shortest period first, whatever order the boxes were filled in: that is
+    // the order the API answers in, and the order the profile shows them.
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
-        rateAmountMinor: '85.50',
-        ratePeriod: 'monthly',
-      }),
+      expect(calls.save.mock.calls.at(-1)?.[3]).toEqual([
+        { period: 'hourly', amount: '45' },
+        { period: 'monthly', amount: '85.50' },
+      ]),
     );
   });
 

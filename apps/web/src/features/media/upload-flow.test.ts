@@ -38,7 +38,17 @@ const imageOk = (width = 2048, height = 1365) => ({
   image: { full: blob(300_000), thumb: blob(14_000), width, height },
 });
 
+/** Each PUT that reached storage: the URL it went to and the method used. */
 let sent: Array<[string, RequestInit]>;
+
+/**
+ * Whether the stubbed transport should answer as storage accepting the bytes.
+ *
+ * Set per test rather than restubbed, because the transport is now an
+ * `XMLHttpRequest` and swapping the constructor mid-test is more machinery than
+ * the one refusal case is worth.
+ */
+let storageAccepts = true;
 
 // Bound, because pulling a method off its object and putting it back later is
 // exactly what `unbound-method` is there to catch — and these two do belong to
@@ -49,12 +59,38 @@ const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
 beforeEach(() => {
   vi.clearAllMocks();
   sent = [];
+  storageAccepts = true;
+
+  // The bytes go up through `XMLHttpRequest`, for the one thing it does that
+  // `fetch` does not: report progress while they are in flight. So the stub is
+  // an XHR rather than a fetch — it records the request, reports a little
+  // progress, and then answers.
   vi.stubGlobal(
-    'fetch',
-    vi.fn((url: string, init: RequestInit) => {
-      sent.push([url, init]);
-      return Promise.resolve({ ok: true });
-    }),
+    'XMLHttpRequest',
+    class {
+      status = 0;
+      upload: { onprogress?: (event: ProgressEvent) => void } = {};
+      onload?: () => void;
+      onerror?: () => void;
+      onabort?: () => void;
+      ontimeout?: () => void;
+      private url = '';
+
+      open(_method: string, url: string) {
+        this.url = url;
+      }
+      setRequestHeader() {}
+      send(body: Blob) {
+        sent.push([this.url, { method: 'PUT', body }]);
+        this.upload.onprogress?.({
+          lengthComputable: true,
+          loaded: body.size / 2,
+          total: body.size,
+        } as ProgressEvent);
+        this.status = storageAccepts ? 200 : 403;
+        this.onload?.();
+      }
+    },
   );
   // Only these two are swapped, not the whole `URL` global: everything else
   // here still needs the real constructor.
@@ -137,6 +173,39 @@ describe('uploading a portfolio image', () => {
     expect(thumb).toMatchObject({ role: 'portfolio-thumbnail', byteSize: 14_000 });
   });
 
+  /**
+   * The reason the transport is an `XMLHttpRequest` at all.
+   *
+   * `fetch` resolves when the whole response is in and says nothing on the way,
+   * so a twelve-megabyte upload on a slow connection is a page that looks
+   * frozen. The fractions have to climb and finish at 1 — a bar that stops at
+   * 97% is one nobody trusts the next time.
+   */
+  it('reports progress as the bytes go, and finishes at 1', async () => {
+    compressed.compressImage.mockResolvedValueOnce(imageOk());
+    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
+    client.POST.mockResolvedValueOnce(
+      ticketFor('profiles/p1/portfolio/bbbb000000000000-thumb.webp'),
+    );
+
+    const seen: number[] = [];
+    await uploadImage(new File(['x'], 'a.png', { type: 'image/png' }), 'portfolio', (fraction) =>
+      seen.push(fraction),
+    );
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.at(-1)).toBe(1);
+    // Never backwards: an image is two objects, and the second must continue
+    // the first rather than restart the bar.
+    expect([...seen].sort((a, b) => a - b)).toEqual(seen);
+
+    // Weighted by real size, not halved. The thumbnail is a twentieth of the
+    // full image, so halving would park the bar at 50% through the part that
+    // actually takes time.
+    const halfway = seen.find((fraction) => fraction > 0);
+    expect(halfway).toBeLessThan(0.5);
+  });
+
   it('stops without uploading when the image cannot be read', async () => {
     compressed.compressImage.mockResolvedValueOnce({ ok: false, message: 'That image…' });
 
@@ -153,7 +222,7 @@ describe('uploading a portfolio image', () => {
   it('reports a refusal from storage rather than claiming a key nothing was written to', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
     client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+    storageAccepts = false;
 
     expect(
       await uploadImage(new File(['x'], 'a.png', { type: 'image/png' }), 'portfolio'),

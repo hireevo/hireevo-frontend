@@ -161,9 +161,26 @@ export const REMOTE_MODES = [
  * render it and two copies drift (§8.4).
  */
 export const RATE_PERIOD_LABEL: Record<string, string> = {
+  hourly: 'per hour',
+  daily: 'per day',
   weekly: 'per week',
   monthly: 'per month',
   yearly: 'per year',
+};
+
+/**
+ * The same periods where the space is a chip rather than a sentence — "$45 /hr".
+ *
+ * Separate from the sentence form rather than derived from it: "per hour"
+ * shortens to "/hr", not to "/hour", and a rule that produces both from one
+ * string is more code than the five words it saves.
+ */
+export const RATE_PERIOD_SHORT: Record<string, string> = {
+  hourly: '/hr',
+  daily: '/day',
+  weekly: '/wk',
+  monthly: '/mo',
+  yearly: '/yr',
 };
 
 /**

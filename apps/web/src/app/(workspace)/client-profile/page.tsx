@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cn } from '@hireevo/ui-web';
 import { ProfileBuilder } from '@/features/profile/profile-builder.tsx';
+import { CONTAINER } from '@/features/workspace/layout.ts';
 
 export const metadata: Metadata = {
   title: 'Client profile',
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
 export default function ClientProfilePage() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <main id="main-content" className="mx-auto w-full max-w-[1010px] px-4 pt-8 pb-24 sm:px-6">
+      {/* The same column as the header above it, so the breadcrumb starts on
+          the logo's left edge rather than 40px inside it. */}
+      <main id="main-content" className={cn(CONTAINER, 'pt-8 pb-24')}>
         <nav aria-label="Breadcrumb">
           <ol className="flex items-center gap-2 text-sm text-content-subtle">
             <li>
