@@ -483,6 +483,34 @@ describe('ProfileBuilder', () => {
     expect(calls.save).not.toHaveBeenCalled();
   });
 
+  /**
+   * The photo lives on the server; the browser draft holds what was typed.
+   *
+   * A photo is shown from a `blob:` URL belonging to the tab that made it, so a
+   * draft cannot carry one — and the step that reads the saved URL off the
+   * profile is skipped whenever this browser holds a draft. Without this test
+   * the page goes back to showing no photo at all the second time it is opened,
+   * for somebody whose photo saved perfectly well.
+   */
+  it('shows the saved photo when the page reopens on a draft', async () => {
+    const photo = 'https://media.test/profiles/p/avatar/0011223344556677.webp';
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ avatarUrl: photo }) });
+
+    const user = await openForEditing();
+    expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+    await afterTheDraftIsWritten();
+
+    // The tab is closed and opened again, on the draft this browser kept.
+    cleanup();
+    await openForEditing();
+
+    expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
+    expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
+  });
+
   it('keeps every kind of section in the browser draft as it is typed', async () => {
     // One section from each way the page persists work — a profile value, a
     // second value, and two of the dated lists that each save on their own — so

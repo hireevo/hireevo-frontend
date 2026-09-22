@@ -219,6 +219,7 @@ export function ProfileBuilder() {
   const [seeded, setSeeded] = useState(stored !== null);
   const sent = useRef('');
   const { profile, rebaseline, touch } = identity;
+
   useEffect(() => {
     if (profile === null) return;
 
@@ -332,11 +333,27 @@ export function ProfileBuilder() {
     );
   }
 
-  /** The header card edits the same name, headline and country the profile holds. */
+  /**
+   * The header card edits the same name, headline and country the profile
+   * holds — and shows the photo the profile holds.
+   *
+   * The photo is read from the profile here rather than from the draft, because
+   * the draft cannot carry it: what is in this browser is what was typed, and a
+   * photo is shown from a `blob:` URL belonging to the tab that made it, which
+   * points at nothing in the next one. The saved URL used to be read only while
+   * filling the page in from the server, and that step is skipped whenever this
+   * browser holds a draft — so a photo that saved correctly and showed while
+   * the tab stayed open was gone the moment the page was opened again.
+   *
+   * A photo just chosen wins over the saved one: `avatarKey` is non-empty only
+   * between choosing one and the save that claims it, and for that moment the
+   * browser's own copy is the newer of the two.
+   */
   const headerDraft: ProfileDraft = {
     ...draft,
     displayName: values.displayName,
     title: values.headline,
+    avatarUrl: values.avatarKey === '' ? (profile?.avatarUrl ?? null) : draft.avatarUrl,
   };
 
   function patchHeader(patch: Partial<ProfileDraft>) {
