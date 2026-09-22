@@ -431,7 +431,11 @@ export function ProfileBuilder() {
     // `minmax(0,1fr)` on the single-column track too: a grid track sized `auto`
     // takes its content’s minimum width, which pushed these cards wider than a
     // 320px screen.
-    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)]">
+    //
+    // 908 + 48 + 338 = 1294, the three numbers the design draws. The sidebar is
+    // a fixed width rather than a fraction: it holds one card of a known size,
+    // and letting it stretch is what made it disagree with the frame.
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_338px] lg:gap-12">
       <ProfileHeaderCard
         draft={headerDraft}
         username={user?.username ?? null}
