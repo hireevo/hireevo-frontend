@@ -3,9 +3,11 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import { DESIGN_SNAPSHOT } from './design-fixture.ts';
-import { workspaceSnapshot } from './snapshot.ts';
-import type { WorkspaceSnapshot } from './types.ts';
+import { chromeSnapshot, dashboardData } from './snapshot.ts';
+import type { DashboardData } from './snapshot.ts';
+import type { SellerStatus } from './types.ts';
 import { WorkspaceChrome } from './workspace-chrome.tsx';
 import { WorkspaceDashboard } from './workspace-dashboard.tsx';
 
@@ -37,6 +39,24 @@ const DESIGN_TITLES = [
   'You’re nearly market-ready',
 ];
 
+/** A loaded profile with only the fields the dashboard reads. */
+const emptyProfile = {
+  status: 'draft',
+  overview: null,
+  videoIntroUrl: null,
+  sections: {
+    languages: [],
+    skills: [],
+    experience: [],
+    education: [],
+    licenses: [],
+    portfolio: [],
+  },
+} as unknown as OwnProfile;
+
+/** The honest seller strip a real page shows: no invented tier, only live + available. */
+const realSeller: SellerStatus = { tier: '', upgrade: null, profileLive: true, available: true };
+
 /** The open panel of a header dropdown, found through its button's aria-controls. */
 const panelOf = (trigger: HTMLElement) => {
   const id = trigger.getAttribute('aria-controls');
@@ -51,24 +71,47 @@ const panelOf = (trigger: HTMLElement) => {
  * checks — the header, its dropdowns and the seller bar — sits in the first and
  * is read beside the second.
  */
-const renderPage = (snapshot: WorkspaceSnapshot, onSignOut: (() => void) | null) =>
+const renderPage = (
+  chrome: {
+    nav: typeof DESIGN_SNAPSHOT.nav;
+    utilities: boolean;
+    user: { name: string; initials: string };
+    seller: SellerStatus | null;
+  },
+  data: DashboardData,
+  onSignOut: (() => void) | null,
+) =>
   render(
     <>
       <WorkspaceChrome
-        nav={snapshot.nav}
-        utilities={snapshot.utilities}
-        user={snapshot.user}
-        seller={snapshot.seller}
+        nav={chrome.nav}
+        utilities={chrome.utilities}
+        user={chrome.user}
+        seller={chrome.seller}
         onSignOut={onSignOut}
       />
-      <WorkspaceDashboard snapshot={snapshot} />
+      <WorkspaceDashboard data={data} />
     </>,
   );
 
-const renderPreview = () => renderPage(DESIGN_SNAPSHOT, null);
+const renderPreview = () =>
+  renderPage(
+    {
+      nav: DESIGN_SNAPSHOT.nav,
+      utilities: DESIGN_SNAPSHOT.utilities,
+      user: DESIGN_SNAPSHOT.user,
+      seller: DESIGN_SNAPSHOT.seller,
+    },
+    DESIGN_SNAPSHOT,
+    null,
+  );
 
 const renderReal = (onSignOut = vi.fn()) => {
-  renderPage(workspaceSnapshot(ayesha), onSignOut);
+  renderPage(
+    { ...chromeSnapshot(ayesha), seller: realSeller },
+    dashboardData(emptyProfile),
+    onSignOut,
+  );
   return { onSignOut, user: userEvent.setup() };
 };
 
@@ -104,7 +147,7 @@ describe('WorkspaceDashboard with the design preview content', () => {
     renderPreview();
     expect(
       screen.getByText(
-        (_, element) => element?.tagName === 'P' && element.textContent === '0 Skills',
+        (_, element) => element?.tagName === 'P' && element.textContent === '8 Skills',
       ),
     ).toBeInTheDocument();
   });
@@ -117,17 +160,22 @@ describe('WorkspaceDashboard with the design preview content', () => {
 });
 
 describe('WorkspaceDashboard for a signed-in user', () => {
-  it('draws the designed dashboard', () => {
+  it('draws the real profile, not the design’s sample content', () => {
     renderReal();
-    for (const title of DESIGN_TITLES) {
-      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
-    }
+    // A brand-new profile: strength is really zero, not the fixture's 60.
     expect(screen.getByRole('progressbar', { name: 'Profile strength' })).toHaveAttribute(
       'aria-valuenow',
-      '60',
+      '0',
     );
+    // The featured card prompts for the first piece rather than showing a
+    // fabricated case study, and none of the design's invented figures appear.
+    expect(screen.getByRole('heading', { name: 'Add your first project' })).toBeInTheDocument();
+    for (const title of DESIGN_TITLES) {
+      expect(screen.queryByRole('heading', { name: title })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('12 of 15 bids left this month')).not.toBeInTheDocument();
+    expect(screen.queryByText('New seller')).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Available' })).toBeInTheDocument();
-    expect(screen.getByText('12 of 15 bids left this month')).toBeInTheDocument();
   });
 
   it('puts the signed-in person in the avatar', () => {

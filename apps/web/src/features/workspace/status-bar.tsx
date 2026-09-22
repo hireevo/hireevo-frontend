@@ -42,21 +42,31 @@ export function StatusBar({
           'flex min-h-12 flex-wrap items-center justify-between gap-x-6 gap-y-2 py-2',
         )}
       >
-        <p className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[0.9375rem]">
-          <span
-            aria-hidden="true"
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-muted text-content-link"
-          >
-            <LuRocket className="size-4" />
-          </span>
-          <span className="font-medium text-content-accent">{seller.tier}</span>
-          {seller.upgrade === null ? null : (
-            <>
-              <span aria-hidden="true" className="h-4 w-px bg-border-subtle" />
-              <ActionLink action={seller.upgrade} />
-            </>
-          )}
-        </p>
+        {/* The tier and upgrade come from the membership module, which is not
+            built yet, so on a real profile both are absent and nothing is drawn
+            here rather than an invented plan. An empty span keeps the
+            availability controls to the right. */}
+        {seller.tier === '' && seller.upgrade === null ? (
+          <span />
+        ) : (
+          <p className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[0.9375rem]">
+            <span
+              aria-hidden="true"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-muted text-content-link"
+            >
+              <LuRocket className="size-4" />
+            </span>
+            {seller.tier === '' ? null : (
+              <span className="font-medium text-content-accent">{seller.tier}</span>
+            )}
+            {seller.upgrade === null ? null : (
+              <>
+                <span aria-hidden="true" className="h-4 w-px bg-border-subtle" />
+                <ActionLink action={seller.upgrade} />
+              </>
+            )}
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.9375rem] text-content-accent">
           {seller.profileLive ? (

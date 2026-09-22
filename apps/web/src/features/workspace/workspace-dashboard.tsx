@@ -5,12 +5,12 @@ import { buttonVariants, cn } from '@hireevo/ui-web';
 import { FeatureCard } from './feature-card.tsx';
 import { CONTAINER, EYEBROW } from './layout.ts';
 import { ProfileStrengthCard } from './profile-strength-card.tsx';
+import type { DashboardData } from './snapshot.ts';
 import { StatCard } from './stat-card.tsx';
-import type { WorkspaceSnapshot } from './types.ts';
 
 /** The dashboard's own content. The chrome above it is the layout's; see workspace-chrome.tsx. */
-export function WorkspaceDashboard({ snapshot }: { snapshot: WorkspaceSnapshot }) {
-  const { editProfile, stats, cards, strength } = snapshot;
+export function WorkspaceDashboard({ data }: { data: DashboardData }) {
+  const { editProfile, stats, cards, strength } = data;
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-subtle">

@@ -33,7 +33,7 @@ export default function WorkspacePreviewPage() {
         seller={DESIGN_SNAPSHOT.seller}
         onSignOut={null}
       />
-      <WorkspaceDashboard snapshot={DESIGN_SNAPSHOT} />
+      <WorkspaceDashboard data={DESIGN_SNAPSHOT} />
     </>
   );
 }

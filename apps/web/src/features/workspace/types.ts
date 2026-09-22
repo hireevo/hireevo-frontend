@@ -17,7 +17,7 @@ export type NavItem =
   | { kind: 'link'; label: string; href: Route; current?: boolean }
   | { kind: 'menu'; label: string; entries: MenuEntry[] };
 
-export type StatId = 'skills' | 'portfolio' | 'services';
+export type StatId = 'skills' | 'portfolio' | 'certifications';
 export type Stat = { id: StatId; label: string; value: number; trend: string | null };
 
 export type CardId = 'featured' | 'membership' | 'posting';
