@@ -82,9 +82,13 @@ describe('chromeSnapshot', () => {
     );
     for (const entry of entries) {
       if (entry.kind === 'link' && entry.href !== null) {
-        expect(['/dashboard', '/client-profile', '/profile/setup', '/account']).toContain(
-          entry.href,
-        );
+        expect([
+          '/dashboard',
+          '/client-profile',
+          '/profile/setup',
+          '/profile/preview',
+          '/account',
+        ]).toContain(entry.href);
       }
     }
   });

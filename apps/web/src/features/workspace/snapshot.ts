@@ -47,8 +47,8 @@ export const WORKSPACE_NAV: NavItem[] = [
     label: 'Profile',
     entries: [
       { kind: 'link', label: 'Edit profile', href: '/profile/setup' },
-      { kind: 'link', label: 'View public profile', href: null },
-      { kind: 'link', label: 'Profile visibility', href: null },
+      { kind: 'link', label: 'View public profile', href: '/profile/preview' },
+      { kind: 'link', label: 'Profile visibility', href: EDIT_PROFILE },
     ],
   },
   {

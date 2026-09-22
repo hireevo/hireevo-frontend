@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { RedirectIfSignedIn } from '@/features/auth/redirect-if-signed-in.tsx';
 import { SignInForm } from '@/features/auth/sign-in-form.tsx';
 
 export const metadata: Metadata = {
@@ -13,8 +12,9 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <>
-      {/* The root redirects here, so this is where the app opens. */}
-      <RedirectIfSignedIn />
+      {/* The root redirects here, so this is where the app opens. A signed-in
+          visitor is sent on by the (auth) layout's guard, which covers every
+          auth screen. */}
       {/* The sign-up frame starts its heading at y=139 and this one at y=154,
           so the extra 15px is the difference between the two frames rather than
           something the shared shell should carry. This frame also sets the
