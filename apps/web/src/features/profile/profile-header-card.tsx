@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
+import { IDENTITY_LIMITS } from '@/features/profile-setup/limits.ts';
 import { AvatarPicker } from './avatar-picker.tsx';
 import type { ProfileDraft } from './draft.ts';
 import { InlineEdit } from './inline-edit.tsx';
@@ -161,6 +162,7 @@ export function ProfileHeaderCard({
             value={draft.displayName}
             placeholder="Add display name"
             label="Edit display name"
+            maxLength={IDENTITY_LIMITS.displayName}
             onSave={(displayName) => onChange({ displayName })}
             editable={editable}
             className="-ml-2 text-[1.375rem] leading-8 font-bold"
@@ -170,14 +172,22 @@ export function ProfileHeaderCard({
           )}
         </div>
 
-        <InlineEdit
-          value={draft.title}
-          placeholder="Add title"
-          label="Edit professional title"
-          onSave={(title) => onChange({ title })}
-          editable={editable}
-          className="-ml-2 mt-0.5 block text-sm text-content-muted"
-        />
+        {/* Its own row, from a wrapper rather than from `block` on the control
+            itself: the control lays its text and its pencil out as a flex row,
+            and a `display` passed in here replaces that one. It did, so the
+            pencil stopped being a flex item and wrapped onto a line of its own
+            as soon as the title was long enough to fill the first. */}
+        <div className="mt-0.5">
+          <InlineEdit
+            value={draft.title}
+            placeholder="Add title"
+            label="Edit professional title"
+            maxLength={IDENTITY_LIMITS.headline}
+            onSave={(title) => onChange({ title })}
+            editable={editable}
+            className="-ml-2 text-sm text-content-muted"
+          />
+        </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="inline-flex items-center gap-1 text-sm text-content-muted">
