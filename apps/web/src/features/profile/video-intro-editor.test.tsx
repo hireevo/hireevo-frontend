@@ -16,32 +16,33 @@ function open(url = '', fieldErrors: Record<string, string> = {}) {
 }
 
 describe('VideoIntroEditor', () => {
-  it('says nothing while a link is still being typed', async () => {
-    const user = userEvent.setup();
-    const { input } = open();
-
-    await user.type(input, 'https:/');
-    // No blur yet: a half-typed link is not a mistake to shout about.
+  it('says nothing while the field is empty, because the video is optional', () => {
+    open('');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('refuses a link with no scheme once the person leaves the field', async () => {
-    const user = userEvent.setup();
-    const { input } = open('vimeo.com/123456789');
-
-    await user.click(input);
-    await user.tab();
-
+  it.each([
+    ['a link with no scheme', 'vimeo.com/123456789'],
+    ['random text', 'my cool video'],
+    ['a script URL', 'javascript:alert(1)'],
+  ])('flags %s the moment it is in the field, not only on save', (_why, value) => {
+    open(value);
     expect(screen.getByRole('alert')).toHaveTextContent(VIDEO_URL_ERROR);
-    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('textbox', { name: /Link to your video/ })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
   });
 
-  it('clears the error the moment the link becomes a full https one', async () => {
+  it('sends each keystroke up so the parent stays the source of truth', async () => {
     const user = userEvent.setup();
-    const { input, rerender } = open('javascript:alert(1)');
+    const { input, onChange } = open('');
+    await user.type(input, 'x');
+    expect(onChange).toHaveBeenCalledWith('x');
+  });
 
-    await user.click(input);
-    await user.tab();
+  it('clears the error the moment the link becomes a full https one', () => {
+    const { rerender } = open('javascript:alert(1)');
     expect(screen.getByRole('alert')).toBeInTheDocument();
 
     rerender(
@@ -50,7 +51,7 @@ describe('VideoIntroEditor', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('shows the server’s answer even before the field is touched', () => {
+  it('shows the server’s answer too', () => {
     open('https://vimeo.com/123456789', { videoIntroUrl: VIDEO_URL_ERROR });
     expect(screen.getByRole('alert')).toHaveTextContent(VIDEO_URL_ERROR);
   });
