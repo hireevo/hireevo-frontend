@@ -1,7 +1,7 @@
 'use client';
 
 import type { VariantProps } from 'class-variance-authority';
-import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
 import { buttonVariants } from './button-variants.ts';
 import { cn } from './cn.ts';
 
@@ -11,6 +11,13 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
     loading?: boolean;
     /** Announced to screen readers while `loading` is true. */
     loadingLabel?: string;
+    /**
+     * The button element itself, for the caller that has to put focus back on
+     * it — a dialog returning focus to the control that opened it, say. A plain
+     * prop rather than `forwardRef`: in React 19 a function component takes
+     * `ref` like any other.
+     */
+    ref?: Ref<HTMLButtonElement>;
     children?: ReactNode;
   };
 

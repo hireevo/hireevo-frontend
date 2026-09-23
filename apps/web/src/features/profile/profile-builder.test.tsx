@@ -327,6 +327,54 @@ describe('ProfileBuilder', () => {
   });
 
   /**
+   * Share shows the address rather than copying it out of sight.
+   *
+   * It used to write to the clipboard and say "Link copied" in small print,
+   * which asks somebody to trust that something they never saw is now on their
+   * clipboard — and says nothing useful on the origins where the browser
+   * refuses the clipboard outright.
+   */
+  it('opens the profile link in a dialog, with a button that copies it', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({ status: 'published', slug: 's1' }),
+    });
+
+    const user = await open();
+    // After `userEvent.setup()`, which installs a clipboard of its own: defined
+    // before it, this stub is the one that gets replaced.
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+
+    await user.click(screen.getByRole('button', { name: 'Share' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Share your profile' });
+    const link = within(dialog).getByRole('textbox', { name: 'Your profile link' });
+    expect(link).toHaveValue('http://localhost:3100/p/s1');
+    expect(link).toHaveAttribute('readonly');
+
+    await user.click(within(dialog).getByRole('button', { name: /Copy/ }));
+    expect(writeText).toHaveBeenCalledWith('http://localhost:3100/p/s1');
+    expect(await within(dialog).findByText(/Link copied/)).toBeInTheDocument();
+  });
+
+  it('closes the share dialog on Escape and puts focus back on Share', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({ status: 'published', slug: 's1' }),
+    });
+    const user = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Share' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share' })).toHaveFocus();
+  });
+
+  /**
    * The card beside the name shows what was starred, and only that.
    *
    * It is the same card the published profile draws, so it has to say the same

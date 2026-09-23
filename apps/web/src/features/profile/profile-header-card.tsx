@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { IDENTITY_LIMITS } from '@/features/profile-setup/limits.ts';
+import { env } from '@/env.ts';
 import { AvatarPicker } from './avatar-picker.tsx';
+import { ShareDialog } from './share-dialog.tsx';
 import type { ProfileDraft } from './draft.ts';
 import { InlineEdit } from './inline-edit.tsx';
 
@@ -24,19 +26,24 @@ const COLUMN = 'flex w-full shrink-0 flex-col gap-1.5 sm:w-auto sm:items-end';
  * gives no sign of having worked is indistinguishable from one that did not.
  */
 function PublicLinks({ slug, published }: { slug: string | null; published: boolean }) {
-  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const shareButton = useRef<HTMLButtonElement>(null);
   const reasonId = useId();
   const path = slug === null ? null : `/p/${slug}`;
 
-  async function share() {
-    if (path === null) return;
-    try {
-      await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
-      setCopied(true);
-    } catch {
-      // Denied, or no clipboard at all. The link is still one tab away.
-      setCopied(false);
-    }
+  /**
+   * The address as somebody else would type it.
+   *
+   * Built from the site's own origin rather than from the tab's: a link shared
+   * out of a preview deployment, or out of a laptop on `localhost`, has to be
+   * the address the profile actually lives at.
+   */
+  const url = path === null ? null : new URL(path, env.NEXT_PUBLIC_SITE_URL).toString();
+
+  /** Back to the control that opened it, so a keyboard is where it started. */
+  function close() {
+    setSharing(false);
+    shareButton.current?.focus();
   }
 
   // Preview does not wait for publishing. It reads
@@ -55,10 +62,11 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
       <div className="flex items-center gap-2">
         {shareable ? (
           <Button
+            ref={shareButton}
             type="button"
             size="sm"
             variant="secondary"
-            onClick={() => void share()}
+            onClick={() => setSharing(true)}
             className={CONTROL}
           >
             <LuShare2 aria-hidden="true" className="size-3.5" />
@@ -91,12 +99,13 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
 
       {/* Under the buttons rather than beside them: the design's corner is
           these two controls, and a sentence in front of them moves them. */}
-      <p
-        {...(shareable ? { role: 'status', 'aria-live': 'polite' } : { id: reasonId })}
-        className="text-xs text-content-subtle"
-      >
-        {shareable ? (copied ? 'Link copied' : '') : 'Publish to share a link'}
-      </p>
+      {shareable ? null : (
+        <p id={reasonId} className="text-xs text-content-subtle">
+          Publish to share a link
+        </p>
+      )}
+
+      {sharing && url !== null ? <ShareDialog url={url} onClose={close} /> : null}
     </div>
   );
 }
