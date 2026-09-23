@@ -577,9 +577,13 @@ export function ProfileBuilder() {
             // is the API's rule rather than this card's, and it answers with the
             // fields that are missing — which is a better thing to read than a
             // button that is simply not there.
+            // Publishing saves first, so it is shut while files are still
+            // going up for the same reason Save is: a save sent then would
+            // publish a profile with the pieces missing their images.
             secondaryAction: {
-              label: publishing ? 'Publishing…' : 'Publish',
+              label: uploading ? 'Uploading…' : publishing ? 'Publishing…' : 'Publish',
               onClick: () => void publish(),
+              disabled: uploading,
             },
           }}
         />

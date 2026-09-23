@@ -125,7 +125,13 @@ export function ProfileStrengthCard({
           <LuArrowRight aria-hidden="true" className="size-4" />
         </Link>
       ) : (
-        <Button type="button" fullWidth onClick={strength.action.onClick} className={ACTION}>
+        <Button
+          type="button"
+          fullWidth
+          onClick={strength.action.onClick}
+          disabled={strength.action.disabled ?? false}
+          className={ACTION}
+        >
           {strength.action.label}
           <LuArrowRight aria-hidden="true" className="size-4" />
         </Button>
@@ -149,6 +155,7 @@ export function ProfileStrengthCard({
           variant="secondary"
           fullWidth
           onClick={strength.secondaryAction.onClick}
+          disabled={strength.secondaryAction.disabled ?? false}
           className={SECONDARY_ACTION}
         >
           {strength.secondaryAction.label}
