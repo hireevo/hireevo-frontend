@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { IDENTITY_LIMITS } from '@/features/profile-setup/limits.ts';
@@ -28,7 +28,6 @@ const COLUMN = 'flex w-full shrink-0 flex-col gap-1.5 sm:w-auto sm:items-end';
 function PublicLinks({ slug, published }: { slug: string | null; published: boolean }) {
   const [sharing, setSharing] = useState(false);
   const shareButton = useRef<HTMLButtonElement>(null);
-  const reasonId = useId();
   const path = slug === null ? null : `/p/${slug}`;
 
   /**
@@ -46,47 +45,28 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
     shareButton.current?.focus();
   }
 
-  // Preview does not wait for publishing. It reads
-  // `/profiles/me/preview`, which serialises the owner's own profile through
-  // the same rules the public page uses — so the one moment somebody wants to
-  // see what they are about to put in front of buyers is a moment they can.
-  //
-  // Share still does wait, because there is nothing to share: the public route
-  // answers 404 until the profile is published, so a copied link would lead
-  // nowhere. It is refused rather than hidden, and says why. `aria-disabled`
-  // rather than `disabled` keeps it in the tab order with its reason attached.
-  const shareable = path !== null && published;
-
   return (
     <div className={COLUMN}>
       <div className="flex items-center gap-2">
-        {shareable ? (
-          <Button
-            ref={shareButton}
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => setSharing(true)}
-            className={CONTROL}
-          >
-            <LuShare2 aria-hidden="true" className="size-3.5" />
-            Share
-          </Button>
-        ) : (
-          <button
-            type="button"
-            aria-disabled="true"
-            aria-describedby={reasonId}
-            className={cn(
-              buttonVariants({ variant: 'secondary', size: 'sm' }),
-              CONTROL,
-              'cursor-not-allowed bg-surface-muted text-content-muted hover:bg-surface-muted',
-            )}
-          >
-            <LuShare2 aria-hidden="true" className="size-3.5" />
-            Share
-          </button>
-        )}
+        {/* Share no longer waits for publishing.
+            It used to be refused until then, because the public route answers
+            404 and a copied link would lead nowhere — but a button that cannot
+            be pressed, under a line of grey text, reads as broken rather than
+            as a rule. The address exists the moment the profile does; the
+            dialog shows it and says plainly that it will not work until the
+            profile is published. */}
+        <Button
+          ref={shareButton}
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => setSharing(true)}
+          disabled={url === null}
+          className={CONTROL}
+        >
+          <LuShare2 aria-hidden="true" className="size-3.5" />
+          Share
+        </Button>
 
         <Link
           href="/profile/preview"
@@ -97,15 +77,7 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
         </Link>
       </div>
 
-      {/* Under the buttons rather than beside them: the design's corner is
-          these two controls, and a sentence in front of them moves them. */}
-      {shareable ? null : (
-        <p id={reasonId} className="text-xs text-content-subtle">
-          Publish to share a link
-        </p>
-      )}
-
-      {sharing && url !== null ? <ShareDialog url={url} onClose={close} /> : null}
+      {sharing && url !== null ? <ShareDialog url={url} live={published} onClose={close} /> : null}
     </div>
   );
 }

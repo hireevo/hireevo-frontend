@@ -306,15 +306,31 @@ describe('ProfileBuilder', () => {
    * button refused. Share still waits, because until the profile is published
    * the public route answers 404 and a copied link would lead nowhere.
    */
-  it('offers Preview on an unpublished profile, and withholds Share', async () => {
-    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'draft' }) });
-    await open();
+  /**
+   * Share opens before publishing, and says the link is not live yet.
+   *
+   * It used to be refused until the profile was published, because the public
+   * route answers 404 until then — but a button that cannot be pressed, under a
+   * line of grey text, reads as broken rather than as a rule. The address
+   * exists the moment the profile does; what has to be said is that it will not
+   * open for anyone else yet.
+   */
+  it('offers Preview and Share on an unpublished profile, warning that the link is not live', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'draft', slug: 's1' }) });
+    const user = await open();
 
     const preview = await screen.findByRole('link', { name: 'Preview' });
     expect(preview).toHaveAttribute('href', '/profile/preview');
 
-    expect(screen.getByRole('button', { name: 'Share' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText('Publish to share a link')).toBeInTheDocument();
+    const share = screen.getByRole('button', { name: 'Share' });
+    expect(share).toBeEnabled();
+    await user.click(share);
+
+    const dialog = screen.getByRole('dialog', { name: 'Share your profile' });
+    expect(dialog.textContent).toContain('not published yet');
+    expect(within(dialog).getByRole('textbox', { name: 'Your profile link' })).toHaveValue(
+      'http://localhost:3100/p/s1',
+    );
   });
 
   it('offers Share once the profile is published', async () => {
@@ -322,7 +338,7 @@ describe('ProfileBuilder', () => {
     await open();
 
     const share = await screen.findByRole('button', { name: 'Share' });
-    expect(share).not.toHaveAttribute('aria-disabled');
+    expect(share).toBeEnabled();
     expect(screen.queryByText('Publish to share a link')).not.toBeInTheDocument();
   });
 
@@ -352,6 +368,8 @@ describe('ProfileBuilder', () => {
     const link = within(dialog).getByRole('textbox', { name: 'Your profile link' });
     expect(link).toHaveValue('http://localhost:3100/p/s1');
     expect(link).toHaveAttribute('readonly');
+    // Published, so no warning about a link that leads nowhere.
+    expect(dialog.textContent).not.toContain('not published yet');
 
     await user.click(within(dialog).getByRole('button', { name: /Copy/ }));
     expect(writeText).toHaveBeenCalledWith('http://localhost:3100/p/s1');
