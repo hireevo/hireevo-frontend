@@ -247,7 +247,7 @@ export function PublicProfileScreen({
 
           {profile.overview === null ? null : (
             <Card title="About">
-              <p className="mt-3 text-sm leading-[1.7] whitespace-pre-line text-content-muted">
+              <p className="mt-3 text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
                 {profile.overview}
               </p>
             </Card>

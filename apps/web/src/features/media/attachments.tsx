@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { LuCloudUpload, LuDownload, LuFileText, LuTrash2 } from 'react-icons/lu';
 import {
@@ -43,7 +43,29 @@ export function AttachmentsEditor({
   const images = files.filter((file) => file.kind === 'image');
   const documents = files.filter((file) => file.kind === 'document');
 
-  const attach = (added: DraftFile[]) => onChange([...files, ...added]);
+  /**
+   * The list as it stands now, not as it stood when the upload began.
+   *
+   * Files are handed up one at a time as each lands, and the function doing the
+   * handing was captured before the first one did — so appending to the `files`
+   * it closed over would keep only the last of a batch and throw the other nine
+   * away. A ref is read at the moment of the call, which is the only list that
+   * is true by then.
+   */
+  const latest = useRef<DraftFile[]>([...files]);
+  useEffect(() => {
+    latest.current = [...files];
+  }, [files]);
+
+  const attach = (added: DraftFile[]) => {
+    const current = latest.current;
+    const fresh = added.filter(
+      (file) => !current.some((kept) => kept.objectKey === file.objectKey),
+    );
+    if (fresh.length === 0) return;
+    latest.current = [...current, ...fresh];
+    onChange(latest.current);
+  };
 
   const detach = (key: string) => {
     const going = files.find((file) => file.objectKey === key);
@@ -237,7 +259,6 @@ function Attach({
       setError(`Only ${room} more ${kind === 'image' ? 'images' : 'documents'} fit here.`);
     }
 
-    const stored: DraftFile[] = [];
     for (const [index, file] of taking.entries()) {
       setBusy({ name: file.name, size: file.size, done: index, total: taking.length, fraction: 0 });
 
@@ -253,13 +274,15 @@ function Attach({
         setError(result.message);
         break;
       }
-      stored.push(result.value);
+      // Handed up as each one lands, not once the batch is done. Ten images
+      // take ten uploads, and a save pressed during them used to send a piece
+      // with none of them on it — which does not merely lose the ones still
+      // going, it clears the ones already stored, because a list is saved
+      // whole. Whatever has landed is now always in the list.
+      onAdd([result.value]);
     }
 
     setBusy(null);
-    // Whatever did land is kept. Losing four successful uploads because the
-    // fifth failed would make a flaky connection cost the whole batch.
-    if (stored.length > 0) onAdd(stored);
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {

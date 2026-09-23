@@ -46,7 +46,7 @@ export function SummaryList({ rows }: { rows: readonly SummaryRow[] }) {
             <p className="mt-0.5 text-sm text-content-subtle">{row.secondary}</p>
           )}
           {row.body === undefined || row.body.trim() === '' ? null : (
-            <p className="mt-2 text-sm leading-[1.6] whitespace-pre-line text-content-muted">
+            <p className="mt-2 text-sm leading-[1.6] wrap-anywhere whitespace-pre-line text-content-muted">
               {row.body}
             </p>
           )}

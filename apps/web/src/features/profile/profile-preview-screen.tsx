@@ -271,7 +271,7 @@ export function ProfilePreviewScreen({
       <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-2">
         {profile.overview === null ? null : (
           <PreviewCard title="About" shown={shown.biography}>
-            <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
+            <p className="text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
               {profile.overview}
             </p>
           </PreviewCard>

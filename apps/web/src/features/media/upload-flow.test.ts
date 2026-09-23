@@ -13,8 +13,10 @@ vi.mock('@/lib/api.ts', () => ({ api: client }));
  * asserting against a stub of the browser rather than against a browser. What
  * these tests are about is the two-request upload: what is asked of the API,
  * what is sent to storage, and what comes back to be claimed. The encoder
- * itself is covered by `e2e/tests/portfolio-upload.spec.ts`, which runs in a
- * real one.
+ * itself has no automated cover: it is exercised by driving a real browser at
+ * the running API by hand, which is how the batch-append defect below was
+ * found. Naming a spec file that does not exist is worse than naming none
+ * (§8.1), so this says what is actually true.
  */
 const compressed = vi.hoisted(() => ({ compressImage: vi.fn() }));
 vi.mock('./compress-image.ts', () => compressed);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   LuAward,
   LuBriefcaseBusiness,
@@ -67,6 +67,7 @@ import {
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
+import { uploadsInFlight, watchUploads } from '@/features/media/upload.ts';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { SectionCard } from './section-card.tsx';
 import {
@@ -175,6 +176,20 @@ export function ProfileBuilder() {
   const languages = draft.languages;
   const portfolio = draft.records.portfolio;
 
+  /**
+   * Whether anything is still on its way to storage.
+   *
+   * A save sends every list whole, so one pressed mid-upload sends the piece
+   * without the files still going up — and clears the ones already stored,
+   * because a list is written whole. Saving waits for them instead, and says
+   * so rather than looking broken.
+   */
+  const uploading = useSyncExternalStore(
+    watchUploads,
+    () => uploadsInFlight() > 0,
+    () => false,
+  );
+
   const collect = useCallback(
     () =>
       toSectionsPayload({
@@ -218,10 +233,35 @@ export function ProfileBuilder() {
   // wait for; otherwise the page waits for the server's lists to be put there.
   const [seeded, setSeeded] = useState(stored !== null);
   const sent = useRef('');
+  /** Whether the draft this browser opened on has been measured against the server yet. */
+  const judged = useRef(stored === null);
   const { profile, rebaseline, touch } = identity;
 
   useEffect(() => {
     if (profile === null) return;
+
+    /*
+     * A draft is only newer than the server while the server has not moved on.
+     *
+     * This page used to prefer whatever this browser kept, for ever and without
+     * asking. A draft written before ten portfolio images were attached then
+     * showed a piece with none of them — the files were in Postgres and in
+     * storage the whole time — and the next save would have cleared them, since
+     * every list is written whole. Comparing the version the draft was written
+     * against with the version the server answers with tells the two apart.
+     * When they disagree the draft is dropped and the page opened again on what
+     * was saved: a fresh load rather than unpicking it in place, because the
+     * fields were filled in from that draft before this ran, and reloading is
+     * the one path that is certainly consistent.
+     */
+    if (!judged.current) {
+      judged.current = true;
+      if (stored !== null && stored.profileVersion !== profile.version) {
+        if (userId !== null) clearDraft(userId);
+        window.location.reload();
+        return;
+      }
+    }
 
     if (stage.current === 'waiting') {
       stage.current = 'filling';
@@ -284,9 +324,13 @@ export function ProfileBuilder() {
   // Written a moment after the last keystroke rather than on every one, and
   // gathered inside the effect so what is written is what those changes say.
   useEffect(() => {
-    if (userId === null) return;
+    // Nothing is kept before the profile has arrived: a draft that cannot say
+    // which version it is newer than is one the next visit has to throw away.
+    if (userId === null || profile === null) return;
     const id = setTimeout(() => {
       writeDraft(userId, {
+        // What this draft is newer than.
+        profileVersion: profile.version,
         identity: values,
         country: draft.country,
         languages: draft.languages,
@@ -301,6 +345,7 @@ export function ProfileBuilder() {
     return () => clearTimeout(id);
   }, [
     userId,
+    profile,
     values,
     draft,
     rates,
@@ -560,7 +605,7 @@ export function ProfileBuilder() {
               onChange={identity.change}
             />
           ) : filled.about ? (
-            <p className="text-sm leading-[1.7] whitespace-pre-line text-content-muted">
+            <p className="text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
               {values.overview}
             </p>
           ) : undefined}
@@ -766,7 +811,7 @@ export function ProfileBuilder() {
           <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p role="status" aria-live="polite" className="text-sm font-medium text-content">
-                {saveStatus}
+                {uploading ? 'Waiting for your files to finish uploading…' : saveStatus}
               </p>
               <p className="mt-1 text-xs text-content-subtle">
                 Everything you type is kept in this browser until you save, so nothing is lost if
@@ -778,9 +823,10 @@ export function ProfileBuilder() {
               onClick={() => void save()}
               loading={identity.save.kind === 'saving'}
               loadingLabel="Saving"
+              disabled={uploading}
               className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
             >
-              Save
+              {uploading ? 'Uploading…' : 'Save'}
             </Button>
           </Card>
         )}
