@@ -31,7 +31,12 @@ export type VisibilityValues = {
 
 export const DEFAULT_VISIBILITY: VisibilityValues = {
   mode: 'private',
-  sections: Object.fromEntries(PUBLIC_SECTIONS.map((section) => [section.id, false])) as Record<
+  // Shown, matching the column defaults: a profile is private until it is
+  // published, and what publishing then shows is what the person filled in.
+  // This is only what the step holds in the moment before the profile arrives —
+  // the server's own answer replaces it — but the moment is visible, and a
+  // flash of twelve unticked boxes says the opposite of what is true.
+  sections: Object.fromEntries(PUBLIC_SECTIONS.map((section) => [section.id, true])) as Record<
     PublicSection,
     boolean
   >,
@@ -53,9 +58,9 @@ function valuesOf(profile: OwnProfile): VisibilityValues {
 /**
  * Who sees the profile once it is published.
  *
- * It starts private, with nothing shared and no indexing: the step promises
- * that publishing shows only what is explicitly marked public, so nothing is
- * marked on the person's behalf.
+ * It starts private and not indexed: nothing is public until the person
+ * publishes. What publishing shows is every section they filled in, which is
+ * what these switches start on and what unticking one takes away.
  *
  * Saving sends the whole setting at the profile's version, like every other
  * write to it. The answer does not carry the new version — the setting is all
