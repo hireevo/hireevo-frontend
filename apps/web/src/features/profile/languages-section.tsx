@@ -47,6 +47,7 @@ export function LanguagesSection({
       title="Languages"
       optional
       description="Add the languages you work in, and star the ones to show beside your name."
+      filled={languages.length > 0}
       icon={<LuGlobe />}
       className={className}
       editing={open}
