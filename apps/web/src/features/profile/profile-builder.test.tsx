@@ -579,6 +579,43 @@ describe('ProfileBuilder', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  /**
+   * The line under each heading is an instruction, and an instruction that has
+   * been followed is noise sitting above the answer.
+   */
+  it('drops a section’s instruction once the section holds something', async () => {
+    await open();
+
+    // Nothing filled in yet, so every section still says what it is for.
+    expect(section(/About/).getByText(/Share some details about yourself/)).toBeInTheDocument();
+    expect(
+      section(/Skills and expertise/).getByText(/Attract relevant clients/),
+    ).toBeInTheDocument();
+
+    cleanup();
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        overview: 'Accomplished professional with thirteen years across QA and delivery.',
+        sections: {
+          ...NO_SECTIONS,
+          skills: [{ name: 'QA', proficiency: null, years: null, approved: true }],
+        },
+      }),
+    });
+    await open();
+
+    expect(
+      section(/About/).queryByText(/Share some details about yourself/),
+    ).not.toBeInTheDocument();
+    expect(section(/About/).getByText(/Accomplished professional/)).toBeInTheDocument();
+    expect(
+      section(/Skills and expertise/).queryByText(/Attract relevant clients/),
+    ).not.toBeInTheDocument();
+    // And a section still empty keeps its own instruction.
+    expect(section(/Work experience/).getByText(/Add your job history/)).toBeInTheDocument();
+  });
+
   it('keeps every kind of section in the browser draft as it is typed', async () => {
     // One section from each way the page persists work — a profile value, a
     // second value, and two of the dated lists that each save on their own — so
