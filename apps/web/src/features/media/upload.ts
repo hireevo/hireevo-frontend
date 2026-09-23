@@ -39,6 +39,42 @@ const REFUSED = 'The file could not be stored. Try again.';
 export type Uploaded<T> = { ok: true; value: T } | { ok: false; message: string };
 
 /**
+ * How many uploads this tab has in the air, and a way to watch that number.
+ *
+ * A save sends every list whole, so a save pressed while files are still going
+ * up sends a piece without them — and, because the list is written whole,
+ * clears the ones already stored. The page reads this to keep Save shut until
+ * the uploads have landed, which is the only moment the lists are true.
+ *
+ * Module state rather than a prop threaded through four components, because the
+ * question is about this tab rather than about any one editor: two zones on two
+ * pieces can be uploading at once, and Save cares only that something is.
+ */
+let inFlight = 0;
+const watching = new Set<() => void>();
+
+export function uploadsInFlight(): number {
+  return inFlight;
+}
+
+export function watchUploads(listener: () => void): () => void {
+  watching.add(listener);
+  return () => watching.delete(listener);
+}
+
+/** Counts one upload in and out again, telling whoever is watching. */
+async function tracked<T>(run: () => Promise<Uploaded<T>>): Promise<Uploaded<T>> {
+  inFlight += 1;
+  for (const listener of watching) listener();
+  try {
+    return await run();
+  } finally {
+    inFlight -= 1;
+    for (const listener of watching) listener();
+  }
+}
+
+/**
  * Sends one blob to storage and answers with the key to claim.
  *
  * Two requests, because the bytes never go through the API (ADR-004): it signs
@@ -133,7 +169,11 @@ function send(
  * Only the full-size copy — a photo is shown at one size, so a second object
  * for a thumbnail would be stored and never read.
  */
-export async function uploadProfilePhoto(file: File): Promise<Uploaded<string>> {
+export function uploadProfilePhoto(file: File): Promise<Uploaded<string>> {
+  return tracked(() => sendProfilePhoto(file));
+}
+
+async function sendProfilePhoto(file: File): Promise<Uploaded<string>> {
   // The file as it was chosen, before anything re-encodes it. A photo straight
   // off a phone would compress to well under this and pass either way, so the
   // ceiling is on what a person may hand over rather than on what is stored: a
@@ -197,7 +237,15 @@ const ROLES = {
  * stored for; the compression and the shape are identical for both, to the same
  * ceilings the API signs.
  */
-export async function uploadImage(
+export function uploadImage(
+  file: File,
+  group: FileGroup,
+  onProgress?: (fraction: number) => void,
+): Promise<Uploaded<DraftFile>> {
+  return tracked(() => sendImage(file, group, onProgress));
+}
+
+async function sendImage(
   file: File,
   group: FileGroup,
   onProgress?: (fraction: number) => void,
@@ -260,7 +308,15 @@ export async function uploadImage(
  * size limit is the whole of the bargain, and it is enforced here so the person
  * is told before a slow upload rather than after it.
  */
-export async function uploadDocument(
+export function uploadDocument(
+  file: File,
+  group: FileGroup,
+  onProgress?: (fraction: number) => void,
+): Promise<Uploaded<DraftFile>> {
+  return tracked(() => sendDocument(file, group, onProgress));
+}
+
+async function sendDocument(
   file: File,
   group: FileGroup,
   onProgress?: (fraction: number) => void,

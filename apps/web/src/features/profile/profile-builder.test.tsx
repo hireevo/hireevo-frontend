@@ -511,6 +511,74 @@ describe('ProfileBuilder', () => {
     expect(document.querySelector(`img[src="${photo}"]`)).not.toBeNull();
   });
 
+  /**
+   * A draft is only newer than the server while the server has not moved on.
+   *
+   * The page used to prefer whatever this browser kept, for ever. A draft
+   * written before ten portfolio images were attached then showed a piece with
+   * none of them — the files were in Postgres and in storage the whole time —
+   * and the next save would have cleared them, because a list is saved whole.
+   */
+  it('throws away a draft the server has moved past, rather than showing it', async () => {
+    const reload = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, reload },
+    });
+
+    // Kept against version 2; the server answers with version 3.
+    window.localStorage.setItem(
+      'hireevo.client-profile-draft.user-1',
+      JSON.stringify({
+        version: 6,
+        profileVersion: 2,
+        identity: { headline: 'Typed before the save' },
+        country: '',
+        languages: [],
+        skills: [],
+        experience: [],
+        education: [],
+        licenses: [],
+        portfolio: [{ id: 'p1', fields: { title: 'A piece with its files forgotten' }, files: [] }],
+      }),
+    );
+
+    render(<ProfileBuilder />);
+
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(window.localStorage.getItem('hireevo.client-profile-draft.user-1')).toBeNull();
+  });
+
+  it('keeps a draft written against the version the server still holds', async () => {
+    const reload = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, reload },
+    });
+
+    window.localStorage.setItem(
+      'hireevo.client-profile-draft.user-1',
+      JSON.stringify({
+        version: 6,
+        // `stored()` answers with version 3.
+        profileVersion: 3,
+        identity: { overview: 'Kept for later.' },
+        country: '',
+        languages: [],
+        skills: [],
+        experience: [],
+        education: [],
+        licenses: [],
+        portfolio: [],
+      }),
+    );
+
+    await openForEditing();
+
+    expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it('keeps every kind of section in the browser draft as it is typed', async () => {
     // One section from each way the page persists work — a profile value, a
     // second value, and two of the dated lists that each save on their own — so

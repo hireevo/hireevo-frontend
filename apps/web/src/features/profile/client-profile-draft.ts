@@ -18,10 +18,20 @@ import type { ProfileLanguage, ProfileRecord } from './draft.ts';
  * see each other's draft, and a version so an older shape is dropped rather
  * than half read.
  */
-const VERSION = 5;
+const VERSION = 6;
 
 export type StoredDraft = {
   version: number;
+  /**
+   * The profile version this draft was written against.
+   *
+   * Without it a draft outranks the server for ever: the page opens on whatever
+   * this browser kept, and a draft written before ten images were attached
+   * showed a portfolio with none of them — and would have cleared them at the
+   * next save, because a list is written whole. A draft is only newer than the
+   * server while the server has not moved on, and this is what says so.
+   */
+  profileVersion?: number;
   /** Partial: a draft written before a field existed still opens. */
   identity: Partial<ProfileValues>;
   country: string;

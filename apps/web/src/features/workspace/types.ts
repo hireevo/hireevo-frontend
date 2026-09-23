@@ -38,7 +38,14 @@ export type StrengthItem = { label: string; done: boolean };
  * profile itself there is nowhere to go, so it turns that page's sections on
  * for editing instead.
  */
-export type StrengthAction = LinkAction | { label: string; onClick: () => void };
+export type StrengthAction =
+  | LinkAction
+  | {
+      label: string;
+      onClick: () => void;
+      /** Shut while the page has something it must finish first, e.g. an upload. */
+      disabled?: boolean;
+    };
 
 export type ProfileStrength = {
   percent: number;
