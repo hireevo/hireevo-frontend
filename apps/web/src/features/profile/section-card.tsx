@@ -7,6 +7,14 @@ export type SectionCardProps = {
   /** Renders the "(Optional)" note the design puts beside four of the headings. */
   optional?: boolean;
   description: string;
+  /**
+   * Whether this section holds anything yet.
+   *
+   * The description is an instruction — "Share some details about yourself" —
+   * and an instruction that has been followed is noise sitting above the
+   * answer. A filled section shows what is in it instead.
+   */
+  filled?: boolean;
   /** The section's illustration. Decorative — `IconTile` hides it. */
   icon: ReactNode;
   /** The control that opens the section: "Add skills and expertise", or "Edit". */
@@ -26,6 +34,7 @@ export function SectionCard({
   title,
   optional = false,
   description,
+  filled = false,
   icon,
   action,
   children,
@@ -46,24 +55,36 @@ export function SectionCard({
           </h2>
           {/* The copy is held to roughly half the card in the design, so it
               wraps to two lines rather than running under the illustration. */}
-          <p className="mt-4 max-w-[420px] text-sm leading-[1.6] text-content-subtle">
-            {description}
-          </p>
+          {filled ? null : (
+            <p className="mt-4 max-w-[420px] text-sm leading-[1.6] text-content-subtle">
+              {description}
+            </p>
+          )}
         </div>
 
         {/* The corner holds one or the other, as the design draws it: the
             control that opens the section, or — while there is none — the
             illustration. The illustration is the first thing to go when the
             column is narrow: 100px of it beside two lines of copy on a phone
-            leaves room for neither. */}
-        {action === null || action === undefined ? (
-          <IconTile className="hidden sm:flex">{icon}</IconTile>
-        ) : (
+            leaves room for neither.
+
+            It goes for good once the section is filled. It decorates the
+            invitation to fill one in, and beside a heading with no copy under
+            it, it is a hundred pixels of height holding a gap above the
+            answer. */}
+        {action !== null && action !== undefined ? (
           <div className="shrink-0">{action}</div>
+        ) : filled ? null : (
+          <IconTile className="hidden sm:flex">{icon}</IconTile>
         )}
       </div>
       {children === undefined ? null : (
-        <div className={cn('mt-6', editing && 'border-t border-border-subtle pt-6')}>
+        <div
+          className={cn(
+            filled && !editing ? 'mt-4' : 'mt-6',
+            editing && 'border-t border-border-subtle pt-6',
+          )}
+        >
           {children}
         </div>
       )}

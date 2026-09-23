@@ -44,6 +44,7 @@ export function PortfolioSection({
       title="Portfolio"
       optional
       description="Showcase your best work to attract potential clients."
+      filled={records.length > 0}
       icon={<LuImages />}
       className={className}
       editing={open}

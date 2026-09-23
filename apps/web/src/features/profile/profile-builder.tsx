@@ -598,6 +598,7 @@ export function ProfileBuilder() {
         <SectionCard
           title="About"
           description="Share some details about yourself, your expertise, and what you offer."
+          filled={filled.about}
           icon={<LuUser />}
           editing={open === 'about'}
           action={actionFor('about', 'About')}
@@ -618,6 +619,7 @@ export function ProfileBuilder() {
         <SectionCard
           title="Skills and expertise"
           description="Attract relevant clients by sharing your strengths and abilities."
+          filled={filled.skills}
           icon={<LuStar />}
           editing={open === 'skills'}
           action={actionFor('skills', 'skills and expertise')}
@@ -633,6 +635,7 @@ export function ProfileBuilder() {
           title="Work experience"
           optional
           description="Add your job history and achievements to give clients insight into your expertise."
+          filled={filled.experience}
           icon={<LuBriefcaseBusiness />}
           editing={open === 'experience'}
           action={actionFor('experience', 'work experience')}
@@ -661,6 +664,7 @@ export function ProfileBuilder() {
             title="Education"
             optional
             description="Back up your skills by adding any educational degrees or programs."
+            filled={filled.education}
             icon={<LuGraduationCap />}
             className={open === 'education' ? 'lg:col-span-2' : ''}
             editing={open === 'education'}
@@ -687,6 +691,7 @@ export function ProfileBuilder() {
             title="Certifications"
             optional
             description="Showcase your mastery with certifications earned in your field."
+            filled={filled.certifications}
             icon={<LuAward />}
             className={open === 'certifications' ? 'lg:col-span-2' : ''}
             editing={open === 'certifications'}
@@ -730,6 +735,7 @@ export function ProfileBuilder() {
           title="Video intro"
           optional
           description="Record a short video to introduce yourself and make a great first impression."
+          filled={filled.videoIntro}
           icon={<LuVideo />}
           editing={open === 'video'}
           action={actionFor('video', 'video intro')}
@@ -748,6 +754,7 @@ export function ProfileBuilder() {
         <SectionCard
           title="Visibility"
           description="Control who can see your profile and manage your online presence."
+          filled
           icon={<LuShieldCheck />}
           editing={open === 'visibility'}
           action={actionFor('visibility', 'visibility')}
@@ -766,6 +773,7 @@ export function ProfileBuilder() {
         <SectionCard
           title="Working preferences"
           description="How you like to work, for a buyer deciding whether to write."
+          filled={preferenceSummary.length > 0}
           icon={<LuClock />}
           editing={open === 'preferences'}
           action={actionFor('preferences', 'working preferences')}
@@ -788,6 +796,7 @@ export function ProfileBuilder() {
         <SectionCard
           title="Expected rates"
           description="Set a price for each period you quote for. Buyers see only the ones you fill in."
+          filled={rateSummary.length > 0}
           icon={<LuCircleDollarSign />}
           editing={open === 'rates'}
           action={actionFor('rates', 'expected rates')}
