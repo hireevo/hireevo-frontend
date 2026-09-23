@@ -6,14 +6,15 @@ import {
   LuAward,
   LuBriefcaseBusiness,
   LuClock,
+  LuExternalLink,
   LuEyeOff,
-  LuFileText,
   LuGlobe,
   LuMapPin,
   LuMessageSquare,
   LuPlay,
 } from 'react-icons/lu';
 import { Card, Chip, cn } from '@hireevo/ui-web';
+import { FileDocuments, FileThumbGrid } from '@/features/media/file-gallery.tsx';
 import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import {
   RATE_PERIOD_SHORT,
@@ -353,11 +354,20 @@ export function ProfilePreviewScreen({
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-accent-subtle text-content-accent">
                         <LuAward aria-hidden="true" className="size-4" />
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-content-accent">{license.name}</p>
                         <p className="mt-0.5 text-sm text-content-subtle">
                           {joined([license.issuer, yearOf(license.issuedOn)])}
                         </p>
+                        {/* The scan or the PDF, which is the certificate
+                            itself: a preview that lists the name and hides the
+                            proof is not showing what was entered. */}
+                        <FileThumbGrid files={license.files} alt={license.name} className="mt-3" />
+                        <FileDocuments
+                          files={license.files}
+                          fallbackName="Certificate"
+                          className="mt-2"
+                        />
                       </div>
                     </li>
                   ))}
@@ -369,49 +379,41 @@ export function ProfilePreviewScreen({
 
         {sections.portfolio.length === 0 ? null : (
           <PreviewCard title="Portfolio" shown={shown.portfolio}>
-            <ul className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {sections.portfolio.map((piece, index) => {
-                const cover = piece.files.find((file) => file.kind === 'image');
-                const documents = piece.files.filter((file) => file.kind === 'document');
-                return (
-                  <li
-                    key={`${piece.title}-${index}`}
-                    className="min-w-0 overflow-hidden rounded-lg bg-surface-subtle"
-                  >
-                    <div className="relative aspect-[4/3] w-full max-w-full bg-surface">
-                      {cover === undefined ? (
-                        <span className="flex size-full items-center justify-center text-content-subtle">
-                          <LuFileText aria-hidden="true" className="size-6" />
-                        </span>
-                      ) : (
-                        <Image
-                          src={cover.thumbUrl ?? cover.url}
-                          alt=""
-                          fill
-                          unoptimized
-                          sizes="(min-width: 1024px) 220px, (min-width: 640px) 45vw, 90vw"
-                          className="object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="truncate text-sm font-semibold text-content-accent">
-                        {piece.title}
-                      </p>
-                      {piece.summary === null ? null : (
-                        <p className="mt-0.5 line-clamp-2 text-xs text-content-subtle">
-                          {piece.summary}
-                        </p>
-                      )}
-                      {documents.length === 0 ? null : (
-                        <p className="mt-1 text-xs text-content-subtle">
-                          {documents.length} document{documents.length === 1 ? '' : 's'}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+            {/* A piece to a row rather than four to a row: this page answers
+                "is all of my work here", and twenty images cannot be answered
+                by one cover and a count. */}
+            <ul className="flex min-w-0 flex-col gap-5">
+              {sections.portfolio.map((piece, index) => (
+                <li
+                  key={`${piece.title}-${index}`}
+                  className="min-w-0 rounded-lg bg-surface-subtle p-4"
+                >
+                  <p className="font-semibold text-content-accent">{piece.title}</p>
+                  {piece.summary === null ? null : (
+                    <p className="mt-0.5 text-sm text-content-subtle">{piece.summary}</p>
+                  )}
+                  {piece.url === null || piece.url === '' ? null : (
+                    <a
+                      href={piece.url}
+                      target="_blank"
+                      rel="noopener noreferrer ugc"
+                      className="mt-1 inline-flex w-fit max-w-full items-center gap-1.5 rounded-sm text-sm break-all text-content-link underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    >
+                      <LuExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
+                      {piece.url}
+                    </a>
+                  )}
+
+                  {piece.files.length === 0 ? (
+                    <p className="mt-3 text-sm text-content-subtle">Nothing attached yet.</p>
+                  ) : (
+                    <>
+                      <FileThumbGrid files={piece.files} alt={piece.title} className="mt-3" />
+                      <FileDocuments files={piece.files} className="mt-2" />
+                    </>
+                  )}
+                </li>
+              ))}
             </ul>
           </PreviewCard>
         )}
