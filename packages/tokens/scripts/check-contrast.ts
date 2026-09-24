@@ -21,6 +21,9 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-danger', 'surface-danger-subtle', 'body'],
   ['content-warning', 'surface', 'body'],
   ['content-warning', 'surface-warning-subtle', 'body'],
+  // The "Verified" badge on identity verification: a solid orange capsule with
+  // white on it, which is the one place the brand's orange carries text.
+  ['content-on-warning', 'surface-warning', 'body'],
   ['content-success', 'surface', 'body'],
   ['content-success', 'surface-success-subtle', 'body'],
   ['content-on-accent', 'surface-accent', 'body'],

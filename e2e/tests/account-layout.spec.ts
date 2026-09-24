@@ -312,14 +312,15 @@ test('the security screen holds its layout with a box open', async ({ page }) =>
   await sweep(page, 'the change password box');
 });
 
-test('the hub leads to the two screens that exist, and marks the two that do not', async ({
+test('the hub leads to the three screens that exist, and marks the one that does not', async ({
   page,
 }) => {
   await open(page, '/account');
 
   await expect(page.getByRole('link', { name: /Personal information/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Account security/ })).toBeVisible();
-  await expect(page.getByText('Soon')).toHaveCount(2);
+  await expect(page.getByRole('link', { name: /Identity verification/ })).toBeVisible();
+  await expect(page.getByText('Soon')).toHaveCount(1);
 
   await page.getByRole('link', { name: /Account security/ }).click();
   await expect(page.getByRole('heading', { name: 'Account security', level: 1 })).toBeVisible();
@@ -329,8 +330,58 @@ test('the hub leads to the two screens that exist, and marks the two that do not
   await expect(page.getByRole('heading', { name: 'Account settings', level: 1 })).toBeVisible();
 });
 
+test('identity verification holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await open(page, '/account/identity');
+
+  // The five steps the design draws, in its order.
+  for (const step of [
+    'Email address',
+    'Phone number',
+    'Government ID',
+    'Selfie verification',
+    'Proof of address',
+  ]) {
+    await expect(page.getByText(step, { exact: true })).toBeVisible();
+  }
+
+  await sweep(page, 'identity verification');
+});
+
+test('the email step reads the account, and its View reveals the address', async ({ page }) => {
+  await open(page, '/account/identity');
+
+  // Masked until asked for, as Personal information masks it: the screen sits
+  // behind a session, but a full address on a shared screen is still a full
+  // address.
+  await expect(page.getByText('a******************r@e*************y.com')).toBeVisible();
+  await expect(page.getByText(USER.email)).toHaveCount(0);
+  await expect(page.getByText('Verified', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'View' }).click();
+  await expect(page.getByText(USER.email)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Hide' }).click();
+  await expect(page.getByText(USER.email)).toHaveCount(0);
+});
+
+test('the four steps with no endpoint refuse their button and say why', async ({ page }) => {
+  await open(page, '/account/identity');
+
+  const refused = page.getByRole('button', { name: 'Verify' });
+  await expect(refused).toHaveCount(4);
+
+  for (const index of [0, 1, 2, 3]) {
+    await expect(refused.nth(index)).toHaveAttribute('aria-disabled', 'true');
+    // The reason is attached rather than left to be guessed at.
+    await expect(refused.nth(index)).toHaveAttribute('aria-describedby', /.+/);
+  }
+
+  await expect(page.getByText('Not started')).toHaveCount(4);
+});
+
 test('the account screens have no accessibility violations', async ({ page }) => {
-  for (const path of ['/account', '/account/personal', '/account/security']) {
+  for (const path of ['/account', '/account/personal', '/account/security', '/account/identity']) {
     await open(page, path);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }

@@ -115,30 +115,50 @@ export function NotYet({
 }
 
 /**
- * The note the design puts beside both settings screens.
+ * The note the design puts beside a settings screen: a tile, a question, and
+ * the answer under it.
  *
- * One copy, for the reason the row above has one: the same words drawn twice
- * become two different sets of words the first time either is edited.
+ * One shell for all of them, because what has to stay identical is the shape —
+ * three screens each drawing their own card is three cards that drift apart on
+ * the first edit to any of them (§8.4). What differs is the icon and the words,
+ * which is what a caller supplies.
  */
-export function UsernameHelpCard({ children }: { children?: React.ReactNode }) {
+export function SettingsAside({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const headingId = useId();
   return (
-    <Card aria-labelledby="help-heading" className="flex min-w-0 flex-col p-6 sm:p-7">
+    <Card aria-labelledby={headingId} className="flex min-w-0 flex-col p-6 sm:p-7">
       <span
         aria-hidden="true"
-        className="flex size-12 items-center justify-center rounded-full bg-surface-accent-subtle text-content-accent"
+        className="flex size-12 items-center justify-center rounded-full bg-surface-accent-subtle text-content-accent [&>svg]:size-5"
       >
-        <LuUser className="size-5" />
+        {icon}
       </span>
 
-      <h2 id="help-heading" className="mt-6 text-lg font-bold text-content-accent">
-        Where can I find my username and display name?
+      <h2 id={headingId} className="mt-6 text-lg font-bold text-content-accent">
+        {title}
       </h2>
-      <p className="mt-2 text-sm leading-[1.6] text-content-muted">
+      <div className="mt-2 text-sm leading-[1.6] text-content-muted">{children}</div>
+    </Card>
+  );
+}
+
+/** The note beside Personal information and Account security, which share it. */
+export function UsernameHelpCard({ children }: { children?: React.ReactNode }) {
+  return (
+    <SettingsAside icon={<LuUser />} title="Where can I find my username and display name?">
+      <p>
         You can find both your username and display name on your profile. While you can update your
         display name, your username cannot be changed.
       </p>
-
       {children}
-    </Card>
+    </SettingsAside>
   );
 }

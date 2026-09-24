@@ -19,11 +19,12 @@ type Area = {
 /**
  * The four parts of the account, as the design lays them out.
  *
- * Two of them have somewhere to go. Notifications and identity verification
- * have no API behind them — no endpoint, no table — so they are drawn but not
- * linked: a card that opens a page with nothing on it is worse than one that
- * says it is not ready, and a link to a route that does not exist is the sort
- * of thing §6.7 exists to stop.
+ * Three of them have somewhere to go. Notifications has no API behind it — no
+ * endpoint, no table — and no screen either, so it is drawn but not linked: a
+ * card that opens a page with nothing on it is worse than one that says it is
+ * not ready, and a link to a route nobody wrote is the sort of thing §6.7
+ * exists to stop. Identity verification does have a screen, and that screen is
+ * honest about which of its steps can be taken today.
  */
 const AREAS: readonly Area[] = [
   {
@@ -47,6 +48,7 @@ const AREAS: readonly Area[] = [
     title: 'Identity verification',
     description: 'Help keep the marketplace safe and trustworthy by verifying who you are.',
     icon: <LuIdCard />,
+    href: '/account/identity',
   },
 ];
 

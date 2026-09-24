@@ -20,12 +20,12 @@ describe('the account settings hub', () => {
   });
 
   /**
-   * Two of the four have somewhere to go.
+   * Three of the four have somewhere to go.
    *
-   * Notifications and identity verification have no API behind them — no
-   * endpoint, no table — so they are drawn but not linked. A card that opens a
-   * page with nothing on it is worse than one that says it is not ready, and a
-   * link to a route nobody wrote is what §6.7 is about.
+   * Notifications has no API behind it and no screen either, so it is drawn but
+   * not linked. A card that opens a page with nothing on it is worse than one
+   * that says it is not ready, and a link to a route nobody wrote is what §6.7
+   * is about.
    */
   it('links only the parts that exist, and marks the rest as not ready', () => {
     render(<SettingsHub />);
@@ -39,8 +39,12 @@ describe('the account settings hub', () => {
       '/account/security',
     );
 
+    expect(screen.getByRole('link', { name: /Identity verification/ })).toHaveAttribute(
+      'href',
+      '/account/identity',
+    );
+
     expect(screen.queryByRole('link', { name: /Notifications/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Identity verification/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('Soon')).toHaveLength(2);
+    expect(screen.getAllByText('Soon')).toHaveLength(1);
   });
 });
