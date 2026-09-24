@@ -241,14 +241,23 @@ test('the password row opens a box that writes, and says what went wrong', async
 
   // Refused before a round trip: a new password that breaks the rules never
   // reaches the API, and the reason is on screen rather than in a console.
-  await box.getByLabel('Current password').fill('Correct-Horse-9');
-  await box.getByLabel('New password').fill('short');
-  await box.getByRole('button', { name: 'Change password' }).click();
+  await box.getByLabel('Current Password').fill('Correct-Horse-9');
+  await box.getByLabel('New Password', { exact: true }).fill('short');
+  await box.getByLabel('Confirm New Password').fill('short');
+  await box.getByRole('button', { name: 'Update password' }).click();
   await expect(box.getByText(/8\+ characters/)).toBeVisible();
   expect(sent).toBeNull();
 
-  await box.getByLabel('New password').fill('N3w!Password9');
-  await box.getByRole('button', { name: 'Change password' }).click();
+  // A mistyped confirmation is caught here too: a password typed once and
+  // mistyped locks somebody out of the account they just secured.
+  await box.getByLabel('New Password', { exact: true }).fill('N3w!Password9');
+  await box.getByLabel('Confirm New Password').fill('N3w!Password8');
+  await box.getByRole('button', { name: 'Update password' }).click();
+  await expect(box.getByText('Both passwords must match.')).toBeVisible();
+  expect(sent).toBeNull();
+
+  await box.getByLabel('Confirm New Password').fill('N3w!Password9');
+  await box.getByRole('button', { name: 'Update password' }).click();
 
   await expect(box.getByRole('heading', { name: 'Password changed' })).toBeVisible();
   expect(sent).toEqual({ currentPassword: 'Correct-Horse-9', newPassword: 'N3w!Password9' });
@@ -262,7 +271,7 @@ test('the box keeps the keyboard, and Escape closes it', async ({ page }) => {
   await expect(box).toBeVisible();
 
   // Focus starts in the first field rather than on the page behind the box.
-  await expect(box.getByLabel('Current password')).toBeFocused();
+  await expect(box.getByLabel('Current Password')).toBeFocused();
 
   await page.keyboard.press('Escape');
   await expect(box).toBeHidden();

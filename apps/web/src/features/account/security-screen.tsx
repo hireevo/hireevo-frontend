@@ -136,7 +136,8 @@ export function SecurityScreen() {
 function PasswordDialog({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
-  const [errors, setErrors] = useState<{ current?: string; next?: string }>({});
+  const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
   const [message, setMessage] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -162,6 +163,13 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
       setErrors({ next: 'Choose a password you are not already using.' });
       return;
     }
+    // The confirmation is the whole reason the field exists: a password typed
+    // once and mistyped locks the person out of the account they just secured,
+    // and nothing after this point could tell them which character went wrong.
+    if (confirm !== next) {
+      setErrors({ confirm: 'Both passwords must match.' });
+      return;
+    }
 
     setErrors({});
     setSaving(true);
@@ -171,6 +179,7 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
     if (result.ok) {
       setCurrent('');
       setNext('');
+      setConfirm('');
       setDone(true);
       return;
     }
@@ -199,36 +208,48 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
       description="Changing your password signs out every other device."
       onClose={onClose}
     >
-      <form onSubmit={(event) => void submit(event)} className="flex min-w-0 flex-col gap-4">
+      {/* The three fields, the rules under the new one and a full-width button,
+          in the order and the wording the design sets out — the same shape the
+          reset-password screen already wears, because they are the same act. */}
+      <form onSubmit={(event) => void submit(event)} className="flex min-w-0 flex-col gap-5">
         <PasswordField
-          label="Current password"
+          label="Current Password"
           value={current}
           autoComplete="current-password"
+          placeholder="••••••••"
           onChange={(event) => setCurrent(event.target.value)}
           {...(errors.current === undefined ? {} : { error: errors.current })}
         />
 
         <div>
           <PasswordField
-            label="New password"
+            label="New Password"
             value={next}
             autoComplete="new-password"
+            placeholder="••••••••"
             onChange={(event) => setNext(event.target.value)}
             {...(errors.next === undefined ? {} : { error: errors.next })}
           />
           <PasswordRules value={next} />
         </div>
 
+        <PasswordField
+          label="Confirm New Password"
+          value={confirm}
+          autoComplete="new-password"
+          placeholder="••••••••"
+          onChange={(event) => setConfirm(event.target.value)}
+          {...(errors.confirm === undefined ? {} : { error: errors.confirm })}
+        />
+
         {message === null ? null : <FormMessage>{message}</FormMessage>}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" loading={saving} loadingLabel="Saving">
-            Change password
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
+        {/* No Cancel beside it: the box already closes from its own ×, from
+            Escape and from the backdrop, and a second way out competing with
+            the action is how the wrong one gets pressed. */}
+        <Button type="submit" size="xl" fullWidth loading={saving} loadingLabel="Saving">
+          Update password
+        </Button>
       </form>
     </SettingsDialog>
   );
