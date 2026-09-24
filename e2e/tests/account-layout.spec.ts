@@ -212,9 +212,95 @@ test('the visibility row is the one that can be changed, and it writes', async (
 test('account security holds its layout at every window size', async ({ page }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
   await open(page, '/account/security');
-  await expect(page.getByText('HireEvo/1.4 (iPhone; iOS 18.2)')).toBeHidden();
-  await expect(page.getByText('iPhone 15 Pro · ios')).toBeVisible();
+
+  // The five rows the design draws, in its order, with the device count where
+  // it puts it — two sessions, written the way the frame writes them.
+  await expect(page.getByText('Password', { exact: true })).toBeVisible();
+  await expect(page.getByText('Connected devices')).toBeVisible();
+  await expect(page.getByText('02', { exact: true })).toBeVisible();
+
   await sweep(page, 'account security');
+});
+
+test('the password row opens a box that writes, and says what went wrong', async ({ page }) => {
+  let sent: unknown = null;
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/password/change',
+    (route) => {
+      sent = route.request().postDataJSON();
+      return fulfil(route, { accessToken: 'rotated', expiresIn: 900, user: USER });
+    },
+  );
+
+  await open(page, '/account/security');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+
+  const box = page.getByRole('dialog');
+  await expect(box).toBeVisible();
+  await expect(box.getByRole('heading', { name: 'Change password' })).toBeVisible();
+
+  // Refused before a round trip: a new password that breaks the rules never
+  // reaches the API, and the reason is on screen rather than in a console.
+  await box.getByLabel('Current password').fill('Correct-Horse-9');
+  await box.getByLabel('New password').fill('short');
+  await box.getByRole('button', { name: 'Change password' }).click();
+  await expect(box.getByText(/8\+ characters/)).toBeVisible();
+  expect(sent).toBeNull();
+
+  await box.getByLabel('New password').fill('N3w!Password9');
+  await box.getByRole('button', { name: 'Change password' }).click();
+
+  await expect(box.getByRole('heading', { name: 'Password changed' })).toBeVisible();
+  expect(sent).toEqual({ currentPassword: 'Correct-Horse-9', newPassword: 'N3w!Password9' });
+});
+
+test('the box keeps the keyboard, and Escape closes it', async ({ page }) => {
+  await open(page, '/account/security');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+
+  const box = page.getByRole('dialog');
+  await expect(box).toBeVisible();
+
+  // Focus starts in the first field rather than on the page behind the box.
+  await expect(box.getByLabel('Current password')).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(box).toBeHidden();
+
+  // And it comes back to the control that opened it, not to the top of the page.
+  await expect(page.getByRole('button', { name: 'Edit' }).first()).toBeFocused();
+});
+
+test('the devices box lists the sessions, and ends one', async ({ page }) => {
+  let ended: string | null = null;
+  await page.route(
+    (url) => /^\/api\/v1\/auth\/sessions\//.test(url.pathname),
+    (route) => {
+      ended = route.request().url().split('/').at(-1) ?? null;
+      return fulfil(route, {}, 204);
+    },
+  );
+
+  await open(page, '/account/security');
+  await page.getByRole('button', { name: 'Edit' }).last().click();
+
+  const box = page.getByRole('dialog');
+  await expect(box.getByText('iPhone 15 Pro · ios')).toBeVisible();
+  // The agent string is not what a person recognises their phone by.
+  await expect(box.getByText('HireEvo/1.4 (iPhone; iOS 18.2)')).toBeHidden();
+  // The session asking cannot end itself, so it carries no button.
+  await expect(box.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(1);
+
+  await box.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect.poll(() => ended).toBe('0199a3c4-0000-7000-8000-00000000f002');
+});
+
+test('the security screen holds its layout with a box open', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await open(page, '/account/security');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await sweep(page, 'the change password box');
 });
 
 test('the hub leads to the two screens that exist, and marks the two that do not', async ({

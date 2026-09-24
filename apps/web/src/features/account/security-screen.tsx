@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LuLaptop, LuSmartphone } from 'react-icons/lu';
 import { Button, Card, PasswordField } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
@@ -13,6 +13,8 @@ import {
   revokeSession,
   type AccountSession,
 } from './api.ts';
+import { SettingsDialog } from './settings-dialog.tsx';
+import { NotYet, RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
 
 /** "Chrome on macOS", from what the session recorded, and never an empty line. */
 function describe(session: AccountSession): string {
@@ -31,23 +33,107 @@ const when = (iso: string) => {
     : date.toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
+/** "01", as the design counts devices. */
+const padded = (count: number) => (count < 10 ? `0${count}` : String(count));
+
+/** Which row has its box open, if any. */
+type OpenRow = 'password' | 'devices' | null;
+
 /**
- * Account security: the password, and every device the account is open on.
+ * Account security, as the design lays it out: the account's protections in
+ * rows that each offer an Edit, and the note about usernames beside them.
  *
- * Both halves are real: the password change is the API's own, and the sessions
- * are the rows it holds. Nothing here is drawn for the sake of the design —
- * what a control does is what the API does with it (§6.7).
+ * Two of the five rows are real. The password is changed through the API's own
+ * endpoint, and the connected devices are the sessions it holds, endable one at
+ * a time or all at once. Phone verification, the security question and
+ * two-factor authentication have no endpoint behind them, so their Edit says so
+ * rather than opening a form that could not save (§6.7) — and their value says
+ * what is actually true of the account rather than what the frame drew, because
+ * a security screen that claims a phone is verified when nothing verified one
+ * is worse than one that admits the feature is not built.
  */
 export function SecurityScreen() {
+  const [open, setOpen] = useState<OpenRow>(null);
+  const [sessions, setSessions] = useState<AccountSession[] | null>(null);
+
+  const close = useCallback(() => setOpen(null), []);
+
+  /**
+   * Reads the sessions the account has open.
+   *
+   * Declared here rather than in the dialog because the row above it shows the
+   * count, so both need the same answer — and the state is set once the request
+   * settles, never in an effect's own body, which is what stops a render from
+   * cascading into another.
+   */
+  const load = useCallback(async () => {
+    const result = await listSessions();
+    if (result.ok) setSessions(result.sessions);
+    return result;
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const result = await listSessions();
+      if (live && result.ok) setSessions(result.sessions);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <PasswordCard />
-      <SessionsCard />
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <Card aria-labelledby="security-heading" className="flex min-w-0 flex-col p-6 sm:p-7">
+        <h2 id="security-heading" className="sr-only">
+          How this account is protected
+        </h2>
+
+        <SettingRow
+          label="Password"
+          action={<RowAction label="Edit" onClick={() => setOpen('password')} />}
+        />
+
+        <SettingRow
+          label="Phone verification"
+          value="Not set up yet"
+          action={<NotYet label="Edit" reason="Verifying a phone number is not available yet." />}
+        />
+
+        <SettingRow
+          label="Security question"
+          value="Not set"
+          action={
+            <NotYet label="Edit" reason="Setting a security question is not available yet." />
+          }
+        />
+
+        <SettingRow
+          label="Two-factor authentication"
+          value="Not set up yet"
+          action={<NotYet label="Edit" reason="Two-factor authentication is not available yet." />}
+        />
+
+        <SettingRow
+          label="Connected devices"
+          value={sessions === null ? '—' : padded(sessions.length)}
+          action={<RowAction label="Edit" onClick={() => setOpen('devices')} />}
+        />
+      </Card>
+
+      <UsernameHelpCard />
+
+      {open === 'password' ? <PasswordDialog onClose={close} /> : null}
+      {open === 'devices' ? (
+        <DevicesDialog sessions={sessions} reload={load} onClose={close} />
+      ) : null}
     </div>
   );
 }
 
-function PasswordCard() {
+/** The box the Password row opens: the current one, the new one, and the rules. */
+function PasswordDialog({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [errors, setErrors] = useState<{ current?: string; next?: string }>({});
@@ -60,7 +146,6 @@ function PasswordCard() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setMessage(null);
-    setDone(false);
 
     // Checked here so the person is told before a round trip, and by the API
     // for the same reason it checks everything else: this cannot be the only
@@ -94,19 +179,27 @@ function PasswordCard() {
     else setMessage(result.message);
   }
 
-  return (
-    <Card aria-labelledby="password-heading" className="flex min-w-0 flex-col">
-      <h2 id="password-heading" className="text-lg font-bold text-content-accent">
-        Password
-      </h2>
-      <p className="mt-1 text-sm text-content-subtle">
-        Changing your password signs out every other device.
-      </p>
+  if (done) {
+    return (
+      <SettingsDialog title="Password changed" onClose={onClose}>
+        <p role="status" className="text-sm text-content-muted">
+          Your password has been changed, and every other device has been signed out. This one stays
+          signed in.
+        </p>
+        <Button type="button" onClick={onClose} className="mt-5 w-fit">
+          Done
+        </Button>
+      </SettingsDialog>
+    );
+  }
 
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="mt-5 flex max-w-[420px] flex-col gap-4"
-      >
+  return (
+    <SettingsDialog
+      title="Change password"
+      description="Changing your password signs out every other device."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void submit(event)} className="flex min-w-0 flex-col gap-4">
         <PasswordField
           label="Current password"
           value={current}
@@ -127,159 +220,129 @@ function PasswordCard() {
         </div>
 
         {message === null ? null : <FormMessage>{message}</FormMessage>}
-        {!done ? null : (
-          <p role="status" className="text-sm text-content-accent">
-            Your password has been changed. Other devices have been signed out.
-          </p>
-        )}
 
-        <Button type="submit" loading={saving} loadingLabel="Saving" className="w-fit">
-          Change password
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" loading={saving} loadingLabel="Saving">
+            Change password
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
       </form>
-    </Card>
+    </SettingsDialog>
   );
 }
 
-function SessionsCard() {
-  const [state, setState] = useState<
-    | { kind: 'loading' }
-    | { kind: 'ready'; sessions: AccountSession[] }
-    | { kind: 'failed'; message: string }
-  >({ kind: 'loading' });
+/** The box the Connected devices row opens: every session, and the way to end one. */
+function DevicesDialog({
+  sessions,
+  reload,
+  onClose,
+}: {
+  sessions: AccountSession[] | null;
+  reload: () => Promise<{ ok: boolean; message?: string }>;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
-
-  /**
-   * Reads the list and puts it on the page.
-   *
-   * Declared outside the effect and awaited inside it: the state is set once
-   * the request settles, never in the effect's own body, which is what stops a
-   * render from cascading into another.
-   */
-  async function load() {
-    const result = await listSessions();
-    setState(
-      result.ok
-        ? { kind: 'ready', sessions: result.sessions }
-        : { kind: 'failed', message: result.message },
-    );
-  }
-
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      const result = await listSessions();
-      if (!live) return;
-      setState(
-        result.ok
-          ? { kind: 'ready', sessions: result.sessions }
-          : { kind: 'failed', message: result.message },
-      );
-    })();
-    return () => {
-      live = false;
-    };
-  }, []);
+  const [message, setMessage] = useState<string | null>(null);
 
   async function end(id: string) {
     setBusy(id);
+    setMessage(null);
     const result = await revokeSession(id);
+    if (result.ok) await reload();
+    else setMessage(result.message);
     setBusy(null);
-    if (result.ok) await load();
-    else setState({ kind: 'failed', message: result.message });
   }
 
   async function endOthers() {
     setBusy('others');
+    setMessage(null);
     const result = await revokeOtherSessions();
+    if (result.ok) await reload();
+    else setMessage(result.message);
     setBusy(null);
-    if (result.ok) await load();
-    else setState({ kind: 'failed', message: result.message });
   }
 
-  const others = state.kind === 'ready' ? state.sessions.filter((session) => !session.current) : [];
+  const others = sessions === null ? [] : sessions.filter((session) => !session.current);
 
   return (
-    <Card aria-labelledby="sessions-heading" className="flex min-w-0 flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 id="sessions-heading" className="text-lg font-bold text-content-accent">
-            Where you are signed in
-          </h2>
-          <p className="mt-1 text-sm text-content-subtle">
-            Every device holding a session for this account. Ending one signs that device out.
-          </p>
-        </div>
-
-        {others.length === 0 ? null : (
-          <Button
-            type="button"
-            variant="secondary"
-            loading={busy === 'others'}
-            loadingLabel="Signing out"
-            onClick={() => void endOthers()}
-            className="shrink-0"
-          >
-            Sign out everywhere else
-          </Button>
-        )}
-      </div>
-
-      <div className="mt-5 min-w-0">
-        {state.kind === 'loading' ? (
-          <p role="status" className="text-sm text-content-subtle">
-            Loading your sessions…
-          </p>
-        ) : state.kind === 'failed' ? (
-          <FormMessage>{state.message}</FormMessage>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {state.sessions.map((session) => (
-              <li
-                key={session.id}
-                className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border-subtle px-4 py-3"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-subtle text-content-subtle">
-                    {session.devicePlatform === 'ios' || session.devicePlatform === 'android' ? (
-                      <LuSmartphone aria-hidden="true" className="size-4" />
-                    ) : (
-                      <LuLaptop aria-hidden="true" className="size-4" />
-                    )}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-content">
-                      {describe(session)}
-                      {session.current ? (
-                        <span className="ml-2 rounded-full bg-surface-accent-subtle px-2 py-0.5 text-xs font-medium text-content-accent">
-                          This device
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="mt-0.5 text-xs text-content-subtle">
-                      Signed in {when(session.issuedAt)}
-                    </p>
-                  </div>
+    <SettingsDialog
+      title="Connected devices"
+      description="Every device holding a session for this account. Ending one signs that device out."
+      onClose={onClose}
+    >
+      {sessions === null ? (
+        <p role="status" className="text-sm text-content-subtle">
+          Loading your devices…
+        </p>
+      ) : (
+        <ul className="flex min-w-0 flex-col gap-3">
+          {sessions.map((session) => (
+            <li
+              key={session.id}
+              className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-border-subtle px-4 py-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-subtle text-content-subtle">
+                  {session.devicePlatform === 'ios' || session.devicePlatform === 'android' ? (
+                    <LuSmartphone aria-hidden="true" className="size-4" />
+                  ) : (
+                    <LuLaptop aria-hidden="true" className="size-4" />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-content">
+                    {describe(session)}
+                    {session.current ? (
+                      <span className="ml-2 rounded-full bg-surface-accent-subtle px-2 py-0.5 text-xs font-medium text-content-accent">
+                        This device
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="mt-0.5 text-xs text-content-subtle">
+                    Signed in {when(session.issuedAt)}
+                  </p>
                 </div>
+              </div>
 
-                {session.current ? null : (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    loading={busy === session.id}
-                    loadingLabel="Ending"
-                    onClick={() => void end(session.id)}
-                    className="shrink-0"
-                  >
-                    Sign out
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Card>
+              {session.current ? null : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={busy === session.id}
+                  loadingLabel="Ending"
+                  onClick={() => void end(session.id)}
+                  className="shrink-0"
+                >
+                  Sign out
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {message === null ? null : (
+        <div className="mt-4">
+          <FormMessage>{message}</FormMessage>
+        </div>
+      )}
+
+      {others.length === 0 ? null : (
+        <Button
+          type="button"
+          variant="secondary"
+          loading={busy === 'others'}
+          loadingLabel="Signing out"
+          onClick={() => void endOthers()}
+          className="mt-5 w-fit"
+        >
+          Sign out everywhere else
+        </Button>
+      )}
+    </SettingsDialog>
   );
 }

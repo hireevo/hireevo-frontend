@@ -43,10 +43,21 @@ export async function layoutFaults(): Promise<string[]> {
   if (document.querySelector('#main-content') === null) return ['the page has no main content'];
   if (document.documentElement.scrollWidth > width + 1) faults.add('the page scrolls sideways');
 
+  // A modal covers the page and makes it inert, so with one open the only
+  // layout on screen is the dialog's. Measuring both reports every block in the
+  // dialog as overlapping every block behind it — dozens of faults, none of
+  // them real, and a genuine one buried among them.
+  const modal = document.querySelector('[role="dialog"][aria-modal="true"]');
+  const PARTS =
+    'a, button, h2, h3, p, li, label, legend, input, select, textarea, [role="progressbar"], [data-slot="badge"]';
   const elements = [
-    ...document.querySelectorAll(
-      'main a, main button, main h2, main h3, main p, main li, main label, main legend, main input, main select, main textarea, [role="progressbar"], [data-slot="badge"]',
-    ),
+    ...(modal === null
+      ? document.querySelectorAll(
+          `${PARTS.split(', ')
+            .map((part) => (part.startsWith('[') ? part : `main ${part}`))
+            .join(', ')}`,
+        )
+      : modal.querySelectorAll(PARTS)),
   ].filter(shown);
   // Measured once: a page can carry hundreds of these, and the overlap check
   // below compares each pair.

@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useState } from 'react';
 import Link from 'next/link';
-import { LuUser } from 'react-icons/lu';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import { Card, buttonVariants, cn } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
@@ -14,6 +13,7 @@ import {
 } from '@/features/profile-setup/api.ts';
 import { profileChanged } from '@/features/profile-setup/profile-events.ts';
 import { api } from '@/lib/api.ts';
+import { NotYet, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
 
 /**
  * An email with most of it hidden, as the design shows it.
@@ -80,44 +80,6 @@ export function PersonalScreen() {
   );
 }
 
-/** The "Edit" the design puts at the end of a row nothing can yet change. */
-function NotYet({ label, reason, tone }: { label: string; reason: string; tone?: 'danger' }) {
-  const reasonId = useId();
-  return (
-    <>
-      <button
-        type="button"
-        aria-disabled="true"
-        aria-describedby={reasonId}
-        // `min-h-6` and the padding are the target, not the look: the design
-        // draws these as plain text, and a 20px-tall target is under the 24px
-        // WCAG 2.5.8 asks for — which the resolution sweep caught at 320px.
-        className={cn(
-          'inline-flex min-h-6 cursor-not-allowed items-center rounded-sm px-1 text-sm font-medium opacity-60',
-          tone === 'danger' ? 'text-content-danger' : 'text-content-link',
-        )}
-      >
-        {label}
-      </button>
-      <span id={reasonId} className="sr-only">
-        {reason}
-      </span>
-    </>
-  );
-}
-
-function Row({ label, value, action }: { label: string; value: string; action: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 items-start justify-between gap-4 border-b border-border-subtle py-4 first:pt-0">
-      <div className="min-w-0">
-        <p className="text-base font-semibold text-content-accent">{label}</p>
-        <p className="mt-1 text-sm break-all text-content-muted">{value}</p>
-      </div>
-      <div className="shrink-0 pt-1">{action}</div>
-    </div>
-  );
-}
-
 function DetailsCard() {
   const { user } = useSession();
   const [fetched, setFetched] = useState<AuthenticatedUser | null>(null);
@@ -171,13 +133,13 @@ function DetailsCard() {
         Your account details
       </h2>
 
-      <Row
+      <SettingRow
         label="Full name"
         value={shown === null ? '—' : name === '' ? 'Not set' : name}
         action={<NotYet label="Edit" reason="Changing your name is not available yet." />}
       />
 
-      <Row
+      <SettingRow
         label="Email address"
         value={shown === null ? '—' : maskEmail(shown.email)}
         action={<NotYet label="Edit" reason="Changing your email address is not available yet." />}
@@ -262,28 +224,13 @@ function DeactivateCard() {
 
 function HelpCard() {
   return (
-    <Card aria-labelledby="help-heading" className="flex min-w-0 flex-col p-6 sm:p-7">
-      <span
-        aria-hidden="true"
-        className="flex size-12 items-center justify-center rounded-full bg-surface-accent-subtle text-content-accent"
-      >
-        <LuUser className="size-5" />
-      </span>
-
-      <h2 id="help-heading" className="mt-6 text-lg font-bold text-content-accent">
-        Where can I find my username and display name?
-      </h2>
-      <p className="mt-2 text-sm leading-[1.6] text-content-muted">
-        You can find both your username and display name on your profile. While you can update your
-        display name, your username cannot be changed.
-      </p>
-
+    <UsernameHelpCard>
       <Link
         href="/client-profile"
         className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'mt-5 w-fit')}
       >
         Go to your profile
       </Link>
-    </Card>
+    </UsernameHelpCard>
   );
 }
