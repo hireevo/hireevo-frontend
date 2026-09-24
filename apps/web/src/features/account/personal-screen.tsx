@@ -1,58 +1,141 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import Link from 'next/link';
+import { LuUser } from 'react-icons/lu';
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { Button, Card, Switch } from '@hireevo/ui-web';
+import { Card, buttonVariants, cn } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
 import {
   loadOrCreateProfile,
-  saveVisibility,
+  saveAvailability,
   type OwnProfile,
 } from '@/features/profile-setup/api.ts';
+import { profileChanged } from '@/features/profile-setup/profile-events.ts';
 import { api } from '@/lib/api.ts';
 
 /**
- * Personal information: who the account says you are, and who can see it.
+ * An email with most of it hidden, as the design shows it.
  *
- * The identity half is read-only, and says so. There is no endpoint that
- * changes a name or an email — `/auth/me` is a GET — so a form here would
- * collect what nothing could save, which is the one thing §6.7 rules out. The
- * visibility half is the opposite: both switches write to
- * `PUT /profiles/me/visibility` and the page shows what came back.
+ * The screen sits behind a session, so this is not secrecy — it is what the
+ * frame draws, and it keeps a full address off a screen somebody may be
+ * sharing. The first and last letter of the name stay and the domain keeps its
+ * first letter and its ending, so the person can still tell which address it is.
+ */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return email;
+
+  const hide = (value: string, keepFirst: number, keepLast: number) =>
+    value.length <= keepFirst + keepLast
+      ? value
+      : value.slice(0, keepFirst) +
+        '*'.repeat(Math.max(1, value.length - keepFirst - keepLast)) +
+        (keepLast === 0 ? '' : value.slice(-keepLast));
+
+  const name = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  const host =
+    dot <= 0 ? hide(domain, 1, 0) : `${hide(domain.slice(0, dot), 1, 1)}${domain.slice(dot)}`;
+
+  return `${hide(name, 1, 1)}@${host}`;
+}
+
+/** What the profile's availability is called where somebody reads it. */
+const VISIBILITY: Record<string, string> = {
+  available: 'Online',
+  open_to_offers: 'Open to offers',
+  unavailable: 'Offline',
+};
+
+const VISIBILITY_OPTIONS = [
+  { value: 'available', label: 'Online' },
+  { value: 'open_to_offers', label: 'Open to offers' },
+  { value: 'unavailable', label: 'Offline' },
+] as const satisfies readonly { value: Availability; label: string }[];
+
+type Availability = NonNullable<OwnProfile['availability']>;
+
+/**
+ * Personal information, as the design lays it out: the account's details in
+ * rows that each offer an Edit, the way out of the account under them, and the
+ * note about usernames beside them.
+ *
+ * Only one of the three rows can be edited today. No endpoint changes a name or
+ * an email address — `/auth/me` is a GET — and none deactivates an account, so
+ * those controls say so rather than opening a form that could not save (§6.7).
+ * Visibility is the profile's own availability, and it writes.
  */
 export function PersonalScreen() {
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <IdentityCard />
-      <VisibilityCard />
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-5">
+        <DetailsCard />
+        <DeactivateCard />
+      </div>
+      <HelpCard />
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+/** The "Edit" the design puts at the end of a row nothing can yet change. */
+function NotYet({ label, reason, tone }: { label: string; reason: string; tone?: 'danger' }) {
+  const reasonId = useId();
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-border-subtle py-3 last:border-b-0">
-      <dt className="text-sm text-content-subtle">{label}</dt>
-      <dd className="min-w-0 text-sm font-medium break-all text-content">{value}</dd>
+    <>
+      <button
+        type="button"
+        aria-disabled="true"
+        aria-describedby={reasonId}
+        // `min-h-6` and the padding are the target, not the look: the design
+        // draws these as plain text, and a 20px-tall target is under the 24px
+        // WCAG 2.5.8 asks for — which the resolution sweep caught at 320px.
+        className={cn(
+          'inline-flex min-h-6 cursor-not-allowed items-center rounded-sm px-1 text-sm font-medium opacity-60',
+          tone === 'danger' ? 'text-content-danger' : 'text-content-link',
+        )}
+      >
+        {label}
+      </button>
+      <span id={reasonId} className="sr-only">
+        {reason}
+      </span>
+    </>
+  );
+}
+
+function Row({ label, value, action }: { label: string; value: string; action: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-4 border-b border-border-subtle py-4 first:pt-0">
+      <div className="min-w-0">
+        <p className="text-base font-semibold text-content-accent">{label}</p>
+        <p className="mt-1 text-sm break-all text-content-muted">{value}</p>
+      </div>
+      <div className="shrink-0 pt-1">{action}</div>
     </div>
   );
 }
 
-function IdentityCard() {
+function DetailsCard() {
   const { user } = useSession();
   const [fetched, setFetched] = useState<AuthenticatedUser | null>(null);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [profile, setProfile] = useState<OwnProfile | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const selectId = useId();
 
   useEffect(() => {
     let live = true;
     void (async () => {
       // Read back rather than trusted from the sign-in response: this is the
       // screen that claims to show what the account holds.
-      const { data } = await api.GET('/api/v1/auth/me', {});
-      if (live && data !== undefined) setFetched(data);
+      const [me, own] = await Promise.all([api.GET('/api/v1/auth/me', {}), loadOrCreateProfile()]);
+      if (!live) return;
+      if (me.data !== undefined) setFetched(me.data);
+      if (own.ok) setProfile(own.profile);
     })();
     return () => {
       live = false;
@@ -60,213 +143,147 @@ function IdentityCard() {
   }, []);
 
   const shown = fetched ?? user;
-  if (shown === null) {
-    return (
-      <Card>
-        <p role="status" className="text-sm text-content-subtle">
-          Loading your details…
-        </p>
-      </Card>
-    );
-  }
+  const name = shown === null ? '' : [shown.firstName, shown.lastName].filter(Boolean).join(' ');
 
-  const name = [shown.firstName, shown.lastName].filter(Boolean).join(' ');
+  async function setAvailability(availability: Availability) {
+    if (profile === null) return;
+    setSaving(true);
+    setMessage(null);
 
-  async function resend() {
-    setSending(true);
-    setFailed(null);
-    try {
-      const { response } = await api.POST('/api/v1/auth/resend-verification', {
-        body: { email: shown!.email },
-      });
-      if (response.ok) setSent(true);
-      else setFailed('That could not be sent just now. Try again in a moment.');
-    } catch {
-      setFailed('Could not reach HireEvo. Check your connection and try again.');
+    // The same call the switch in the bar above makes, so the two cannot
+    // disagree about what this profile says — and it tells that bar what
+    // version the write moved to.
+    const result = await saveAvailability(profile.version, availability);
+    setSaving(false);
+
+    if (result.ok) {
+      setProfile(result.profile);
+      profileChanged(result.profile);
+      setEditing(false);
+      return;
     }
-    setSending(false);
+    setMessage(result.message);
   }
 
   return (
-    <Card aria-labelledby="identity-heading" className="flex min-w-0 flex-col">
-      <h2 id="identity-heading" className="text-lg font-bold text-content-accent">
-        Your details
+    <Card aria-labelledby="details-heading" className="flex min-w-0 flex-col p-6 sm:p-7">
+      <h2 id="details-heading" className="sr-only">
+        Your account details
       </h2>
-      <p className="mt-1 text-sm text-content-subtle">
-        The name and address on your account. Changing them is not something this screen can do yet.
-      </p>
 
-      <dl className="mt-4 flex flex-col">
-        <Row label="Name" value={name === '' ? '—' : name} />
-        <Row label="Email" value={shown.email} />
-        <Row label="Username" value={shown.username ?? '—'} />
-        <Row label="Email confirmed" value={shown.emailVerified ? 'Yes' : 'Not yet'} />
-      </dl>
+      <Row
+        label="Full name"
+        value={shown === null ? '—' : name === '' ? 'Not set' : name}
+        action={<NotYet label="Edit" reason="Changing your name is not available yet." />}
+      />
 
-      {shown.emailVerified ? null : (
-        <div className="mt-4 flex flex-col gap-2">
-          {sent ? (
-            <p role="status" className="text-sm text-content-accent">
-              We have sent the confirmation link again. Check your inbox.
+      <Row
+        label="Email address"
+        value={shown === null ? '—' : maskEmail(shown.email)}
+        action={<NotYet label="Edit" reason="Changing your email address is not available yet." />}
+      />
+
+      <div className="py-4 pb-0">
+        <div className="flex min-w-0 items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-content-accent">Visibility</p>
+            <p className="mt-1 text-sm text-content-muted">
+              {profile === null
+                ? '—'
+                : (VISIBILITY[profile.availability ?? 'available'] ?? 'Online')}
             </p>
-          ) : (
-            <Button
+          </div>
+          {profile === null ? null : (
+            <button
               type="button"
-              variant="secondary"
-              loading={sending}
-              loadingLabel="Sending"
-              onClick={() => void resend()}
-              className="w-fit"
+              onClick={() => setEditing((open) => !open)}
+              className="inline-flex min-h-6 shrink-0 items-center rounded-sm px-1 text-sm font-medium text-content-link underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-              Send the confirmation email again
-            </Button>
+              {editing ? 'Close' : 'Edit'}
+            </button>
           )}
-          {failed === null ? null : <FormMessage>{failed}</FormMessage>}
         </div>
-      )}
+
+        {!editing || profile === null ? null : (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label htmlFor={selectId} className="sr-only">
+              Visibility
+            </label>
+            <select
+              id={selectId}
+              defaultValue={profile.availability ?? 'available'}
+              disabled={saving}
+              onChange={(event) => void setAvailability(event.target.value as Availability)}
+              className="h-10 min-w-0 rounded-md border border-border bg-surface px-3 text-sm text-content focus-visible:border-border-accent focus-visible:outline-none"
+            >
+              {VISIBILITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {saving ? (
+              <span role="status" className="text-xs text-content-subtle">
+                Saving…
+              </span>
+            ) : null}
+          </div>
+        )}
+
+        {message === null ? null : (
+          <div className="mt-3">
+            <FormMessage>{message}</FormMessage>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
 
-/** A switch with its words, which is what names it for a screen reader. */
-function SettingSwitch({
-  title,
-  description,
-  checked,
-  busy,
-  onChange,
-}: {
-  title: string;
-  description: string;
-  checked: boolean;
-  busy: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const labelId = useId();
+function DeactivateCard() {
   return (
-    <div className="flex min-w-0 items-start justify-between gap-4">
+    <Card className="flex min-w-0 items-start justify-between gap-4 p-6 sm:p-7">
       <div className="min-w-0">
-        <p id={labelId} className="text-sm font-medium text-content">
-          {title}
+        <p className="text-base font-semibold text-content-accent">Deactivate account</p>
+        <p className="mt-1 text-sm text-content-muted">
+          Temporarily disable your account and hide your profile.
         </p>
-        <p className="mt-0.5 text-sm text-content-subtle">{description}</p>
       </div>
-      <Switch
-        aria-labelledby={labelId}
-        checked={checked}
-        disabled={busy}
-        onCheckedChange={onChange}
-        className="mt-0.5 shrink-0"
-      />
-    </div>
+      <div className="shrink-0 pt-1">
+        <NotYet
+          label="Deactivate"
+          reason="Deactivating an account is not available yet."
+          tone="danger"
+        />
+      </div>
+    </Card>
   );
 }
 
-function VisibilityCard() {
-  const [profile, setProfile] = useState<OwnProfile | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
-  const [saving, setSaving] = useState<'public' | 'indexable' | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      const result = await loadOrCreateProfile();
-      if (!live) return;
-      if (result.ok) {
-        setProfile(result.profile);
-        setState('ready');
-      } else {
-        setMessage(result.message);
-        setState('failed');
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  async function set(change: { profilePublic?: boolean; searchIndexable?: boolean }) {
-    if (profile === null) return;
-    setSaving(change.profilePublic === undefined ? 'indexable' : 'public');
-    setMessage(null);
-
-    // The whole setting goes at the profile's version, as the endpoint takes
-    // it: the sections are sent back exactly as they came, so a switch here
-    // cannot quietly change what the profile shows.
-    const result = await saveVisibility({
-      version: profile.version,
-      profilePublic: change.profilePublic ?? profile.visibility.profilePublic,
-      searchIndexable: change.searchIndexable ?? profile.visibility.searchIndexable,
-      locationGranularity: profile.visibility.locationGranularity,
-      sections: profile.visibility.sections,
-    });
-
-    if (!result.ok) {
-      setSaving(null);
-      setMessage(result.message);
-      return;
-    }
-
-    // The save moved the version and the answer does not carry the new one, so
-    // the profile is read again: the next switch has to send a version the
-    // server will still accept.
-    const again = await loadOrCreateProfile();
-    setSaving(null);
-    if (again.ok) setProfile(again.profile);
-    else setProfile({ ...profile, visibility: result.visibility });
-  }
-
-  if (state === 'loading') {
-    return (
-      <Card>
-        <p role="status" className="text-sm text-content-subtle">
-          Loading your visibility…
-        </p>
-      </Card>
-    );
-  }
-
-  if (state === 'failed' || profile === null) {
-    return (
-      <Card>
-        <FormMessage>{message ?? 'Your visibility could not be loaded.'}</FormMessage>
-      </Card>
-    );
-  }
-
+function HelpCard() {
   return (
-    <Card aria-labelledby="visibility-heading" className="flex min-w-0 flex-col">
-      <h2 id="visibility-heading" className="text-lg font-bold text-content-accent">
-        Online visibility
+    <Card aria-labelledby="help-heading" className="flex min-w-0 flex-col p-6 sm:p-7">
+      <span
+        aria-hidden="true"
+        className="flex size-12 items-center justify-center rounded-full bg-surface-accent-subtle text-content-accent"
+      >
+        <LuUser className="size-5" />
+      </span>
+
+      <h2 id="help-heading" className="mt-6 text-lg font-bold text-content-accent">
+        Where can I find my username and display name?
       </h2>
-      <p className="mt-1 text-sm text-content-subtle">
-        Whether buyers can reach your profile, and whether search engines may list it. What each
-        section shows is chosen on your profile itself.
+      <p className="mt-2 text-sm leading-[1.6] text-content-muted">
+        You can find both your username and display name on your profile. While you can update your
+        display name, your username cannot be changed.
       </p>
 
-      <div className="mt-5 flex flex-col gap-4">
-        <SettingSwitch
-          title="Profile is public"
-          description="Anyone holding your link can read the sections you share."
-          checked={profile.visibility.profilePublic}
-          busy={saving !== null}
-          onChange={(checked) => void set({ profilePublic: checked })}
-        />
-        <SettingSwitch
-          title="Allow search engines to list it"
-          description="Off keeps your profile reachable by link but out of search results."
-          checked={profile.visibility.searchIndexable}
-          busy={saving !== null}
-          onChange={(checked) => void set({ searchIndexable: checked })}
-        />
-      </div>
-
-      {message === null ? null : (
-        <div className="mt-4">
-          <FormMessage>{message}</FormMessage>
-        </div>
-      )}
+      <Link
+        href="/client-profile"
+        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'mt-5 w-fit')}
+      >
+        Go to your profile
+      </Link>
     </Card>
   );
 }

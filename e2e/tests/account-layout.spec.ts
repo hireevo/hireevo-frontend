@@ -172,8 +172,41 @@ test('the account settings hub holds its layout at every window size', async ({ 
 test('personal information holds its layout at every window size', async ({ page }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
   await open(page, '/account/personal');
-  await expect(page.getByRole('switch', { name: /Profile is public/ })).toBeVisible();
+
+  // The address is shown masked, as the design draws it, and the rows carry the
+  // Edit the frame puts at the end of each.
+  await expect(page.getByText('a******************r@e*************y.com')).toBeVisible();
+  await expect(page.getByText('ayesha.khan.designer@example-company.com')).toHaveCount(0);
+
   await sweep(page, 'personal information');
+});
+
+test('the visibility row is the one that can be changed, and it writes', async ({ page }) => {
+  let sent: unknown = null;
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    async (route) => {
+      if (route.request().method() !== 'PATCH') return fulfil(route, PROFILE);
+      sent = route.request().postDataJSON();
+      return fulfil(route, { ...PROFILE, version: 8, availability: 'unavailable' });
+    },
+  );
+
+  await open(page, '/account/personal');
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit' }).last().click();
+  await page.getByLabel('Visibility', { exact: true }).selectOption('unavailable');
+
+  await expect(page.getByText('Offline', { exact: true })).toBeVisible();
+  expect(sent).toMatchObject({ version: 7, profile: { availability: 'unavailable' } });
+
+  // The other two rows say what they are rather than opening a form nothing
+  // could save: there is no endpoint behind either of them yet.
+  for (const label of ['Edit', 'Deactivate']) {
+    const refused = page.getByRole('button', { name: label, exact: true }).first();
+    await expect(refused).toHaveAttribute('aria-disabled', 'true');
+  }
 });
 
 test('account security holds its layout at every window size', async ({ page }) => {
