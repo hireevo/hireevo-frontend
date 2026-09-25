@@ -68,7 +68,71 @@ export const PROFILE_FIELDS = [
 
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 export type ProfileValues = Record<ProfileField, string>;
-export type FieldErrors = Partial<Record<ProfileField, string>>;
+
+/**
+ * The ways a client is meant to reach somebody.
+ *
+ * Kept apart from the profile fields above because the API keeps them apart:
+ * they travel in their own `contact` object, to their own table, and none of
+ * them is ever serialised onto a public profile. The separation is the point —
+ * it is visible in the request, so nothing here can drift onto a page a
+ * stranger opens.
+ */
+export const CONTACT_FIELDS = [
+  'phoneE164',
+  'contactEmail',
+  'whatsappE164',
+  'linkedinUrl',
+  'figmaUrl',
+] as const;
+
+export type ContactField = (typeof CONTACT_FIELDS)[number];
+export type ContactValues = Record<ContactField, string>;
+export type FieldErrors = Partial<Record<ProfileField | ContactField, string>>;
+
+export const EMPTY_CONTACT: ContactValues = {
+  phoneE164: '',
+  contactEmail: '',
+  whatsappE164: '',
+  linkedinUrl: '',
+  figmaUrl: '',
+};
+
+/** What the profile holds today, as the form shows it. */
+export function contactOf(profile: OwnProfile): ContactValues {
+  // Defended rather than assumed, though the contract says it is always there:
+  // a response cached before these fields existed has no `contact` at all, and
+  // the whole editor coming down over it would be a much worse answer than an
+  // empty form.
+  const held = profile.contact ?? {};
+  return {
+    phoneE164: held.phoneE164 ?? '',
+    contactEmail: held.contactEmail ?? '',
+    whatsappE164: held.whatsappE164 ?? '',
+    linkedinUrl: held.linkedinUrl ?? '',
+    figmaUrl: held.figmaUrl ?? '',
+  };
+}
+
+/**
+ * The form's strings as the API takes them: empty becomes null.
+ *
+ * An empty box means "I have not given you this", and the API's null is how
+ * that is said — an empty string would be stored as a contact detail that is
+ * blank rather than absent, and every reader would then have to know the
+ * difference.
+ */
+export function toContactPayload(values: ContactValues): Record<ContactField, string | null> {
+  return Object.fromEntries(
+    CONTACT_FIELDS.map((field) => [
+      field,
+      values[field].trim() === '' ? null : values[field].trim(),
+    ]),
+  ) as Record<ContactField, string | null>;
+}
+
+const isContactField = (value: string | undefined): value is ContactField =>
+  CONTACT_FIELDS.includes(value as ContactField);
 
 /** The four Identity and story fields, for the places that still speak of them. */
 export const IDENTITY_FIELDS = [
@@ -223,6 +287,7 @@ export async function saveProfile(
   values: ProfileValues,
   sections?: SectionsPayload,
   rates?: RateValue[],
+  contact?: ContactValues,
 ): Promise<SaveResult> {
   try {
     const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {
@@ -235,6 +300,9 @@ export async function saveProfile(
           ...(rates === undefined ? {} : { rates: toRatesPayload(rates) }),
         },
         ...(sections === undefined ? {} : { sections }),
+        // Absent unless this save knows about them, for the reason the prices
+        // are: the API leaves the key it is not sent alone.
+        ...(contact === undefined ? {} : { contact: toContactPayload(contact) }),
       },
     });
     if (data !== undefined) return { ok: true, profile: data };
@@ -251,7 +319,7 @@ export async function saveProfile(
       const fieldErrors: FieldErrors = {};
       for (const issue of toFieldIssues(error)) {
         const field = issue.path.split('.').at(-1);
-        if (isProfileField(field) && fieldErrors[field] === undefined) {
+        if ((isProfileField(field) || isContactField(field)) && fieldErrors[field] === undefined) {
           fieldErrors[field] = issue.message;
         }
       }

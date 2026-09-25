@@ -5,9 +5,11 @@ import {
   EMPTY_VALUES,
   loadOrCreateProfile,
   saveProfile,
+  toContactPayload,
   toPayload,
   toRatesPayload,
   valuesOf,
+  type ContactValues,
   type FieldErrors,
   type OwnProfile,
   type ProfileField,
@@ -37,7 +39,14 @@ const keyOf = (
   values: ProfileValues,
   sections: SectionsPayload | undefined,
   rates: RateValue[] | undefined,
-) => JSON.stringify([toPayload(values), sections ?? null, rates && toRatesPayload(rates)]);
+  contact: ContactValues | undefined,
+) =>
+  JSON.stringify([
+    toPayload(values),
+    sections ?? null,
+    rates && toRatesPayload(rates),
+    contact && toContactPayload(contact),
+  ]);
 
 /**
  * The profile being edited: loaded from the API, saved back to it.
@@ -63,6 +72,7 @@ export function useProfileDraft({
   restore,
   collect,
   collectRates,
+  collectContact,
 }: {
   autosaveDelay?: number;
   /**
@@ -90,6 +100,13 @@ export function useProfileDraft({
    * holds when the request goes out.
    */
   collectRates?: (() => RateValue[]) | undefined;
+  /**
+   * The ways to reach this person, read at save time like the lists above.
+   *
+   * They live in the editor that shows them rather than here, because what has
+   * to be sent is what that editor holds the moment the request goes out.
+   */
+  collectContact?: (() => ContactValues) | undefined;
 } = {}) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [profile, setProfile] = useState<OwnProfile | null>(null);
@@ -108,6 +125,7 @@ export function useProfileDraft({
   const restored = useRef(restore);
   const sections = useRef(collect);
   const rates = useRef(collectRates);
+  const contact = useRef(collectContact);
 
   // Before the load effect below, so the first response already has them.
   useEffect(() => {
@@ -115,7 +133,8 @@ export function useProfileDraft({
     restored.current = restore;
     sections.current = collect;
     rates.current = collectRates;
-  }, [fallbackDisplayName, restore, collect, collectRates]);
+    contact.current = collectContact;
+  }, [fallbackDisplayName, restore, collect, collectRates, collectContact]);
 
   /** Applies what a load returned. Called only after the request settles, never during render or an effect body. */
   const accept = useCallback((result: Awaited<ReturnType<typeof loadOrCreateProfile>>) => {
@@ -135,14 +154,15 @@ export function useProfileDraft({
     version.current = result.profile.version;
     // Keyed on what the server holds, not on the fallback, so a filled-in name
     // is saved by the next save rather than mistaken for something already sent.
-    savedKey.current = keyOf(loaded, sections.current?.(), rates.current?.());
+    savedKey.current = keyOf(loaded, sections.current?.(), rates.current?.(), contact.current?.());
     blocked.current = false;
     setProfile(result.profile);
     setValues(opening);
     setFieldErrors({});
     // By value, not by identity: a restored draft equal to the server is saved.
     setSave(
-      keyOf(opening, sections.current?.(), rates.current?.()) === savedKey.current
+      keyOf(opening, sections.current?.(), rates.current?.(), contact.current?.()) ===
+        savedKey.current
         ? { kind: 'saved', at: savedAt.current }
         : { kind: 'unsaved' },
     );
@@ -190,20 +210,21 @@ export function useProfileDraft({
     const sending = latest.current;
     const lists = sections.current?.();
     const prices = rates.current?.();
-    const key = keyOf(sending, lists, prices);
+    const reach = contact.current?.();
+    const key = keyOf(sending, lists, prices, reach);
     if (key === savedKey.current) {
       setSave({ kind: 'saved', at: savedAt.current });
       return true;
     }
 
     setSave({ kind: 'saving' });
-    const result = await saveProfile(version.current, sending, lists, prices);
+    const result = await saveProfile(version.current, sending, lists, prices, reach);
 
     if (result.ok) {
       version.current = result.profile.version;
       // A photo is claimed once. Left in the form it would be sent with every
       // later save, re-claiming a key the profile already holds.
-      savedKey.current = keyOf({ ...sending, avatarKey: '' }, lists, prices);
+      savedKey.current = keyOf({ ...sending, avatarKey: '' }, lists, prices, reach);
       savedAt.current = new Date();
       if (latest.current.avatarKey !== '') {
         latest.current = { ...latest.current, avatarKey: '' };
@@ -214,7 +235,8 @@ export function useProfileDraft({
       profileChanged(result.profile);
       // Only "saved" if nothing else was typed while this was on its way.
       setSave(
-        keyOf(latest.current, sections.current?.(), rates.current?.()) === savedKey.current
+        keyOf(latest.current, sections.current?.(), rates.current?.(), contact.current?.()) ===
+          savedKey.current
           ? { kind: 'saved', at: savedAt.current }
           : { kind: 'unsaved' },
       );
@@ -284,7 +306,12 @@ export function useProfileDraft({
    * never after anything has been typed.
    */
   const rebaseline = useCallback(() => {
-    savedKey.current = keyOf(latest.current, sections.current?.(), rates.current?.());
+    savedKey.current = keyOf(
+      latest.current,
+      sections.current?.(),
+      rates.current?.(),
+      contact.current?.(),
+    );
   }, []);
 
   /** Takes a newer copy from the server — after publishing, or a visibility save. */

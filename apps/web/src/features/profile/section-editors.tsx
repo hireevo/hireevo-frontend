@@ -27,6 +27,12 @@ export const IdentityEditor = dynamic(
   { loading: Opening },
 );
 
+export const ContactEditor = dynamic(
+  () =>
+    import('@/features/profile-setup/contact-fields.tsx').then((module) => module.ContactFields),
+  { loading: Opening },
+);
+
 export const SkillsEditor = dynamic(
   () => import('@/features/profile-setup/skill-lists.tsx').then((module) => module.SkillsList),
   { loading: Opening },
