@@ -33,7 +33,6 @@ const calls = vi.hoisted(() => ({
   save: vi.fn<typeof Api.saveProfilePatch>(),
   visibility: vi.fn<typeof Api.saveVisibility>(),
   publish: vi.fn<typeof Api.publishProfile>(),
-  skills: vi.fn<typeof Api.listSkills>(),
 }));
 vi.mock('./api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof Api>()),
@@ -42,15 +41,7 @@ vi.mock('./api.ts', async (importOriginal) => ({
   saveProfilePatch: (...args: Parameters<typeof Api.saveProfilePatch>) => calls.save(...args),
   saveVisibility: (...args: Parameters<typeof Api.saveVisibility>) => calls.visibility(...args),
   publishProfile: (...args: Parameters<typeof Api.publishProfile>) => calls.publish(...args),
-  listSkills: (...args: Parameters<typeof Api.listSkills>) => calls.skills(...args),
 }));
-
-/** The approved taxonomy, as the skills endpoint serves it. */
-const TAXONOMY = [
-  { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
-  { slug: 'service-design', name: 'Service design', category: 'Design' },
-  { slug: 'user-research', name: 'User research', category: 'Research' },
-];
 
 const NOTHING_SHARED = {
   nameHeadline: false,
@@ -171,7 +162,6 @@ beforeEach(() => {
     }),
   );
   calls.publish.mockReset();
-  calls.skills.mockReset().mockResolvedValue(TAXONOMY);
 });
 
 describe('ProfileSetupScreen', () => {

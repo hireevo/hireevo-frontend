@@ -7,7 +7,6 @@ export type OwnProfile = Schema<'OwnProfileResponse'>;
 export type UploadTicket = Schema<'UploadTicket'>;
 export type VisibilitySettings = Schema<'UpdateVisibilityRequest'>;
 export type ProfileVisibility = Schema<'ProfileVisibilityResponse'>;
-export type ApprovedSkill = Schema<'SkillListResponse'>['skills'][number];
 export type RatePeriod = OwnProfile['rates'][number]['period'];
 
 /**
@@ -400,30 +399,6 @@ export async function saveVisibility(settings: VisibilitySettings): Promise<Visi
     return { ok: false, kind: 'failed', message: messageOf(error) };
   } catch {
     return { ok: false, kind: 'failed', message: UNREACHABLE };
-  }
-}
-
-/** The approved skills, narrowed by what someone is typing. */
-export async function listSkills(query?: string): Promise<ApprovedSkill[]> {
-  try {
-    const { data } = await api.GET('/api/v1/skills', {
-      params: { query: query === undefined || query === '' ? {} : { query } },
-    });
-    return data?.skills ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export type SuggestResult = { ok: true } | { ok: false; message: string };
-
-/** Asks for a skill the taxonomy does not have. Asking twice is the same request. */
-export async function suggestSkill(name: string): Promise<SuggestResult> {
-  try {
-    const { data, error } = await api.POST('/api/v1/skills/suggestions', { body: { name } });
-    return data === undefined ? { ok: false, message: messageOf(error) } : { ok: true };
-  } catch {
-    return { ok: false, message: UNREACHABLE };
   }
 }
 
