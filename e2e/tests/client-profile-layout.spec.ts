@@ -374,6 +374,39 @@ test('each section saves itself, and carries only its own parts', async ({ page 
   await expect(page.getByText('Not saved')).toBeVisible();
 });
 
+/**
+ * The browser's own copy means nothing is lost by coming back to this page —
+ * but it is *this* browser's copy. Somebody who finishes a section here and
+ * opens the profile on their phone finds it as the server has it, so closing
+ * the tab on work that was never sent is the one moment worth interrupting.
+ *
+ * Driven through a real browser because `beforeunload` is the browser's own
+ * machinery: a jsdom event says the listener ran, not that the page would
+ * actually hold anybody up.
+ */
+test('closing the tab on unsaved work is interrupted', async ({ page }) => {
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => fulfil(route, { ...PROFILE, displayName: 'Ayesha Khan' }),
+  );
+  await openForEditing(page);
+
+  // Playwright answers the browser's own prompt itself, so what is asserted is
+  // that one was asked for at all. `runBeforeUnload` is what makes a close ask;
+  // an ordinary one does not.
+  let asked = 0;
+  page.on('dialog', (dialog) => {
+    asked += 1;
+    void dialog.dismiss();
+  });
+
+  await page.getByRole('button', { name: 'Edit About' }).click();
+  await page.getByLabel('Biography').fill('Typed, never sent.');
+
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => asked).toBeGreaterThan(0);
+});
+
 test('a section offers no Save until something in it changes', async ({ page }) => {
   // A profile that already carries a name, so nothing is filled in from the
   // account on load: with no display name the page opens on the account's own,

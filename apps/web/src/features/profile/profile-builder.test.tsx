@@ -666,6 +666,38 @@ describe('ProfileBuilder', () => {
     await waitFor(() => expect(calls.load).toHaveBeenCalledTimes(2));
   });
 
+  /**
+   * Closing the tab on unsaved work is the one moment worth interrupting.
+   *
+   * The browser's copy means nothing is lost by coming back to this page — but
+   * it is *this* browser's copy, and somebody who opens the profile on their
+   * phone instead finds it as the server has it.
+   */
+  it('asks before the tab closes on work that has not been sent', async () => {
+    const leaving = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+
+    // A profile that already carries a name: with none, the page fills one in
+    // from the account, and that is unsaved work the moment it appears — true,
+    // and not what this test is about.
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ displayName: 'Ayesha Khan' }) });
+    const user = await openForEditing();
+    expect(leaving()).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Not sent yet.');
+    expect(leaving()).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.save).toHaveBeenCalled());
+
+    // Sent, so there is nothing to interrupt for.
+    await waitFor(() => expect(leaving()).toBe(false));
+  });
+
   it('still holds unsaved work after the page is opened and left alone', async () => {
     const user = await openForEditing();
     await user.click(screen.getByRole('button', { name: 'Edit About' }));

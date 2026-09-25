@@ -246,6 +246,33 @@ export function ProfileBuilder() {
     contact.seed(identity.profile);
   }, [contact, identity.profile]);
 
+  /**
+   * Asks before the tab closes on work that has not been sent.
+   *
+   * The browser's own copy means nothing is lost by closing this page and
+   * coming back to it — but it is *this* browser's copy, and somebody who
+   * finishes a section here and opens the profile on their phone finds it as
+   * the server has it. The one moment worth interrupting is the one where they
+   * would not otherwise know.
+   *
+   * `beforeunload` covers closing, reloading and leaving the site. It does not
+   * see a move to another page of this app, and does not need to: the draft is
+   * still here when they come back.
+   */
+  useEffect(() => {
+    if (identity.unsaved.length === 0) return;
+
+    const ask = (event: BeforeUnloadEvent) => {
+      // Both, because browsers disagree about which one arms the prompt. The
+      // wording is theirs; a page cannot choose it.
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', ask);
+    return () => window.removeEventListener('beforeunload', ask);
+  }, [identity.unsaved]);
+
   // The browser's copy exists to protect work that has not reached the server.
   // With each section saving itself there is no single moment when that stops
   // being true, so it is let go of whenever nothing is left unsaved.
