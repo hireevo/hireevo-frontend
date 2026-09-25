@@ -49,136 +49,56 @@ const file = (index: number) => ({
  * past the card, five prices, and a portfolio piece with a title that does not
  * fit on one line.
  */
-const PROFILE = {
-  id: '0199a3c4-0000-7000-8000-00000000000a',
+/**
+ * What `/profiles/me/preview` answers with: the public shape, built by the same
+ * serializer the published page uses.
+ *
+ * Only the sections this profile's visibility settings made public are in it —
+ * name and headline, the biography, the location, skills, portfolio and
+ * availability. Languages, the rate, work experience, education, certifications
+ * and the video intro are private, so the API does not send them and this page
+ * has nothing to draw. That is the point of reading this endpoint rather than
+ * the owner's own: the rules live in one place.
+ */
+const PREVIEW = {
   slug: 'opaque-slug-for-e2e',
-  status: 'draft',
-  version: 7,
-  completeness: 100,
   displayName: 'Ayesha Khan, Senior Service and Product Designer',
   avatarUrl: SWATCH,
   headline:
-    'Senior service designer helping public-sector and enterprise teams turn complex, regulated journeys into measurable products',
+    'Service designer working with regulated marketplaces on onboarding, payments and trust',
   overview:
-    'I partner with product and operations leaders to map difficult customer journeys, validate ideas through evidence-based research, and ship accessible services with measurable business outcomes. '.repeat(
-      3,
-    ),
-  videoIntroUrl: 'https://vimeo.com/123456789',
-  locationCountry: 'PK',
-  locationRegion: 'Punjab',
-  locationCity: 'Lahore',
-  serviceArea: 'Remote across Europe and on-site in Lahore',
-  timezone: 'Asia/Karachi',
-  remoteMode: 'hybrid',
-  availability: 'open_to_offers',
+    'I map difficult customer journeys end to end and ship the parts that move the numbers. Eleven years across marketplaces, fintech and public services, most recently rebuilding a checkout that eleven countries share.',
+  location: 'Pakistan',
+  availability: 'available',
   availabilityNote: 'Open to one discovery engagement starting October 2026',
-  responseTime: 'within_a_day',
-  projectLength: 'three_to_six_months',
-  availableFrom: '2026-10-01',
-  rates: [
-    { period: 'hourly', amountMinor: '4500', currency: 'USD' },
-    { period: 'daily', amountMinor: '102000', currency: 'USD' },
-    { period: 'weekly', amountMinor: '500000', currency: 'USD' },
-    { period: 'monthly', amountMinor: '520000', currency: 'USD' },
-    { period: 'yearly', amountMinor: '999999999999999', currency: 'USD' },
+  responseTime: null,
+  projectLength: null,
+  availableFrom: null,
+  remoteMode: null,
+  rates: [],
+  languages: [],
+  skills: [
+    { name: 'Service design', proficiency: 'expert' },
+    { name: 'Design systems', proficiency: 'advanced' },
+    { name: 'Accessibility', proficiency: 'advanced' },
   ],
-  contact: {
-    phoneE164: null,
-    contactEmail: null,
-    whatsappE164: null,
-    linkedinUrl: null,
-    figmaUrl: null,
-    addressLine1: null,
-    addressLine2: null,
-    postalCode: null,
-    dateOfBirth: null,
-  },
-  sections: {
-    languages: [
-      { name: 'Urdu', proficiency: 'native', starred: true },
-      { name: 'English', proficiency: 'fluent', starred: true },
-      { name: 'Portuguese', proficiency: 'conversational', starred: false },
-    ],
-    skills: [
-      {
-        name: 'Accessibility and inclusive design for regulated public services',
-        proficiency: 'expert',
-        years: 9,
-        approved: true,
-      },
-      { name: 'Service design', proficiency: 'expert', years: 7, approved: true },
-      { name: 'Design systems', proficiency: 'advanced', years: 5, approved: true },
-    ],
-    experience: [
-      {
-        role: 'Lead Service Designer, Digital Identity and Payments',
-        organization: 'Erste Digital',
-        startDate: '2022-02-01',
-        endDate: null,
-        summary:
-          'Led discovery across eleven teams and shipped the first accessible onboarding journey in the group.',
-      },
-    ],
-    education: [
-      {
-        institution: 'Central Saint Martins, University of the Arts London',
-        qualification: 'Bachelor of Fine Arts',
-        fieldOfStudy: 'Graphic Design',
-        startDate: '2013-09-01',
-        endDate: '2017-06-30',
-      },
-    ],
-    licenses: [
-      {
-        name: 'Adobe Certified Expert (ACE)',
-        issuer: 'Adobe',
-        issuedOn: '2022-04-01',
-        expiresOn: null,
-        files: [],
-      },
-      {
-        name: 'Brand Strategy Fundamentals',
-        issuer: 'Coursera',
-        issuedOn: '2021-03-01',
-        expiresOn: null,
-        files: [],
-      },
-    ],
-    portfolio: [
-      {
-        title: 'Redesigning the checkout for a regulated marketplace in eleven countries',
-        url: 'https://example.com/case-study',
-        summary: 'Cut abandonment by a fifth.',
-        files: [file(0), file(1)],
-      },
-      { title: 'Marketing site', url: null, summary: 'Web design', files: [file(2)] },
-      { title: 'Mobile banking app', url: null, summary: 'UI / UX', files: [file(3)] },
-      { title: 'Wellness app', url: null, summary: 'Mobile', files: [] },
-    ],
-  },
-  // Two sections public and the rest not, so both states of the card are on the
-  // page at every size the sweep measures.
-  visibility: {
-    profilePublic: false,
-    locationGranularity: 'country',
-    sections: {
-      nameHeadline: true,
-      biography: true,
-      location: true,
-      languages: false,
-      rate: false,
-      skills: true,
-      experience: false,
-      education: false,
-      licenses: false,
-      portfolio: true,
-      videoIntro: false,
-      availability: true,
+  experience: [],
+  education: [],
+  licenses: [],
+  portfolio: [
+    {
+      title: 'Redesigning the checkout for a regulated marketplace in eleven countries',
+      url: 'https://example.com/case-study',
+      summary: 'Cut abandonment by a fifth.',
+      files: [file(0), file(1)],
     },
-    searchIndexable: false,
-  },
+    { title: 'Marketing site', url: null, summary: 'Web design', files: [file(2)] },
+    { title: 'Mobile banking app', url: null, summary: 'UI / UX', files: [file(3)] },
+    { title: 'Wellness app', url: null, summary: 'Mobile', files: [] },
+  ],
+  videoIntroUrl: null,
+  searchIndexable: false,
   publishedAt: null,
-  updatedAt: '2026-09-15T10:00:00.000Z',
 };
 
 function fulfil(route: Route, body: unknown, status = 200) {
@@ -221,8 +141,8 @@ test.beforeEach(async ({ page }) => {
     (route) => fulfil(route, USER),
   );
   await page.route(
-    (url) => url.pathname === '/api/v1/profiles/me',
-    (route) => fulfil(route, PROFILE),
+    (url) => url.pathname === '/api/v1/profiles/me/preview',
+    (route) => fulfil(route, PREVIEW),
   );
 });
 
@@ -238,64 +158,49 @@ test('the profile preview holds its layout at every window size', async ({ page 
   await sweep(page, 'profile preview');
 });
 
-test('shows every section the person filled in', async ({ page }) => {
+/**
+ * Only what the visibility settings made public.
+ *
+ * The page draws what the API sent and nothing else, and the API sends what the
+ * published page would show — so a section missing here is a section a buyer
+ * would not find either.
+ */
+test('shows the public sections and none of the private ones', async ({ page }) => {
   await open(page);
 
   await expect(page.getByRole('heading', { name: /Ayesha Khan/, level: 1 })).toBeVisible();
-  await expect(page.getByText('@ayeshakhan')).toBeVisible();
+
+  for (const name of ['About', 'Skills and expertise', 'Portfolio']) {
+    await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
+  }
 
   for (const name of [
-    'About',
-    'Skills and expertise',
     'Work experience',
     'Education',
     'Certifications',
-    'Portfolio',
     'Video intro',
     'Languages',
-    'Expected rates',
   ]) {
-    await expect(page.getByRole('region', { name, exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name, exact: true })).toHaveCount(0);
   }
-  await expect(page.getByRole('region', { name: 'Working preferences' })).toBeVisible();
-
-  // Every price, in its currency rather than in minor units.
-  await expect(page.getByText('$45.00').first()).toBeVisible();
-  await expect(page.getByText('$5,200.00').first()).toBeVisible();
 });
 
 /**
- * The one thing this page says that the client profile does not.
+ * The notice is the one thing this page adds to the public profile.
  *
- * A section is filled in whether or not a buyer may see it, and only the
- * visibility settings decide which. Without the marker, a person looking at a
- * complete-looking preview has no way to learn that half of it is private.
+ * Without it somebody reads a page that is missing half their work and has no
+ * way to tell "not public" from "not saved". The editor is where the second
+ * question is answered, and this says so.
  */
-test('marks the sections a buyer cannot see, and leaves the rest unmarked', async ({ page }) => {
+test('says it is the buyer’s view, and offers the way back', async ({ page }) => {
   await open(page);
 
-  const hidden = page.getByText('Hidden from buyers');
-  // Languages, rate, experience, education, licenses and the video intro are
-  // private in the fixture; About, skills and portfolio are not.
-  await expect(hidden).toHaveCount(6);
-
-  const about = page.getByRole('region', { name: 'About', exact: true });
-  await expect(about.getByText('Hidden from buyers')).toHaveCount(0);
-});
-
-test('only starred languages sit beside the name, and all of them in the section', async ({
-  page,
-}) => {
-  await open(page);
-
-  const identity = page.getByRole('region', { name: 'Name and details' });
-  await expect(identity.getByText('Urdu', { exact: false })).toBeVisible();
-  await expect(identity.getByText('Portuguese', { exact: false })).toHaveCount(0);
-
-  const languages = page.getByRole('region', { name: 'Languages', exact: true });
-  for (const name of ['Urdu', 'English', 'Portuguese']) {
-    await expect(languages.getByText(name, { exact: false }).first()).toBeVisible();
-  }
+  const notice = page.getByRole('complementary', { name: 'Preview notice' });
+  await expect(notice.getByText(/exactly as a buyer sees it/)).toBeVisible();
+  await expect(notice.getByRole('link', { name: /Back to editing/ })).toHaveAttribute(
+    'href',
+    '/client-profile',
+  );
 });
 
 test('has no accessibility violations', async ({ page }) => {
