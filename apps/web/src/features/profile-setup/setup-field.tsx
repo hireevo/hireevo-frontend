@@ -22,6 +22,8 @@ export type FieldControlProps = {
 export function SetupField({
   label,
   optional = true,
+  required = false,
+  note,
   hint,
   error,
   length,
@@ -31,6 +33,14 @@ export function SetupField({
 }: {
   label: string;
   optional?: boolean;
+  /**
+   * Draws the design's red asterisk. Separate from `optional`, which only says
+   * whether to show the "Optional" chip — the two screens that already turn
+   * that chip off do not want an asterisk in its place.
+   */
+  required?: boolean;
+  /** A grey aside beside the label, e.g. "(with country code)". */
+  note?: string;
   hint?: string;
   error?: string | undefined;
   /** With `max`, turns on the countdown near the limit. */
@@ -54,6 +64,20 @@ export function SetupField({
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={id} className="text-[0.8125rem] font-medium text-content">
           {label}
+          {required ? (
+            <>
+              {' '}
+              {/* Announced, not only coloured: "required" is the part a screen
+                  reader has to hear, and the asterisk alone says nothing. */}
+              <span aria-hidden="true" className="text-content-warning">
+                *
+              </span>
+              <span className="sr-only">(required)</span>
+            </>
+          ) : null}
+          {note === undefined ? null : (
+            <span className="ml-1 font-normal text-content-subtle">{note}</span>
+          )}
         </label>
         {optional ? <span className="text-xs text-content-subtle">Optional</span> : null}
       </div>

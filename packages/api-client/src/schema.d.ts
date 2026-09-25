@@ -795,6 +795,9 @@ export interface components {
             contact: {
                 phoneE164: string | null;
                 contactEmail: string | null;
+                whatsappE164: string | null;
+                linkedinUrl: string | null;
+                figmaUrl: string | null;
                 addressLine1: string | null;
                 addressLine2: string | null;
                 postalCode: string | null;
@@ -916,6 +919,9 @@ export interface components {
             contact?: {
                 phoneE164?: string | null;
                 contactEmail?: string | null;
+                whatsappE164?: string | null;
+                linkedinUrl?: string | null;
+                figmaUrl?: string | null;
                 addressLine1?: string | null;
                 addressLine2?: string | null;
                 postalCode?: string | null;

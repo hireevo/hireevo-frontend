@@ -7,6 +7,7 @@ import {
   LuCircleDollarSign,
   LuClock,
   LuGraduationCap,
+  LuPhone,
   LuShieldCheck,
   LuStar,
   LuUser,
@@ -24,6 +25,7 @@ import {
   normaliseSkill,
 } from '@/features/profile-setup/entries-validation.ts';
 import {
+  CONTACT_FIELDS,
   RATE_CURRENCY,
   publishProfile,
   ratesOf,
@@ -69,8 +71,10 @@ import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
 import { uploadsInFlight, watchUploads } from '@/features/media/upload.ts';
 import { PortfolioSection } from './portfolio-section.tsx';
+import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
 import { SectionCard } from './section-card.tsx';
 import {
+  ContactEditor,
   EducationEditor,
   ExperienceEditor,
   IdentityEditor,
@@ -81,10 +85,11 @@ import {
   VideoIntroEditor,
   VisibilityEditor,
 } from './section-editors.tsx';
-import { SkillChips, SummaryList, joined, rangeOf } from './section-summaries.tsx';
+import { ContactSummary, SkillChips, SummaryList, joined, rangeOf } from './section-summaries.tsx';
 
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
 type OpenSection =
+  | 'contact'
   | 'about'
   | 'skills'
   | 'experience'
@@ -168,6 +173,7 @@ export function ProfileBuilder() {
    */
   const [rates, setRates] = useState<RateValue[]>(stored?.rates ?? []);
   const [open, setOpen] = useState<OpenSection>(null);
+  const contact = useContactValues();
   /** Turned on by "Complete your profile": every filled section grows a pencil. */
   const [editMode, setEditMode] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -218,11 +224,19 @@ export function ProfileBuilder() {
     autosave: false,
     collect,
     collectRates,
+    collectContact: contact.collect,
     ...(user === null ? {} : { fallbackDisplayName: displayNameOf(user) }),
     ...(stored === null ? {} : { restore: stored.identity }),
   });
 
   const values = identity.values;
+
+  // Filled in when the profile arrives, and only then: a save returns a new
+  // profile object every time, and re-seeding on one would throw away whatever
+  // had been typed while the request was out.
+  useEffect(() => {
+    contact.seed(identity.profile);
+  }, [contact, identity.profile]);
 
   // The profile arrives after the page has rendered. Where this browser holds a
   // draft it is the later of the two and is left alone; otherwise the sections
@@ -450,6 +464,11 @@ export function ProfileBuilder() {
   };
   const completion = completionOf(filled);
 
+  // Its own boolean rather than a row in `filled`: that map feeds the strength
+  // figure, which mirrors the API's weights, and the API does not count contact
+  // detail towards completeness. Adding it here would make the two disagree.
+  const contactFilled = CONTACT_FIELDS.some((field) => contact.values[field].trim() !== '');
+
   const saveStatus = {
     saved: 'All changes saved',
     saving: 'Saving your changes…',
@@ -595,6 +614,29 @@ export function ProfileBuilder() {
       </div>
 
       <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
+        {/* Above About, where the design puts it, and never on the published
+            page: these go to the profile's private row, which the public
+            serializer is never given. The card says so, because a form asking
+            for two phone numbers should say where they end up. */}
+        <SectionCard
+          title="Contact Details"
+          description="How clients reach you once you agree to talk. Kept private — never shown on your public profile."
+          filled={contactFilled}
+          icon={<LuPhone />}
+          editing={open === 'contact'}
+          action={actionFor('contact', 'contact details')}
+        >
+          {open === 'contact' ? (
+            <ContactEditor
+              values={contact.values}
+              fieldErrors={identity.fieldErrors}
+              onChange={contact.change}
+            />
+          ) : contactFilled ? (
+            <ContactSummary values={contact.values} />
+          ) : undefined}
+        </SectionCard>
+
         <SectionCard
           title="About"
           description="Share some details about yourself, your expertise, and what you offer."

@@ -85,6 +85,9 @@ const PROFILE = {
   contact: {
     phoneE164: null,
     contactEmail: null,
+    whatsappE164: null,
+    linkedinUrl: null,
+    figmaUrl: null,
     addressLine1: null,
     addressLine2: null,
     postalCode: null,

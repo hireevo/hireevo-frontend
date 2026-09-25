@@ -2519,6 +2519,15 @@
               "contactEmail": {
                 "type": ["string", "null"]
               },
+              "whatsappE164": {
+                "type": ["string", "null"]
+              },
+              "linkedinUrl": {
+                "type": ["string", "null"]
+              },
+              "figmaUrl": {
+                "type": ["string", "null"]
+              },
               "addressLine1": {
                 "type": ["string", "null"]
               },
@@ -2535,6 +2544,9 @@
             "required": [
               "phoneE164",
               "contactEmail",
+              "whatsappE164",
+              "linkedinUrl",
+              "figmaUrl",
               "addressLine1",
               "addressLine2",
               "postalCode",
@@ -3199,6 +3211,39 @@
                     "maxLength": 254,
                     "format": "email",
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "whatsappE164": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "linkedinUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "figmaUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
                   },
                   {
                     "type": "null"
