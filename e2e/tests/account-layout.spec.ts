@@ -226,9 +226,12 @@ test('the name row writes both names, and clears one sent empty', async ({ page 
   await box.getByLabel('Last Name').fill('');
   await box.getByRole('button', { name: 'Save name' }).click();
 
-  // Null, not '': the API leaves an absent field alone and clears an explicit
-  // null, and emptying a name has to reach it as the second.
-  expect(sent).toEqual({ firstName: 'Sophie', lastName: null });
+  // Polled rather than read straight after the click: the assertion is about
+  // what the request carried, and the request has not necessarily left by the
+  // time `click` resolves. Null, not '': the API leaves an absent field alone
+  // and clears an explicit null, and emptying a name has to reach it as the
+  // second.
+  await expect.poll(() => sent).toEqual({ firstName: 'Sophie', lastName: null });
   await expect(page.getByText('Sophie', { exact: true })).toBeVisible();
 });
 
@@ -261,7 +264,12 @@ test('the email row asks, then confirms, and never moves the address early', asy
   await box.getByLabel('Current Password').fill('Correct-Horse-9');
   await box.getByRole('button', { name: 'Send code' }).click();
 
-  expect(asked).toEqual({ newEmail: pending.newEmail, currentPassword: 'Correct-Horse-9' });
+  await expect
+    .poll(() => asked)
+    .toEqual({
+      newEmail: pending.newEmail,
+      currentPassword: 'Correct-Horse-9',
+    });
   await expect(box.getByRole('heading', { name: 'Confirm your new address' })).toBeVisible();
   // Behind the box, the row still shows the address the account actually has.
   await expect(page.getByText('a******************r@e*************y.com')).toBeVisible();
@@ -271,7 +279,7 @@ test('the email row asks, then confirms, and never moves the address early', asy
   }
   await box.getByRole('button', { name: 'Confirm new address' }).click();
 
-  expect(confirmed).toEqual({ code: '123456' });
+  await expect.poll(() => confirmed).toEqual({ code: '123456' });
   await expect(box.getByRole('heading', { name: 'Email address changed' })).toBeVisible();
   // Every session ended with the move, so the only way on is signing in again.
   await expect(box.getByRole('button', { name: 'Go to sign in' })).toBeVisible();
@@ -301,7 +309,7 @@ test('deactivating asks for the password and leaves for sign-in', async ({ page 
   await box.getByLabel('Current Password').fill('Correct-Horse-9');
   await box.getByRole('button', { name: 'Deactivate account' }).click();
 
-  expect(sent).toEqual({ currentPassword: 'Correct-Horse-9' });
+  await expect.poll(() => sent).toEqual({ currentPassword: 'Correct-Horse-9' });
   await page.waitForURL(/sign-in/);
 });
 
