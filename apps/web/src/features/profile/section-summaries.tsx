@@ -6,6 +6,11 @@
  * something in it reads as empty, and the person fills it in twice.
  */
 import { type ReactNode } from 'react';
+import {
+  CONTACT_FIELDS,
+  type ContactField,
+  type ContactValues,
+} from '@/features/profile-setup/api.ts';
 
 /** "2022-02-01" as "Feb 2022". An unparseable date is shown as it was typed. */
 export function monthYear(iso: string): string {
@@ -70,5 +75,37 @@ export function SkillChips({ names }: { names: readonly string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** The labels the contact card reads back, in the order the design lists them. */
+const CONTACT_LABELS: Record<ContactField, string> = {
+  phoneE164: 'Contact No',
+  contactEmail: 'Email',
+  whatsappE164: 'WhatsApp',
+  linkedinUrl: 'LinkedIn',
+  figmaUrl: 'Figma',
+};
+
+/**
+ * The contact card when it is closed: what has been given, and nothing else.
+ *
+ * Read as plain text rather than as links. These are private details on the
+ * owner's own editing screen, and turning a LinkedIn address into something
+ * clickable there invites the one mistake worth avoiding — treating them as
+ * things meant to be followed from a page.
+ */
+export function ContactSummary({ values }: { values: ContactValues }) {
+  const given = CONTACT_FIELDS.filter((field) => values[field].trim() !== '');
+
+  return (
+    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      {given.map((field) => (
+        <div key={field} className="min-w-0">
+          <dt className="text-xs text-content-subtle">{CONTACT_LABELS[field]}</dt>
+          <dd className="mt-0.5 text-sm break-all text-content">{values[field]}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -37,6 +37,19 @@ vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   listSkills: (...args: Parameters<typeof ProfileApi.listSkills>) => calls.skills(...args),
 }));
 
+/** What the API returns for a profile nobody has filled contact details into. */
+const NO_CONTACT = {
+  phoneE164: null,
+  contactEmail: null,
+  whatsappE164: null,
+  linkedinUrl: null,
+  figmaUrl: null,
+  addressLine1: null,
+  addressLine2: null,
+  postalCode: null,
+  dateOfBirth: null,
+};
+
 const NO_SECTIONS = {
   languages: [],
   skills: [],
@@ -107,6 +120,7 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     responseTime: null,
     projectLength: null,
     availableFrom: null,
+    contact: NO_CONTACT,
     sections: NO_SECTIONS,
     visibility: {
       profilePublic: false,

@@ -638,9 +638,350 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "summary": "The signed-in user, their roles and their permissions",
+        "tags": ["auth"]
+      },
+      "patch": {
+        "description": "An absent field is left alone and null clears it, so one name can be corrected without restating the other. No password: a name is not a way back into an account, and asking for one to fix a typo teaches people to type their password into anything that asks.",
+        "operationId": "AccountController_updateName_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change the name on the account",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/me/email-change": {
+      "get": {
+        "description": "The address and when the code expires — never the code itself. Answers null once it has been confirmed or has run out.",
+        "operationId": "AccountController_pendingEmailChange_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingEmailChangeState"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The address change waiting on this account, if there is one",
+        "tags": ["auth"]
+      },
+      "post": {
+        "description": "Emails a six-digit code to the new address and tells the old one that a change was asked for. The account keeps the address it has until the code comes back, so a typo costs nothing — the mistyped address simply never confirms. Requires the current password: an address is the way back into an account, so taking one over is what a borrowed session would be used for.",
+        "operationId": "AccountController_requestEmailChange_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingEmailChange"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start moving the account to another address",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/me/email-change/confirm": {
+      "post": {
+        "description": "Swaps the address, marks it confirmed and signs every device out, including this one — the credential that identifies the account has changed. Wrong, expired, spent and unknown all answer the same 400, so none of them is an oracle.",
+        "operationId": "AccountController_confirmEmailChange_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicts with the current state; see `error.code`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Finish the move with the code sent to the new address",
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/me/deactivate": {
+      "post": {
+        "description": "Ends every session, stops every token minted before it, and takes the public profile down. Nothing is deleted: signing in again with the right password brings the account and its profile back, which is what \"temporarily disable\" means. A suspended account is refused — that is moderation, not the owner's to undo.",
+        "operationId": "AccountController_deactivate_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeactivateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deactivated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in without the permission this needs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Turn the account off, reversibly",
         "tags": ["auth"]
       }
     },
@@ -1462,6 +1803,120 @@
         ],
         "additionalProperties": false
       },
+      "UpdateAccountRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PendingEmailChangeState": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "newEmail": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "string"
+              }
+            },
+            "required": ["newEmail", "expiresAt"],
+            "additionalProperties": false
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "ChangeEmailRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "newEmail": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": ["newEmail", "currentPassword"]
+      },
+      "PendingEmailChange": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "newEmail": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": ["newEmail", "expiresAt"],
+        "additionalProperties": false
+      },
+      "ConfirmEmailChangeRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": ["code"]
+      },
+      "DeactivateAccountRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": ["currentPassword"]
+      },
+      "Deactivated": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "deactivated": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": ["deactivated"],
+        "additionalProperties": false
+      },
       "RequestPasswordReset": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -2064,6 +2519,15 @@
               "contactEmail": {
                 "type": ["string", "null"]
               },
+              "whatsappE164": {
+                "type": ["string", "null"]
+              },
+              "linkedinUrl": {
+                "type": ["string", "null"]
+              },
+              "figmaUrl": {
+                "type": ["string", "null"]
+              },
               "addressLine1": {
                 "type": ["string", "null"]
               },
@@ -2080,6 +2544,9 @@
             "required": [
               "phoneE164",
               "contactEmail",
+              "whatsappE164",
+              "linkedinUrl",
+              "figmaUrl",
               "addressLine1",
               "addressLine2",
               "postalCode",
@@ -2744,6 +3211,39 @@
                     "maxLength": 254,
                     "format": "email",
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "whatsappE164": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "linkedinUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "figmaUrl": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
                   },
                   {
                     "type": "null"

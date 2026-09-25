@@ -59,6 +59,9 @@ const PROFILE = {
   contact: {
     phoneE164: null,
     contactEmail: null,
+    whatsappE164: null,
+    linkedinUrl: null,
+    figmaUrl: null,
     addressLine1: null,
     addressLine2: null,
     postalCode: null,
@@ -313,6 +316,69 @@ test('opens again on what was typed but never saved', async ({ page }) => {
   await expect(page.getByRole('region', { name: /Skills and expertise/ })).toContainText(
     'Service design',
   );
+});
+
+/**
+ * The contact section, which is the one part of this page that never reaches a
+ * reader.
+ *
+ * It sits above About, as the design puts it, and what it collects goes to the
+ * profile's private row: the API's public shape has no contact object in it at
+ * all, so a published page cannot carry these however the visibility switches
+ * are set. What this checks is the half that could still go wrong here — that
+ * the fields reach the API in the `contact` object rather than among the
+ * profile's own, which is the seam §1.6 exists for.
+ */
+test('contact details sit above About and save as their own object', async ({ page }) => {
+  type SaveBody = { profile?: Record<string, unknown>; contact?: Record<string, unknown> };
+  // `unknown`, because the only write is inside the route handler and the
+  // narrowing from `null` would otherwise make every read here `never`.
+  let sent: unknown = null;
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => {
+      if (route.request().method() !== 'PATCH') return fulfil(route, PROFILE);
+      sent = route.request().postDataJSON();
+      return fulfil(route, { ...PROFILE, version: PROFILE.version + 1 });
+    },
+  );
+
+  await openForEditing(page);
+
+  // The order the design draws: contact first, then the story.
+  const headings = page.locator('h2');
+  const titles = await headings.allTextContents();
+  expect(titles.indexOf('Contact Details')).toBeLessThan(titles.indexOf('About'));
+
+  await page.getByRole('button', { name: /Edit contact details/ }).click();
+
+  await page.locator('input[name="phoneE164"]').fill('+923001234567');
+  await page.locator('input[name="contactEmail"]').fill('reach@example.test');
+  await page.locator('input[name="whatsappE164"]').fill('+923009876543');
+  await page.locator('input[name="linkedinUrl"]').fill('linkedin.com/in/ayesha-khan');
+  await page.locator('input[name="figmaUrl"]').fill('figma.com/@ayesha');
+
+  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+
+  await expect
+    .poll(() => (sent as SaveBody | null)?.contact)
+    .toEqual({
+      phoneE164: '+923001234567',
+      contactEmail: 'reach@example.test',
+      whatsappE164: '+923009876543',
+      linkedinUrl: 'linkedin.com/in/ayesha-khan',
+      figmaUrl: 'figma.com/@ayesha',
+    });
+  // Not smuggled in among the fields that do get published.
+  expect(Object.keys((sent as SaveBody).profile ?? {})).not.toContain('whatsappE164');
+});
+
+test('the contact section holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await openForEditing(page);
+  await page.getByRole('button', { name: /Edit contact details/ }).click();
+  await expect(page.locator('input[name="linkedinUrl"]')).toBeVisible();
+  await sweep(page, 'the contact details section');
 });
 
 test('the client profile holds its layout at every window size, open and closed', async ({
