@@ -7,10 +7,11 @@ export type BadgeProps = {
   children: ReactNode;
   tone?: BadgeTone | undefined;
   /**
-   * `pill` is the tinted capsule; `text` is the bare coloured word the design
-   * uses for a card's status ("Published", "Draft").
+   * `pill` is the tinted capsule; `solid` is the filled one the design uses
+   * where a status is the loudest thing in its row ("Verified"); `text` is the
+   * bare coloured word a card's corner carries ("Published", "Draft").
    */
-  variant?: 'pill' | 'text' | undefined;
+  variant?: 'pill' | 'solid' | 'text' | undefined;
   /** Decorative. Hidden from assistive technology — the words carry the meaning. */
   icon?: ReactNode;
   className?: string | undefined;
@@ -21,6 +22,13 @@ const PILL: Record<BadgeTone, string> = {
   accent: 'bg-surface-accent-subtle text-content-link',
   success: 'bg-surface-success-subtle text-content-success',
   warning: 'bg-surface-warning-subtle text-content-warning',
+};
+
+const SOLID: Record<BadgeTone, string> = {
+  neutral: 'bg-surface-inverse text-content-inverse',
+  accent: 'bg-surface-accent text-content-on-accent',
+  success: 'bg-surface-success-subtle text-content-success',
+  warning: 'bg-surface-warning text-content-on-warning',
 };
 
 const TEXT: Record<BadgeTone, string> = {
@@ -46,7 +54,9 @@ export function Badge({
       data-slot="badge"
       className={cn(
         'inline-flex max-w-full min-w-0 items-center gap-1.5 text-[0.8125rem] leading-5 font-medium',
-        variant === 'pill' ? ['rounded-full px-3 py-1', PILL[tone]] : TEXT[tone],
+        variant === 'text'
+          ? TEXT[tone]
+          : ['rounded-full px-3 py-1', variant === 'solid' ? SOLID[tone] : PILL[tone]],
         className,
       )}
     >

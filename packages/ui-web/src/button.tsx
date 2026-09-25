@@ -36,6 +36,7 @@ export function Button({
   disabled,
   children,
   onClick,
+  'aria-disabled': ariaDisabled,
   ...props
 }: ButtonProps) {
   return (
@@ -48,7 +49,11 @@ export function Button({
       // click also cancels a form's submission, so an Enter in a field cannot
       // send it a second time while the first is still on its way.
       disabled={disabled === true}
-      aria-disabled={loading || undefined}
+      // A caller's own `aria-disabled` is kept: a control that is drawn because
+      // the design draws it but has nothing behind it yet is refused this way
+      // rather than with `disabled`, which would take it out of the tab order
+      // and leave a screen-reader user unable to find out why it does nothing.
+      aria-disabled={loading || ariaDisabled || undefined}
       aria-busy={loading || undefined}
       {...(loading ? { onClick: refuse } : onClick === undefined ? {} : { onClick })}
       className={cn(
