@@ -282,28 +282,22 @@ export type SaveResult =
  * person: pressing Save. Two requests would take two versions, and the second
  * would lose to the first.
  */
-export async function saveProfile(
-  version: number,
-  values: ProfileValues,
-  sections?: SectionsPayload,
-  rates?: RateValue[],
-  contact?: ContactValues,
-): Promise<SaveResult> {
+/** Exactly what a save sends, so a caller can send part of a profile. */
+export type ProfilePatch = Omit<Schema<'UpdateProfileRequest'>, 'version'>;
+
+/**
+ * Sends one save.
+ *
+ * The body is the caller's to compose, because what a save should carry is not
+ * always the whole profile: the API leaves out every key it is not sent, so a
+ * section saved on its own is a body with that one list in it. Version handling,
+ * conflicts and field errors are the same either way, which is why they live
+ * here rather than in each caller.
+ */
+export async function saveProfilePatch(version: number, patch: ProfilePatch): Promise<SaveResult> {
   try {
     const { data, error, response } = await api.PATCH('/api/v1/profiles/me', {
-      body: {
-        version,
-        // Absent unless this save knows about the prices: the API leaves them
-        // alone when the key is missing, and an empty list is what clears them.
-        profile: {
-          ...toPayload(values),
-          ...(rates === undefined ? {} : { rates: toRatesPayload(rates) }),
-        },
-        ...(sections === undefined ? {} : { sections }),
-        // Absent unless this save knows about them, for the reason the prices
-        // are: the API leaves the key it is not sent alone.
-        ...(contact === undefined ? {} : { contact: toContactPayload(contact) }),
-      },
+      body: { version, ...patch },
     });
     if (data !== undefined) return { ok: true, profile: data };
 
@@ -330,6 +324,24 @@ export async function saveProfile(
   } catch {
     return { ok: false, kind: 'failed', message: UNREACHABLE };
   }
+}
+
+/** The whole profile in one save, as the page-level save sends it. */
+export function saveProfile(
+  version: number,
+  values: ProfileValues,
+  sections?: SectionsPayload,
+  rates?: RateValue[],
+  contact?: ContactValues,
+): Promise<SaveResult> {
+  return saveProfilePatch(version, {
+    profile: {
+      ...toPayload(values),
+      ...(rates === undefined ? {} : { rates: toRatesPayload(rates) }),
+    },
+    ...(sections === undefined ? {} : { sections }),
+    ...(contact === undefined ? {} : { contact: toContactPayload(contact) }),
+  });
 }
 
 /** Whether someone is taking work, as the API names it. */

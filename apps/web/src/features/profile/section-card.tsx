@@ -27,6 +27,8 @@ export type SectionCardProps = {
    * that closes it belongs beside the heading rather than under the copy.
    */
   editing?: boolean;
+  /** Shown under the editor while it is open — the section's own Save. */
+  footer?: ReactNode;
   className?: string | undefined;
 };
 
@@ -40,6 +42,7 @@ export function SectionCard({
   children,
   className,
   editing = false,
+  footer,
 }: SectionCardProps) {
   const headingId = useId();
 
@@ -86,6 +89,14 @@ export function SectionCard({
           )}
         >
           {children}
+        </div>
+      )}
+      {/* Under the fields it saves, rather than above them: the button belongs
+          at the end of the thing it finishes, and a person reading down the
+          section arrives at it having read what it will send. */}
+      {footer === undefined || !editing ? null : (
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border-subtle pt-5">
+          {footer}
         </div>
       )}
     </Card>

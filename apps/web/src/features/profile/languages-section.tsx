@@ -12,6 +12,8 @@ export type LanguagesSectionProps = {
   onChange: (languages: ProfileLanguage[]) => void;
   open: boolean;
   action: ReactNode;
+  /** The section's own Save, shown under its editor. */
+  footer?: ReactNode;
   className?: string;
 };
 
@@ -31,6 +33,7 @@ export function LanguagesSection({
   onChange,
   open,
   action,
+  footer,
   className,
 }: LanguagesSectionProps) {
   const toggleStar = (name: string) =>
@@ -52,6 +55,7 @@ export function LanguagesSection({
       className={className}
       editing={open}
       action={action}
+      {...(footer === undefined ? {} : { footer })}
     >
       {!open ? (
         languages.length === 0 ? undefined : (

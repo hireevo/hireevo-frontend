@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EMPTY_VALUES,
   loadOrCreateProfile,
-  saveProfile,
+  saveProfilePatch,
   toContactPayload,
   toPayload,
   toRatesPayload,
   valuesOf,
   type ContactValues,
   type FieldErrors,
+  type ProfilePatch,
   type OwnProfile,
   type ProfileField,
   type ProfileValues,
@@ -35,18 +36,116 @@ export type LoadState =
  * saved. Built from the payload rather than the form, because the payload is
  * what a save would actually send.
  */
-const keyOf = (
+/**
+ * The parts a save can carry, each saved on its own.
+ *
+ * The API leaves out every key a request does not mention, so a section saved
+ * by itself is a body with that one list in it. Naming the parts here is what
+ * lets a card ask for its own to be sent, and lets its button know whether
+ * there is anything to send.
+ */
+export const SECTION_PARTS = [
+  'languages',
+  'skills',
+  'experience',
+  'education',
+  'licenses',
+  'portfolio',
+] as const;
+
+export type SectionPart = (typeof SECTION_PARTS)[number];
+
+/**
+ * The profile's own fields, grouped by the card that edits them.
+ *
+ * One part per card rather than one for all of them, because a part is what a
+ * card reports as unsaved: with a single "profile" part, typing a biography
+ * marked the working preferences and the video intro unsaved as well, which is
+ * true of the row and useless to the person reading it.
+ *
+ * Every field belongs to exactly one group. The header's name, title, location
+ * and photo sit with About: the header is the profile's identity and About is
+ * its story, and between them they are the profile's details — saved together
+ * by the one card that carries a Save for them.
+ */
+export const PROFILE_GROUPS = {
+  about: [
+    'displayName',
+    'headline',
+    'overview',
+    'availabilityNote',
+    'locationCountry',
+    'locationRegion',
+    'locationCity',
+    'serviceArea',
+    'timezone',
+    'avatarKey',
+  ],
+  preferences: ['remoteMode', 'responseTime', 'projectLength', 'availableFrom'],
+  video: ['videoIntroUrl'],
+} as const satisfies Record<string, readonly ProfileField[]>;
+
+export type ProfilePart = keyof typeof PROFILE_GROUPS;
+export const PROFILE_PARTS = Object.keys(PROFILE_GROUPS) as ProfilePart[];
+
+export type SavePart = ProfilePart | 'rates' | 'contact' | SectionPart;
+
+export const SAVE_PARTS: readonly SavePart[] = [
+  ...PROFILE_PARTS,
+  'rates',
+  'contact',
+  ...SECTION_PARTS,
+];
+
+const isProfilePart = (part: SavePart): part is ProfilePart =>
+  (PROFILE_PARTS as readonly SavePart[]).includes(part);
+
+/** The payload keys a part owns, so a save carries the fields of the cards it is for. */
+function fieldsOf(values: ProfileValues, parts: readonly ProfilePart[]) {
+  const payload = toPayload(values);
+  const wanted = new Set(parts.flatMap((part) => PROFILE_GROUPS[part] as readonly string[]));
+  return Object.fromEntries(Object.entries(payload).filter(([key]) => wanted.has(key))) as Partial<
+    ReturnType<typeof toPayload>
+  >;
+}
+
+/**
+ * What the server would store for each part.
+ *
+ * Compared part by part rather than as one string, so a card can tell whether
+ * *its* part differs from what was saved — and so a save of one part leaves
+ * every other part's "unsaved" standing. Built from the payload rather than the
+ * form, because the payload is what a save would actually send: trailing spaces
+ * alone are not a change.
+ */
+function partsOf(
   values: ProfileValues,
   sections: SectionsPayload | undefined,
   rates: RateValue[] | undefined,
   contact: ContactValues | undefined,
-) =>
-  JSON.stringify([
-    toPayload(values),
-    sections ?? null,
-    rates && toRatesPayload(rates),
-    contact && toContactPayload(contact),
-  ]);
+): Record<SavePart, string> {
+  // The prices travel beside the fields but are their own part, because the
+  // card that edits them is its own card.
+  return {
+    ...(Object.fromEntries(
+      PROFILE_PARTS.map((part) => [part, JSON.stringify(fieldsOf(values, [part]))]),
+    ) as Record<ProfilePart, string>),
+    rates: JSON.stringify(rates && toRatesPayload(rates)),
+    contact: JSON.stringify(contact && toContactPayload(contact)),
+    ...(Object.fromEntries(
+      SECTION_PARTS.map((part) => [part, JSON.stringify(sections?.[part] ?? null)]),
+    ) as Record<SectionPart, string>),
+  };
+}
+
+/** Which parts differ from what was last saved. */
+function differing(
+  current: Record<SavePart, string>,
+  saved: Partial<Record<SavePart, string>>,
+  within: readonly SavePart[],
+): SavePart[] {
+  return within.filter((part) => current[part] !== saved[part]);
+}
 
 /**
  * The profile being edited: loaded from the API, saved back to it.
@@ -116,7 +215,10 @@ export function useProfileDraft({
 
   const latest = useRef(EMPTY_VALUES);
   const version = useRef(0);
-  const savedKey = useRef('');
+  const savedParts = useRef<Partial<Record<SavePart, string>>>({});
+  const [unsaved, setUnsaved] = useState<readonly SavePart[]>([]);
+  /** Which parts a save is carrying right now, so each card can show its own. */
+  const [saving, setSaving] = useState<readonly SavePart[]>([]);
   const savedAt = useRef<Date | null>(null);
   const blocked = useRef(false);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -154,18 +256,24 @@ export function useProfileDraft({
     version.current = result.profile.version;
     // Keyed on what the server holds, not on the fallback, so a filled-in name
     // is saved by the next save rather than mistaken for something already sent.
-    savedKey.current = keyOf(loaded, sections.current?.(), rates.current?.(), contact.current?.());
+    savedParts.current = partsOf(
+      loaded,
+      sections.current?.(),
+      rates.current?.(),
+      contact.current?.(),
+    );
     blocked.current = false;
     setProfile(result.profile);
     setValues(opening);
     setFieldErrors({});
     // By value, not by identity: a restored draft equal to the server is saved.
-    setSave(
-      keyOf(opening, sections.current?.(), rates.current?.(), contact.current?.()) ===
-        savedKey.current
-        ? { kind: 'saved', at: savedAt.current }
-        : { kind: 'unsaved' },
+    const opened = differing(
+      partsOf(opening, sections.current?.(), rates.current?.(), contact.current?.()),
+      savedParts.current,
+      SAVE_PARTS,
     );
+    setUnsaved(opened);
+    setSave(opened.length === 0 ? { kind: 'saved', at: savedAt.current } : { kind: 'unsaved' });
     setLoad({ status: 'ready' });
     // The bar above the page writes the same profile; it needs the version this
     // read came back with.
@@ -205,64 +313,111 @@ export function useProfileDraft({
     accept(await loadOrCreateProfile());
   }, [accept]);
 
-  const saveOnce = useCallback(async (): Promise<boolean> => {
-    if (blocked.current) return false;
-    const sending = latest.current;
-    const lists = sections.current?.();
-    const prices = rates.current?.();
-    const reach = contact.current?.();
-    const key = keyOf(sending, lists, prices, reach);
-    if (key === savedKey.current) {
-      setSave({ kind: 'saved', at: savedAt.current });
-      return true;
-    }
+  /**
+   * Sends the parts of the profile that differ from what was saved.
+   *
+   * `within` narrows it to one card's parts, which is how a section saves
+   * itself: the body carries only the keys that changed, and the API leaves
+   * every key it is not sent alone. Sending the whole profile from a section's
+   * button would write that section's neighbours back too — including any of
+   * them left half-typed.
+   */
+  const saveOnce = useCallback(
+    async (within: readonly SavePart[] = SAVE_PARTS): Promise<boolean> => {
+      if (blocked.current) return false;
+      const sending = latest.current;
+      const lists = sections.current?.();
+      const prices = rates.current?.();
+      const reach = contact.current?.();
+      const current = partsOf(sending, lists, prices, reach);
+      const changed = differing(current, savedParts.current, within);
 
-    setSave({ kind: 'saving' });
-    const result = await saveProfile(version.current, sending, lists, prices, reach);
-
-    if (result.ok) {
-      version.current = result.profile.version;
-      // A photo is claimed once. Left in the form it would be sent with every
-      // later save, re-claiming a key the profile already holds.
-      savedKey.current = keyOf({ ...sending, avatarKey: '' }, lists, prices, reach);
-      savedAt.current = new Date();
-      if (latest.current.avatarKey !== '') {
-        latest.current = { ...latest.current, avatarKey: '' };
-        setValues(latest.current);
+      if (changed.length === 0) {
+        setSave({ kind: 'saved', at: savedAt.current });
+        return true;
       }
-      setProfile(result.profile);
-      setFieldErrors({});
-      profileChanged(result.profile);
-      // Only "saved" if nothing else was typed while this was on its way.
-      setSave(
-        keyOf(latest.current, sections.current?.(), rates.current?.(), contact.current?.()) ===
-          savedKey.current
-          ? { kind: 'saved', at: savedAt.current }
-          : { kind: 'unsaved' },
-      );
-      return true;
-    }
 
-    if (result.kind === 'conflict') {
-      blocked.current = true;
-      setSave({ kind: 'conflict', message: result.message });
-    } else {
-      if (result.kind === 'invalid') setFieldErrors(result.fieldErrors);
-      setSave({ kind: 'failed', message: result.message });
-    }
-    return false;
-  }, []);
+      const patch: ProfilePatch = {};
+      const changedGroups = changed.filter(isProfilePart);
+      if (changedGroups.length > 0 || changed.includes('rates')) {
+        patch.profile = {
+          ...fieldsOf(sending, changedGroups),
+          ...(changed.includes('rates') && prices !== undefined
+            ? { rates: toRatesPayload(prices) }
+            : {}),
+        };
+      }
+      const changedLists = SECTION_PARTS.filter((part) => changed.includes(part));
+      if (changedLists.length > 0 && lists !== undefined) {
+        patch.sections = Object.fromEntries(changedLists.map((part) => [part, lists[part] ?? []]));
+      }
+      if (changed.includes('contact') && reach !== undefined) {
+        patch.contact = toContactPayload(reach);
+      }
+
+      setSave({ kind: 'saving' });
+      setSaving(changed);
+      const result = await saveProfilePatch(version.current, patch);
+      setSaving([]);
+
+      if (result.ok) {
+        version.current = result.profile.version;
+        // A photo is claimed once. Left in the form it would be sent with every
+        // later save, re-claiming a key the profile already holds.
+        const sent = partsOf({ ...sending, avatarKey: '' }, lists, prices, reach);
+        for (const part of changed) savedParts.current[part] = sent[part];
+        savedAt.current = new Date();
+        if (latest.current.avatarKey !== '') {
+          latest.current = { ...latest.current, avatarKey: '' };
+          setValues(latest.current);
+        }
+        setProfile(result.profile);
+        setFieldErrors({});
+        profileChanged(result.profile);
+        // Only "saved" if nothing else was typed while this was on its way —
+        // and only about the parts this save carried.
+        const left = differing(
+          partsOf(latest.current, sections.current?.(), rates.current?.(), contact.current?.()),
+          savedParts.current,
+          SAVE_PARTS,
+        );
+        setUnsaved(left);
+        setSave(left.length === 0 ? { kind: 'saved', at: savedAt.current } : { kind: 'unsaved' });
+        return true;
+      }
+
+      if (result.kind === 'conflict') {
+        blocked.current = true;
+        setSave({ kind: 'conflict', message: result.message });
+      } else {
+        if (result.kind === 'invalid') setFieldErrors(result.fieldErrors);
+        setSave({ kind: 'failed', message: result.message });
+      }
+      return false;
+    },
+    [],
+  );
 
   /** Runs a save after every save already queued, and answers whether it left nothing unsaved. */
-  const enqueue = useCallback((): Promise<boolean> => {
-    const next = queue.current.then(saveOnce);
-    queue.current = next.catch(() => false);
-    return next;
-  }, [saveOnce]);
+  const enqueue = useCallback(
+    (within?: readonly SavePart[]): Promise<boolean> => {
+      const next = queue.current.then(() => saveOnce(within));
+      queue.current = next.catch(() => false);
+      return next;
+    },
+    [saveOnce],
+  );
 
   /** Marks the draft changed, and starts the wait before an autosave. */
   const touch = useCallback(() => {
     if (blocked.current) return;
+    setUnsaved(
+      differing(
+        partsOf(latest.current, sections.current?.(), rates.current?.(), contact.current?.()),
+        savedParts.current,
+        SAVE_PARTS,
+      ),
+    );
     setSave({ kind: 'unsaved' });
     if (!autosave) return;
     if (timer.current !== null) clearTimeout(timer.current);
@@ -288,13 +443,16 @@ export function useProfileDraft({
   );
 
   /** Saves now instead of waiting for the pause in typing. */
-  const flush = useCallback((): Promise<boolean> => {
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-    return enqueue();
-  }, [enqueue]);
+  const flush = useCallback(
+    (within?: readonly SavePart[]): Promise<boolean> => {
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      return enqueue(within);
+    },
+    [enqueue],
+  );
 
   /**
    * Counts what is on screen now as what the server holds.
@@ -306,12 +464,13 @@ export function useProfileDraft({
    * never after anything has been typed.
    */
   const rebaseline = useCallback(() => {
-    savedKey.current = keyOf(
+    savedParts.current = partsOf(
       latest.current,
       sections.current?.(),
       rates.current?.(),
       contact.current?.(),
     );
+    setUnsaved([]);
   }, []);
 
   /** Takes a newer copy from the server — after publishing, or a visibility save. */
@@ -341,6 +500,10 @@ export function useProfileDraft({
     flush,
     reload,
     adopt,
+    /** The parts that differ from what was saved, so a card can offer its own Save. */
+    unsaved,
+    /** The parts a save is carrying now, so a card can show its own button busy. */
+    saving,
     /** The version a sibling write — visibility — has to send with it. */
     version: () => version.current,
   };

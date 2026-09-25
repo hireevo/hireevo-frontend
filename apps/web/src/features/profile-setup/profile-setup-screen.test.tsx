@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import type { ComponentProps, MouseEvent } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RATE_CURRENCY } from './api.ts';
-import { toMinorUnits } from './location-options.ts';
 import type * as Api from './api.ts';
 import type { OwnProfile } from './api.ts';
 import { sinceLabel } from './draft-status-card.tsx';
@@ -31,7 +30,7 @@ vi.mock('next/link', () => ({
 
 const calls = vi.hoisted(() => ({
   load: vi.fn<typeof Api.loadOrCreateProfile>(),
-  save: vi.fn<typeof Api.saveProfile>(),
+  save: vi.fn<typeof Api.saveProfilePatch>(),
   visibility: vi.fn<typeof Api.saveVisibility>(),
   publish: vi.fn<typeof Api.publishProfile>(),
   skills: vi.fn<typeof Api.listSkills>(),
@@ -39,7 +38,8 @@ const calls = vi.hoisted(() => ({
 vi.mock('./api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof Api>()),
   loadOrCreateProfile: (...args: Parameters<typeof Api.loadOrCreateProfile>) => calls.load(...args),
-  saveProfile: (...args: Parameters<typeof Api.saveProfile>) => calls.save(...args),
+  // The patch sender: every save goes through it, carrying only what changed.
+  saveProfilePatch: (...args: Parameters<typeof Api.saveProfilePatch>) => calls.save(...args),
   saveVisibility: (...args: Parameters<typeof Api.saveVisibility>) => calls.visibility(...args),
   publishProfile: (...args: Parameters<typeof Api.publishProfile>) => calls.publish(...args),
   listSkills: (...args: Parameters<typeof Api.listSkills>) => calls.skills(...args),
@@ -132,7 +132,9 @@ beforeEach(() => {
   scrollIntoView.mockReset();
   Element.prototype.scrollIntoView = scrollIntoView;
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
-  calls.save.mockReset().mockImplementation((version, values, _sections, rates) => {
+  calls.save.mockReset().mockImplementation((version, patch) => {
+    const values = patch.profile ?? {};
+    const rates = values.rates;
     // The claimed photo is a key to send, not a field the profile answers with,
     // and a remote mode, response time and project length are each one of a few
     // words rather than whatever was typed.
@@ -141,25 +143,19 @@ beforeEach(() => {
       remoteMode: _mode,
       responseTime: _responds,
       projectLength: _length,
+      rates: _sentRates,
       ...fields
     } = values;
     return Promise.resolve({
       ok: true,
       profile: stored({
-        ...fields,
+        ...(fields as Partial<OwnProfile>),
         version: version + 1,
-        // Answered the way the API answers: minor units and the currency they
-        // are quoted in, so what comes back is what a reload would show.
+        // Answered the way the API answers: the amounts arrive in minor units
+        // already, and the currency they are quoted in comes back with them.
         ...(rates === undefined
           ? {}
-          : {
-              rates: rates.flatMap((rate) => {
-                const amountMinor = toMinorUnits(rate.amount, RATE_CURRENCY);
-                return amountMinor === null
-                  ? []
-                  : [{ period: rate.period, amountMinor, currency: RATE_CURRENCY }];
-              }),
-            }),
+          : { rates: rates.map((rate) => ({ ...rate, currency: RATE_CURRENCY })) }),
       }),
     });
   });
@@ -256,7 +252,7 @@ describe('ProfileSetupScreen', () => {
     // The whole point: one save for many keystrokes, carrying what was typed.
     expect(calls.save.mock.calls.length).toBeLessThan('From October'.length);
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+      expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({
         availabilityNote: 'From October',
       }),
     );
@@ -332,7 +328,7 @@ describe('ProfileSetupScreen', () => {
     await waitFor(() =>
       expect(nav.push).toHaveBeenCalledWith('/profile/setup?step=location', { scroll: false }),
     );
-    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ availabilityNote: 'Now' });
+    expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({ availabilityNote: 'Now' });
     expect(scrolledTo()).toContain(document.getElementById('step-location'));
     expect((await section(/Location and rate/)).getByRole('heading', { level: 2 })).toHaveFocus();
   });
@@ -442,7 +438,7 @@ describe('ProfileSetupScreen', () => {
 
     await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCity: 'Vienna' }),
+      expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({ locationCity: 'Vienna' }),
     );
     expect(leave()).toBe(false);
   });
@@ -454,7 +450,7 @@ describe('ProfileSetupScreen', () => {
     await user.type(location.getByLabelText('Country'), 'austria');
     await waitFor(() => expect(screen.getByText('Autosaved')).toBeInTheDocument());
 
-    expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({ locationCountry: 'AT' });
+    expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({ locationCountry: 'AT' });
   });
 
   it('saves a list in the same request as the fields', async () => {
@@ -470,8 +466,10 @@ describe('ProfileSetupScreen', () => {
     // enough on a loaded machine that a save fires mid-word, and a search for
     // a non-empty list keeps finding that first partial one for ever.
     await waitFor(() => {
-      const carrying = calls.save.mock.calls.find((call) => call[2]?.skills?.[0]?.name === 'Figma');
-      expect(carrying?.[2]).toMatchObject({
+      const carrying = calls.save.mock.calls.find(
+        (call) => call[1].sections?.skills?.[0]?.name === 'Figma',
+      );
+      expect(carrying?.[1].sections).toMatchObject({
         skills: [{ name: 'Figma', proficiency: null, years: null }],
       });
     });

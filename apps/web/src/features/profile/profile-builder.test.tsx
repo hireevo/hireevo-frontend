@@ -35,14 +35,17 @@ vi.mock('@/features/auth/session.tsx', () => ({
 
 const calls = vi.hoisted(() => ({
   load: vi.fn<typeof ProfileApi.loadOrCreateProfile>(),
-  save: vi.fn<typeof ProfileApi.saveProfile>(),
+  save: vi.fn<typeof ProfileApi.saveProfilePatch>(),
   skills: vi.fn<typeof ProfileApi.listSkills>(),
   unpublish: vi.fn<typeof ProfileApi.unpublishProfile>(),
 }));
 vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileApi>()),
   loadOrCreateProfile: () => calls.load(),
-  saveProfile: (...args: Parameters<typeof ProfileApi.saveProfile>) => calls.save(...args),
+  // The patch sender, because that is what a save now goes through: each
+  // section sends its own parts, so the body is the thing worth asserting on.
+  saveProfilePatch: (...args: Parameters<typeof ProfileApi.saveProfilePatch>) =>
+    calls.save(...args),
   listSkills: (...args: Parameters<typeof ProfileApi.listSkills>) => calls.skills(...args),
   unpublishProfile: () => calls.unpublish(),
 }));
@@ -198,7 +201,10 @@ beforeEach(() => {
     { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
     { slug: 'service-design', name: 'Service design', category: 'Design' },
   ]);
-  calls.save.mockReset().mockImplementation((version, values, _sections, rates) => {
+  // Answers the way the API answers a patch: the fields it was sent, at the
+  // next version. A patch carries only what changed, so anything it leaves out
+  // keeps what the profile already held.
+  calls.save.mockReset().mockImplementation((version, patch) => {
     // The claimed photo is a key to send, not a field the profile answers with,
     // and a remote mode, response time and project length are each one of a few
     // words rather than whatever was typed.
@@ -207,25 +213,20 @@ beforeEach(() => {
       remoteMode: _mode,
       responseTime: _responds,
       projectLength: _length,
+      rates,
       ...fields
-    } = values;
+    } = patch.profile ?? {};
+
     return Promise.resolve({
       ok: true,
       profile: stored({
-        ...fields,
+        ...(fields as Partial<OwnProfile>),
         version: version + 1,
-        // Answered the way the API answers: minor units and the currency they
-        // are quoted in, so what comes back is what a reload would show.
+        // Answered the way the API answers: the currency the amounts are quoted
+        // in comes back with them, so what lands is what a reload would show.
         ...(rates === undefined
           ? {}
-          : {
-              rates: rates.flatMap((rate) => {
-                const amountMinor = toMinorUnits(rate.amount, RATE_CURRENCY);
-                return amountMinor === null
-                  ? []
-                  : [{ period: rate.period, amountMinor, currency: RATE_CURRENCY }];
-              }),
-            }),
+          : { rates: rates.map((rate) => ({ ...rate, currency: RATE_CURRENCY })) }),
       }),
     });
   });
@@ -272,7 +273,7 @@ describe('ProfileBuilder', () => {
     expect(
       screen.getByRole('button', { name: 'Edit display name: Sophie Brandt' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(user).toBeDefined();
   });
 
@@ -302,12 +303,12 @@ describe('ProfileBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+      expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({
         displayName: 'Ayesha Khan',
         overview: 'I build design systems.',
       }),
     );
-    expect(await screen.findByText('All changes saved')).toBeInTheDocument();
+    expect(await section(/About/).findByText('Saved')).toBeInTheDocument();
     // About is one of the four sections worth ten; skills, work experience and
     // portfolio are the three worth twenty.
     expect(bar()).toHaveAttribute('aria-valuenow', '10');
@@ -321,7 +322,7 @@ describe('ProfileBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
-    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    const sections = calls.save.mock.calls.at(-1)?.[1].sections;
     expect(sections).toMatchObject({ skills: [{ name: 'Figma' }] });
   });
 
@@ -524,7 +525,7 @@ describe('ProfileBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
-    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    const sections = calls.save.mock.calls.at(-1)?.[1].sections;
     expect(sections).toMatchObject({ languages: [{ name: 'German', starred: true }] });
   });
 
@@ -549,7 +550,7 @@ describe('ProfileBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
-    const [, , sections] = calls.save.mock.calls.at(-1) ?? [];
+    const sections = calls.save.mock.calls.at(-1)?.[1].sections;
     expect(sections).toMatchObject({ languages: [{ name: 'German', starred: false }] });
   });
 
@@ -603,14 +604,17 @@ describe('ProfileBuilder', () => {
     await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
     await afterTheDraftIsWritten();
 
-    // The tab is closed and opened again. Reopened for editing, because the
-    // save status lives on the card that only edit mode shows.
+    // The tab is closed and opened again.
     cleanup();
-    await openForEditing();
+    const reopened = await openForEditing();
 
     expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
     expect(section(/Skills and expertise/).getByText('Figma')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Not saved yet');
+
+    // Each section says so for itself, which is where the Save that would send
+    // it lives. Nothing was sent while the tab was away.
+    await reopened.click(screen.getByRole('button', { name: 'Edit About' }));
+    expect(section(/About/).getByRole('status')).toHaveTextContent('Not saved yet');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -915,8 +919,13 @@ describe('ProfileBuilder', () => {
     for (const name of ['Edit display name: Sophie', 'Edit location: Austria', 'Edit languages']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     expect(screen.getByText('Add a profile photo')).toBeInTheDocument();
+
+    // Save belongs to a section rather than to the page: it appears with the
+    // editor it saves, and there is none open yet.
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit languages' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
   it('brings the portfolio into edit mode like every other section', async () => {
@@ -1005,7 +1014,7 @@ describe('ProfileBuilder', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[1]).toMatchObject({
+      expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({
         videoIntroUrl: 'https://vimeo.com/123456789',
       }),
     );
@@ -1047,9 +1056,10 @@ describe('ProfileBuilder', () => {
     // Shortest period first, whatever order the boxes were filled in: that is
     // the order the API answers in, and the order the profile shows them.
     await waitFor(() =>
-      expect(calls.save.mock.calls.at(-1)?.[3]).toEqual([
-        { period: 'hourly', amount: '45' },
-        { period: 'monthly', amount: '85.50' },
+      expect(calls.save.mock.calls.at(-1)?.[1].profile?.rates).toEqual([
+        // Minor units, which is the whole point: the boxes took 45 and 85.50.
+        { period: 'hourly', amountMinor: toMinorUnits('45', RATE_CURRENCY) },
+        { period: 'monthly', amountMinor: toMinorUnits('85.50', RATE_CURRENCY) },
       ]),
     );
   });

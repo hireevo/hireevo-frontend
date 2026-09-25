@@ -274,7 +274,7 @@ test('fetches a section’s editor only when that section is opened', async ({ p
   expect(scripts.length, 'opening a section fetches its editor').toBeGreaterThan(settled);
 });
 
-test('opens About in place, and saves the whole form from the end of it', async ({ page }) => {
+test('opens About in place, and saves it from its own end', async ({ page }) => {
   await openForEditing(page);
   await page.getByRole('button', { name: 'Edit About' }).click();
 
@@ -282,16 +282,15 @@ test('opens About in place, and saves the whole form from the end of it', async 
   await about
     .getByLabel('Biography')
     .fill('I map difficult journeys and ship accessible services.');
-  // The section itself has no save: the form has one, at its end.
-  await expect(about.getByRole('button', { name: /Save and/ })).toHaveCount(0);
 
+  // The Save is the section's own, under the fields it sends.
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/api/v1/profiles/me') && request.method() === 'PATCH',
   );
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await about.getByRole('button', { name: 'Save', exact: true }).click();
   await saved;
 
-  await expect(page.getByText('All changes saved')).toBeVisible();
+  await expect(about.getByText('Saved')).toBeVisible();
 });
 
 test('opens again on what was typed but never saved', async ({ page }) => {
@@ -337,6 +336,66 @@ test('opens again on what was typed but never saved', async ({ page }) => {
  * profile goes to this screen with its pencils already on, which is what the
  * menu entry means by "edit".
  */
+/**
+ * A section's Save sends that section and nothing else.
+ *
+ * This is the seam worth holding: the API leaves out every key a request does
+ * not mention, so a body carrying one list leaves the other five alone — and a
+ * body that carried the whole profile from a section's button would write back
+ * whatever its neighbours happened to hold, finished or not.
+ */
+test('each section saves itself, and carries only its own parts', async ({ page }) => {
+  const bodies: Record<string, unknown>[] = [];
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => {
+      if (route.request().method() !== 'PATCH') return fulfil(route, PROFILE);
+      bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+      return fulfil(route, { ...PROFILE, version: PROFILE.version + 1 });
+    },
+  );
+
+  await openForEditing(page);
+
+  // Typed into two sections; only one of them is saved.
+  await page.getByRole('button', { name: 'Edit About' }).click();
+  await page.getByLabel('Biography').fill('Typed, and deliberately left unsaved.');
+  await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
+  await page.getByLabel('Skill', { exact: true }).first().fill('Service design');
+
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(Object.keys(bodies[0] ?? {}).sort()).toEqual(['sections', 'version']);
+  expect(bodies[0]?.sections).toMatchObject({ skills: [{ name: 'Service design' }] });
+
+  // The section that was not saved says so where its Save would be.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByText('Not saved')).toBeVisible();
+});
+
+test('a section offers no Save until something in it changes', async ({ page }) => {
+  // A profile that already carries a name, so nothing is filled in from the
+  // account on load: with no display name the page opens on the account's own,
+  // which is unsaved work the moment it appears — true, and not what this test
+  // is about.
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => fulfil(route, { ...PROFILE, displayName: 'Ayesha Khan' }),
+  );
+
+  await openForEditing(page);
+  await page.getByRole('button', { name: 'Edit About' }).click();
+
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeDisabled();
+  await expect(page.getByText('Saved')).toBeVisible();
+
+  await page.getByLabel('Biography').fill('Something to send.');
+  await expect(save).toBeEnabled();
+  await expect(page.getByText('Not saved yet')).toBeVisible();
+});
+
 test('the header names Dashboard without linking, and Edit profile opens editing', async ({
   page,
 }) => {
