@@ -95,3 +95,135 @@ export async function revokeOtherSessions(): Promise<RevokeResult> {
     return { ok: false, message: UNREACHABLE };
   }
 }
+
+// ------------------------------------------------------- the account itself
+
+export type UpdateNameResult =
+  | { ok: true; user: Schema<'AuthenticatedUser'> }
+  | { ok: false; field: 'firstName' | 'lastName' | null; message: string };
+
+/**
+ * Changing the name on the account.
+ *
+ * Both fields are sent every time the box is submitted, including as `null`
+ * when one is cleared: the API leaves an absent field alone and clears an
+ * explicit null, and a box that shows two inputs has to be able to empty
+ * either of them.
+ */
+export async function updateName(
+  firstName: string | null,
+  lastName: string | null,
+): Promise<UpdateNameResult> {
+  try {
+    const { data, error } = await api.PATCH('/api/v1/auth/me', { body: { firstName, lastName } });
+    if (data !== undefined) return { ok: true, user: data };
+
+    const first = toFieldIssues(error)[0];
+    const field = first?.path.split('.').at(-1);
+    return {
+      ok: false,
+      field: field === 'firstName' || field === 'lastName' ? field : null,
+      message: first?.message ?? messageOf(error),
+    };
+  } catch {
+    return { ok: false, field: null, message: UNREACHABLE };
+  }
+}
+
+export type PendingEmailChange = Schema<'PendingEmailChange'>;
+
+/** The address waiting to be confirmed, if one is. Never the code. */
+export async function pendingEmailChange(): Promise<PendingEmailChange | null> {
+  try {
+    const { data } = await api.GET('/api/v1/auth/me/email-change');
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type EmailChangeResult =
+  | { ok: true; pending: PendingEmailChange }
+  | { ok: false; field: 'newEmail' | 'currentPassword' | null; message: string };
+
+/**
+ * Asking to move the account to another address.
+ *
+ * Nothing changes yet: the API emails a code to the new address and tells the
+ * old one that a change was asked for. A taken address answers 409 — which is
+ * a deliberate choice on the API's side, not an oversight — so it is reported
+ * under the field rather than as a form-wide failure.
+ */
+export async function requestEmailChange(
+  newEmail: string,
+  currentPassword: string,
+): Promise<EmailChangeResult> {
+  try {
+    const { data, error, response } = await api.POST('/api/v1/auth/me/email-change', {
+      body: { newEmail, currentPassword },
+    });
+    if (data !== undefined) return { ok: true, pending: data };
+
+    const first = toFieldIssues(error)[0];
+    const field = first?.path.split('.').at(-1);
+    return {
+      ok: false,
+      field:
+        field === 'newEmail' || field === 'currentPassword'
+          ? field
+          : response.status === 409
+            ? 'newEmail'
+            : null,
+      message: first?.message ?? messageOf(error),
+    };
+  } catch {
+    return { ok: false, field: null, message: UNREACHABLE };
+  }
+}
+
+export type ConfirmEmailResult =
+  { ok: true; user: Schema<'AuthenticatedUser'> } | { ok: false; message: string };
+
+/**
+ * Finishing the move with the code sent to the new address.
+ *
+ * Succeeding ends every session, including this one — the credential that
+ * identifies the account has changed — so the caller has to send the person
+ * somewhere that does not need a session.
+ */
+export async function confirmEmailChange(code: string): Promise<ConfirmEmailResult> {
+  try {
+    const { data, error } = await api.POST('/api/v1/auth/me/email-change/confirm', {
+      body: { code },
+    });
+    if (data !== undefined) return { ok: true, user: data };
+
+    const first = toFieldIssues(error)[0];
+    return { ok: false, message: first?.message ?? messageOf(error) };
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
+}
+
+export type DeactivateResult =
+  { ok: true } | { ok: false; field: 'currentPassword' | null; message: string };
+
+/** Turning the account off. Reversible: signing in again brings it back. */
+export async function deactivateAccount(currentPassword: string): Promise<DeactivateResult> {
+  try {
+    const { data, error } = await api.POST('/api/v1/auth/me/deactivate', {
+      body: { currentPassword },
+    });
+    if (data !== undefined) return { ok: true };
+
+    const first = toFieldIssues(error)[0];
+    const field = first?.path.split('.').at(-1);
+    return {
+      ok: false,
+      field: field === 'currentPassword' ? field : null,
+      message: first?.message ?? messageOf(error),
+    };
+  } catch {
+    return { ok: false, field: null, message: UNREACHABLE };
+  }
+}

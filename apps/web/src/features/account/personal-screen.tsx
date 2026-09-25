@@ -2,8 +2,17 @@
 
 import { useEffect, useId, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { Card, buttonVariants, cn } from '@hireevo/ui-web';
+import {
+  Button,
+  Card,
+  OtpInput,
+  PasswordField,
+  TextField,
+  buttonVariants,
+  cn,
+} from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
 import {
@@ -13,7 +22,16 @@ import {
 } from '@/features/profile-setup/api.ts';
 import { profileChanged } from '@/features/profile-setup/profile-events.ts';
 import { api } from '@/lib/api.ts';
-import { NotYet, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
+import {
+  confirmEmailChange,
+  deactivateAccount,
+  pendingEmailChange,
+  requestEmailChange,
+  updateName,
+  type PendingEmailChange,
+} from './api.ts';
+import { SettingsDialog } from './settings-dialog.tsx';
+import { RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
 
 /**
  * An email with most of it hidden, as the design shows it.
@@ -83,6 +101,7 @@ export function PersonalScreen() {
 function DetailsCard() {
   const { user } = useSession();
   const [fetched, setFetched] = useState<AuthenticatedUser | null>(null);
+  const [open, setOpen] = useState<'name' | 'email' | null>(null);
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -136,13 +155,13 @@ function DetailsCard() {
       <SettingRow
         label="Full name"
         value={shown === null ? '—' : name === '' ? 'Not set' : name}
-        action={<NotYet label="Edit" reason="Changing your name is not available yet." />}
+        action={shown === null ? null : <RowAction label="Edit" onClick={() => setOpen('name')} />}
       />
 
       <SettingRow
         label="Email address"
         value={shown === null ? '—' : maskEmail(shown.email)}
-        action={<NotYet label="Edit" reason="Changing your email address is not available yet." />}
+        action={shown === null ? null : <RowAction label="Edit" onClick={() => setOpen('email')} />}
       />
 
       <div className="py-4 pb-0">
@@ -198,11 +217,295 @@ function DetailsCard() {
           </div>
         )}
       </div>
+
+      {open === 'name' && shown !== null ? (
+        <NameDialog
+          firstName={shown.firstName}
+          lastName={shown.lastName}
+          onDone={(updated) => {
+            setFetched(updated);
+            setOpen(null);
+          }}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
+
+      {open === 'email' && shown !== null ? (
+        <EmailDialog currentEmail={shown.email} onClose={() => setOpen(null)} />
+      ) : null}
     </Card>
   );
 }
 
+/** The box the Full name row opens. Either name may be emptied. */
+function NameDialog({
+  firstName,
+  lastName,
+  onDone,
+  onClose,
+}: {
+  firstName: string | null;
+  lastName: string | null;
+  onDone: (user: AuthenticatedUser) => void;
+  onClose: () => void;
+}) {
+  const [first, setFirst] = useState(firstName ?? '');
+  const [last, setLast] = useState(lastName ?? '');
+  const [errors, setErrors] = useState<{ first?: string; last?: string }>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setErrors({});
+    setMessage(null);
+    setSaving(true);
+
+    // Trimmed to null rather than to an empty string: the API treats null as
+    // "clear this" and an absent key as "leave it", and a box with two inputs
+    // has to be able to empty either of them.
+    const result = await updateName(
+      first.trim() === '' ? null : first,
+      last.trim() === '' ? null : last,
+    );
+    setSaving(false);
+
+    if (result.ok) {
+      onDone(result.user);
+      return;
+    }
+    if (result.field === 'firstName') setErrors({ first: result.message });
+    else if (result.field === 'lastName') setErrors({ last: result.message });
+    else setMessage(result.message);
+  }
+
+  return (
+    <SettingsDialog
+      title="Change your name"
+      description="This is the name on your account. Your profile's display name is separate."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void submit(event)} className="flex min-w-0 flex-col gap-5">
+        <TextField
+          label="First Name"
+          value={first}
+          autoComplete="given-name"
+          onChange={(event) => setFirst(event.target.value)}
+          {...(errors.first === undefined ? {} : { error: errors.first })}
+        />
+        <TextField
+          label="Last Name"
+          value={last}
+          autoComplete="family-name"
+          onChange={(event) => setLast(event.target.value)}
+          {...(errors.last === undefined ? {} : { error: errors.last })}
+        />
+
+        {message === null ? null : <FormMessage>{message}</FormMessage>}
+
+        <Button type="submit" size="xl" fullWidth loading={saving} loadingLabel="Saving">
+          Save name
+        </Button>
+      </form>
+    </SettingsDialog>
+  );
+}
+
+/**
+ * The box the Email address row opens: ask, then confirm.
+ *
+ * Two steps because the account does not move until the new address answers.
+ * The first sends a code there and warns the old address; the second spends it.
+ * If a change is already waiting when the box opens — asked for on another
+ * device, or before a reload — it opens at the code, because starting again
+ * would only replace that code with an identical-looking one.
+ *
+ * Confirming ends every session, this one included, so the last thing the box
+ * does is sign the person out and send them to sign in with the address they
+ * just proved.
+ */
+function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose: () => void }) {
+  const router = useRouter();
+  const { signOut } = useSession();
+  const [moved, setMoved] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingEmailChange | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const waiting = await pendingEmailChange();
+      if (!live) return;
+      setPending(waiting);
+      setChecked(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function ask(event: React.FormEvent) {
+    event.preventDefault();
+    setErrors({});
+    setMessage(null);
+
+    if (email.trim() === '') {
+      setErrors({ email: 'Enter the address you want to move to.' });
+      return;
+    }
+    if (email.trim().toLowerCase() === currentEmail.toLowerCase()) {
+      setErrors({ email: 'That is already your email address.' });
+      return;
+    }
+    if (password === '') {
+      setErrors({ password: 'Enter your current password.' });
+      return;
+    }
+
+    setBusy(true);
+    const result = await requestEmailChange(email.trim(), password);
+    setBusy(false);
+
+    if (result.ok) {
+      setPending(result.pending);
+      setPassword('');
+      return;
+    }
+    if (result.field === 'newEmail') setErrors({ email: result.message });
+    else if (result.field === 'currentPassword') setErrors({ password: result.message });
+    else setMessage(result.message);
+  }
+
+  async function confirm(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage(null);
+    setBusy(true);
+    const result = await confirmEmailChange(code);
+    setBusy(false);
+
+    if (!result.ok) {
+      setMessage(result.message);
+      setCode('');
+      return;
+    }
+
+    setMoved(result.user.email);
+  }
+
+  /**
+   * Leaves for sign-in, having cleared the client's own idea of the session.
+   *
+   * The API ended every session when the address moved, so the token in memory
+   * is already dead. Clearing it here rather than letting the next request find
+   * out keeps a 401 from arriving mid-render on a screen that still believes it
+   * is signed in.
+   */
+  async function leave() {
+    await signOut();
+    router.replace('/sign-in');
+  }
+
+  if (moved !== null) {
+    return (
+      <SettingsDialog title="Email address changed" onClose={() => void leave()}>
+        <p role="status" className="text-sm text-content-muted">
+          Your account now uses <strong className="font-medium text-content-accent">{moved}</strong>
+          . Every device has been signed out, including this one — sign in again with the new
+          address.
+        </p>
+        <Button type="button" size="xl" fullWidth className="mt-5" onClick={() => void leave()}>
+          Go to sign in
+        </Button>
+      </SettingsDialog>
+    );
+  }
+
+  if (!checked) {
+    return (
+      <SettingsDialog title="Change email address" onClose={onClose}>
+        <p role="status" className="text-sm text-content-subtle">
+          Checking…
+        </p>
+      </SettingsDialog>
+    );
+  }
+
+  if (pending !== null) {
+    return (
+      <SettingsDialog
+        title="Confirm your new address"
+        description={`Enter the six-digit code we sent to ${pending.newEmail}. Your account keeps its current address until you do.`}
+        onClose={onClose}
+      >
+        <form onSubmit={(event) => void confirm(event)} className="flex min-w-0 flex-col gap-5">
+          <OtpInput label="Confirmation code" value={code} onChange={setCode} disabled={busy} />
+
+          {message === null ? null : <FormMessage>{message}</FormMessage>}
+
+          <p className="text-sm text-content-subtle">
+            Confirming signs you out everywhere, including here — the address that identifies your
+            account is changing.
+          </p>
+
+          <Button
+            type="submit"
+            size="xl"
+            fullWidth
+            loading={busy}
+            loadingLabel="Confirming"
+            disabled={code.length < 6}
+          >
+            Confirm new address
+          </Button>
+        </form>
+      </SettingsDialog>
+    );
+  }
+
+  return (
+    <SettingsDialog
+      title="Change email address"
+      description="We will email a code to the new address. Nothing changes until it comes back."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void ask(event)} className="flex min-w-0 flex-col gap-5">
+        <TextField
+          label="New Email"
+          type="email"
+          value={email}
+          autoComplete="email"
+          placeholder="example@gmail.com"
+          onChange={(event) => setEmail(event.target.value)}
+          {...(errors.email === undefined ? {} : { error: errors.email })}
+        />
+        <PasswordField
+          label="Current Password"
+          value={password}
+          autoComplete="current-password"
+          placeholder="••••••••"
+          onChange={(event) => setPassword(event.target.value)}
+          {...(errors.password === undefined ? {} : { error: errors.password })}
+        />
+
+        {message === null ? null : <FormMessage>{message}</FormMessage>}
+
+        <Button type="submit" size="xl" fullWidth loading={busy} loadingLabel="Sending">
+          Send code
+        </Button>
+      </form>
+    </SettingsDialog>
+  );
+}
+
 function DeactivateCard() {
+  const [open, setOpen] = useState(false);
+
   return (
     <Card className="flex min-w-0 items-start justify-between gap-4 p-6 sm:p-7">
       <div className="min-w-0">
@@ -212,13 +515,80 @@ function DeactivateCard() {
         </p>
       </div>
       <div className="shrink-0 pt-1">
-        <NotYet
-          label="Deactivate"
-          reason="Deactivating an account is not available yet."
-          tone="danger"
-        />
+        <RowAction label="Deactivate" tone="danger" onClick={() => setOpen(true)} />
       </div>
+
+      {open ? <DeactivateDialog onClose={() => setOpen(false)} /> : null}
     </Card>
+  );
+}
+
+/**
+ * The box the Deactivate control opens.
+ *
+ * It asks for the password because deactivating ends every session, and it says
+ * what the act does and does not do before it asks: nothing is deleted, the
+ * profile comes off the public web, and signing in again brings both back.
+ * "Temporarily disable" is only reassuring if the screen says what temporary
+ * means.
+ */
+function DeactivateDialog({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const { signOut } = useSession();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (password === '') {
+      setError('Enter your current password.');
+      return;
+    }
+
+    setBusy(true);
+    const result = await deactivateAccount(password);
+
+    if (!result.ok) {
+      setBusy(false);
+      if (result.field === 'currentPassword') setError(result.message);
+      else setMessage(result.message);
+      return;
+    }
+
+    // The account is off and every session with it, so there is nowhere signed
+    // in left to return to.
+    await signOut();
+    router.replace('/sign-in');
+  }
+
+  return (
+    <SettingsDialog
+      title="Deactivate your account"
+      description="Your profile comes off the web and every device is signed out. Nothing is deleted — signing in again brings your account and your profile back."
+      onClose={onClose}
+    >
+      <form onSubmit={(event) => void submit(event)} className="flex min-w-0 flex-col gap-5">
+        <PasswordField
+          label="Current Password"
+          value={password}
+          autoComplete="current-password"
+          placeholder="••••••••"
+          onChange={(event) => setPassword(event.target.value)}
+          {...(error === null ? {} : { error })}
+        />
+
+        {message === null ? null : <FormMessage>{message}</FormMessage>}
+
+        <Button type="submit" size="xl" fullWidth loading={busy} loadingLabel="Deactivating">
+          Deactivate account
+        </Button>
+      </form>
+    </SettingsDialog>
   );
 }
 
