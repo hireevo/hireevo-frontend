@@ -329,6 +329,42 @@ test('opens again on what was typed but never saved', async ({ page }) => {
  * the fields reach the API in the `contact` object rather than among the
  * profile's own, which is the seam §1.6 exists for.
  */
+/**
+ * The header on a real screen, rather than on the design-system fixture.
+ *
+ * Dashboard names where a signed-in person is and links nowhere for now: a link
+ * back to the page it is on is a control that appears to do nothing. Edit
+ * profile goes to this screen with its pencils already on, which is what the
+ * menu entry means by "edit".
+ */
+test('the header names Dashboard without linking, and Edit profile opens editing', async ({
+  page,
+}) => {
+  await open(page);
+
+  const header = page.getByRole('banner');
+  await expect(header.getByText('Dashboard', { exact: true })).toBeVisible();
+  await expect(header.getByRole('link', { name: 'Dashboard' })).toHaveCount(0);
+
+  await header.getByRole('button', { name: 'Profile' }).click();
+  await expect(page.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
+    'href',
+    '/client-profile?edit=1',
+  );
+});
+
+test('landing with ?edit=1 opens the profile already editing', async ({ page }) => {
+  await page.goto('/client-profile?edit=1');
+  await expect(
+    page.getByRole('heading', { name: 'Build a profile that wins briefs', level: 1 }),
+  ).toBeVisible();
+
+  // Straight to "Done editing": the pencils are already on, so there is nothing
+  // to press first.
+  await expect(page.getByRole('button', { name: 'Done editing' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Complete your profile/ })).toHaveCount(0);
+});
+
 test('contact details sit above About and save as their own object', async ({ page }) => {
   type SaveBody = { profile?: Record<string, unknown>; contact?: Record<string, unknown> };
   // `unknown`, because the only write is inside the route handler and the

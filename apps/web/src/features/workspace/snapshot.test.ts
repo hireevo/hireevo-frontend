@@ -69,10 +69,19 @@ describe('chromeSnapshot', () => {
     expect(chromeSnapshot(user()).user).toEqual({ name: 'Ayesha Khan', initials: 'AK' });
   });
 
-  it('points Dashboard here, not at the design preview', () => {
+  /**
+   * Dashboard names where a signed-in person already is.
+   *
+   * It carries no link for now: until there is somewhere else for it to lead, a
+   * link back to the page it is on is a control that appears to do nothing.
+   * What still matters is that nothing in the header points at the design
+   * preview, which is a fixture and must never be reachable from production.
+   */
+  it('marks Dashboard as where you are, and points nothing at the design preview', () => {
     const { nav } = chromeSnapshot(user());
     const current = nav.find((item) => item.kind === 'link' && item.current === true);
-    expect(current?.kind === 'link' ? current.href : null).toBe('/dashboard');
+    expect(current?.label).toBe('Dashboard');
+    expect(current?.kind === 'link' ? current.href : undefined).toBeNull();
     expect(JSON.stringify(nav)).not.toContain('/design-system');
   });
 
@@ -85,6 +94,7 @@ describe('chromeSnapshot', () => {
         expect([
           '/dashboard',
           '/client-profile',
+          '/client-profile?edit=1',
           '/profile/setup',
           '/profile/preview',
           '/account',

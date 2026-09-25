@@ -14,7 +14,8 @@ export type MenuEntry =
 
 /** A header item: a plain link, or a dropdown of entries. */
 export type NavItem =
-  | { kind: 'link'; label: string; href: Route; current?: boolean }
+  /** `href: null` is a heading rather than a way anywhere — the screen behind it does not exist yet. */
+  | { kind: 'link'; label: string; href: Route | null; current?: boolean }
   | { kind: 'menu'; label: string; entries: MenuEntry[] };
 
 export type StatId = 'skills' | 'portfolio' | 'certifications';

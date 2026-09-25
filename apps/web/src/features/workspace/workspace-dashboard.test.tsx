@@ -256,9 +256,11 @@ describe('the header dropdowns', () => {
     await user.click(profile);
     expect(profile).toHaveAttribute('aria-expanded', 'true');
     const panel = panelOf(profile);
+    // Straight into the editable profile, with its pencils already on: that is
+    // the screen the work is done on, and `?edit=1` is what turns them on.
     expect(panel.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
       'href',
-      '/profile/setup',
+      '/client-profile?edit=1',
     );
     // These screens exist, so each is a real link rather than an inert "Soon".
     expect(panel.getByRole('link', { name: 'View public profile' })).toHaveAttribute(

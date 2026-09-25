@@ -48,25 +48,26 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
   return (
     <div className={COLUMN}>
       <div className="flex items-center gap-2">
-        {/* Share no longer waits for publishing.
-            It used to be refused until then, because the public route answers
-            404 and a copied link would lead nowhere — but a button that cannot
-            be pressed, under a line of grey text, reads as broken rather than
-            as a rule. The address exists the moment the profile does; the
-            dialog shows it and says plainly that it will not work until the
-            profile is published. */}
-        <Button
-          ref={shareButton}
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={() => setSharing(true)}
-          disabled={url === null}
-          className={CONTROL}
-        >
-          <LuShare2 aria-hidden="true" className="size-3.5" />
-          Share
-        </Button>
+        {/* Nothing to share until there is something at the address.
+            Absent rather than present-and-refused: the public route answers 404
+            until the profile is published, so a copied link would lead nowhere,
+            and a button that cannot be pressed under a line of grey text reads
+            as broken rather than as a rule. Preview is the useful thing to
+            offer before publishing, and Share appears beside it the moment the
+            profile goes live. */}
+        {published && url !== null ? (
+          <Button
+            ref={shareButton}
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setSharing(true)}
+            className={CONTROL}
+          >
+            <LuShare2 aria-hidden="true" className="size-3.5" />
+            Share
+          </Button>
+        ) : null}
 
         <Link
           href="/profile/preview"
@@ -77,7 +78,7 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
         </Link>
       </div>
 
-      {sharing && url !== null ? <ShareDialog url={url} live={published} onClose={close} /> : null}
+      {sharing && url !== null ? <ShareDialog url={url} live onClose={close} /> : null}
     </div>
   );
 }
