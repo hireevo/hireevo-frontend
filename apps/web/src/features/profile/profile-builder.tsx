@@ -14,7 +14,7 @@ import {
   LuUser,
   LuVideo,
 } from 'react-icons/lu';
-import { Button } from '@hireevo/ui-web';
+import { Button, Card } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
 import {
@@ -248,11 +248,16 @@ export function ProfileBuilder() {
 
   // The browser's copy exists to protect work that has not reached the server.
   // With each section saving itself there is no single moment when that stops
-  // being true, so it is let go of whenever nothing is left unsaved — which is
-  // the same condition the page-wide Save used to check, asked continuously.
+  // being true, so it is let go of whenever nothing is left unsaved.
+  //
+  // Only once the profile has arrived. Before that "nothing is unsaved" is the
+  // state this starts in rather than an answer about anything, and acting on it
+  // threw away the draft of somebody who opened the page, looked at it and
+  // closed it again — leaving the work gone by the next reload.
   useEffect(() => {
-    if (userId !== null && identity.unsaved.length === 0) clearDraft(userId);
-  }, [identity.unsaved, userId]);
+    if (userId === null || identity.load.status !== 'ready') return;
+    if (identity.unsaved.length === 0) clearDraft(userId);
+  }, [identity.unsaved, identity.load.status, userId]);
 
   // The profile arrives after the page has rendered. Where this browser holds a
   // draft it is the later of the two and is left alone; otherwise the sections
@@ -578,8 +583,20 @@ export function ProfileBuilder() {
   function saveFor(parts: readonly SavePart[]) {
     const dirty = parts.some((part) => identity.unsaved.includes(part));
     const busy = parts.some((part) => identity.saving.includes(part));
+    // A failed save has to say so where it was pressed. There is no page-wide
+    // status line any more, so without this the button simply stops spinning
+    // and the section goes on saying "Not saved yet" with no reason given
+    // (§6.7). A conflict is not shown here — it stops every section, and is
+    // answered by the banner above them.
+    const failure = identity.save.kind === 'failed' ? identity.save.message : null;
+
     return (
       <>
+        {failure === null ? null : (
+          <div className="w-full">
+            <FormMessage>{failure}</FormMessage>
+          </div>
+        )}
         <p role="status" aria-live="polite" className="mr-auto text-xs text-content-subtle">
           {busy ? 'Saving…' : dirty ? 'Not saved yet' : 'Saved'}
         </p>
@@ -968,6 +985,31 @@ export function ProfileBuilder() {
             </p>
           )}
         </SectionCard>
+
+        {/* A conflict is the one thing a section cannot report for itself: it
+            stops every save on the page, not just the one that met it, and the
+            way out is to take the newer copy. */}
+        {identity.save.kind !== 'conflict' ? null : (
+          <Card className="flex flex-col gap-4 border-border-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p role="alert" className="text-sm font-medium text-content">
+                {identity.save.message}
+              </p>
+              <p className="mt-1 text-xs text-content-subtle">
+                Nothing further can be saved until this page catches up. Reloading takes the newer
+                copy — anything typed here and not yet saved is replaced by it.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void identity.reload()}
+              className="shrink-0"
+            >
+              Reload the profile
+            </Button>
+          </Card>
+        )}
 
         {/* No page-wide Save, and no page-wide status either. Each section
             carries its own, under the fields it sends: two buttons that save

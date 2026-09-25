@@ -619,6 +619,71 @@ describe('ProfileBuilder', () => {
   });
 
   /**
+   * A save that fails says so where it was pressed.
+   *
+   * There is no page-wide status line any more, so without this the button
+   * simply stops spinning and the section goes on saying "Not saved yet" with
+   * no reason given — the failure path §6.7 is about.
+   */
+  it('says why a section could not be saved, beside that section', async () => {
+    calls.save.mockResolvedValueOnce({
+      ok: false,
+      kind: 'failed',
+      message: 'Could not reach HireEvo.',
+    });
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Something.');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await section(/About/).findByText('Could not reach HireEvo.')).toBeInTheDocument();
+    // Still offered, because the work is still there to send.
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+  });
+
+  /**
+   * A conflict stops every section, not just the one that met it, so it is the
+   * one thing a section cannot report for itself.
+   */
+  it('offers the newer copy when the profile was changed somewhere else', async () => {
+    calls.save.mockResolvedValueOnce({
+      ok: false,
+      kind: 'conflict',
+      message: 'This profile was changed in another tab or window.',
+    });
+    const user = await openForEditing();
+
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Something.');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('This profile was changed in another tab or window.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Reload the profile' }));
+    await waitFor(() => expect(calls.load).toHaveBeenCalledTimes(2));
+  });
+
+  it('still holds unsaved work after the page is opened and left alone', async () => {
+    const user = await openForEditing();
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await section(/About/).findByLabelText('Biography'), 'Kept for later.');
+    await afterTheDraftIsWritten();
+
+    // Opened, looked at, closed again without touching anything — the case a
+    // person hits by checking the page on the way past.
+    cleanup();
+    await openForEditing();
+    cleanup();
+    await openForEditing();
+
+    expect(section(/About/).getByText('Kept for later.')).toBeInTheDocument();
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  /**
    * The photo lives on the server; the browser draft holds what was typed.
    *
    * A photo is shown from a `blob:` URL belonging to the tab that made it, so a
