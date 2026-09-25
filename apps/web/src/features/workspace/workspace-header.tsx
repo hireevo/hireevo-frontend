@@ -1,5 +1,6 @@
 'use client';
 
+import type { Route } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -50,21 +51,34 @@ function NavLink({
   layout: 'bar' | 'panel';
 }) {
   const current = item.current === true;
+  const shape = cn(
+    layout === 'bar'
+      ? 'relative inline-flex h-full items-center text-[0.9375rem] whitespace-nowrap'
+      : 'flex min-h-11 items-center rounded-md px-3 text-base',
+    'transition-colors',
+    current ? 'font-medium text-content-link' : 'text-content-muted hover:text-content-accent',
+    layout === 'bar' &&
+      current &&
+      'after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent',
+    layout === 'panel' && (current ? 'bg-surface-accent-subtle' : 'hover:bg-surface-subtle'),
+  );
+
+  // A heading rather than a link where there is nowhere to go. Rendering it as
+  // a link to the page it is already on gives a control that appears to do
+  // nothing, which reads as broken rather than as "you are here".
+  if (item.href === null) {
+    return (
+      <span {...(current ? { 'aria-current': 'page' as const } : {})} className={shape}>
+        {item.label}
+      </span>
+    );
+  }
+
   return (
     <Link
       href={item.href}
       {...(current ? { 'aria-current': 'page' as const } : {})}
-      className={cn(
-        layout === 'bar'
-          ? 'relative inline-flex h-full items-center text-[0.9375rem] whitespace-nowrap'
-          : 'flex min-h-11 items-center rounded-md px-3 text-base',
-        'transition-colors',
-        current ? 'font-medium text-content-link' : 'text-content-muted hover:text-content-accent',
-        layout === 'bar' &&
-          current &&
-          'after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-accent',
-        layout === 'panel' && (current ? 'bg-surface-accent-subtle' : 'hover:bg-surface-subtle'),
-      )}
+      className={shape}
     >
       {item.label}
     </Link>
@@ -86,7 +100,7 @@ export function WorkspaceHeader({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const current = nav.find((item) => item.kind === 'link' && item.current === true);
-  const home = current?.kind === 'link' ? current.href : '/dashboard';
+  const home: Route = (current?.kind === 'link' ? current.href : null) ?? '/dashboard';
 
   useEffect(() => {
     if (!panelOpen) return;

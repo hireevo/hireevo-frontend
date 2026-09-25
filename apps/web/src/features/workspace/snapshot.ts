@@ -41,12 +41,19 @@ const EDIT_PROFILE: Route = '/client-profile';
  * design fixture, so nothing invented can reach a signed-in person through it.
  */
 export const WORKSPACE_NAV: NavItem[] = [
-  { kind: 'link', label: 'Dashboard', href: '/dashboard', current: true },
+  // Not a link for now. The dashboard is the screen a signed-in person lands
+  // on, so the item names where they already are — and until there is somewhere
+  // else for it to lead, a link that reloads the same page is a control that
+  // appears to do nothing.
+  { kind: 'link', label: 'Dashboard', href: null, current: true },
   {
     kind: 'menu',
     label: 'Profile',
     entries: [
-      { kind: 'link', label: 'Edit profile', href: '/profile/setup' },
+      // Straight into the editable profile rather than the setup wizard: this
+      // is the screen the work is done on, and `?edit=1` opens it with its
+      // pencils already on.
+      { kind: 'link', label: 'Edit profile', href: `${EDIT_PROFILE}?edit=1` as Route },
       { kind: 'link', label: 'View public profile', href: '/profile/preview' },
       { kind: 'link', label: 'Profile visibility', href: EDIT_PROFILE },
     ],

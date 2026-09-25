@@ -8,7 +8,15 @@ import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import { ProfileBuilder } from './profile-builder.tsx';
 
 const push = vi.fn<(href: string) => void>();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: push }) }));
+// `?edit=1` is what the header's "Edit profile" opens this screen with, so the
+// mock has to answer the same question the real hook does. Empty by default:
+// these tests land on the profile as a person does, and turn editing on
+// through the button.
+let search = new URLSearchParams();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: push }),
+  useSearchParams: () => search,
+}));
 
 vi.mock('@/features/auth/session.tsx', () => ({
   useSession: () => ({
@@ -29,12 +37,14 @@ const calls = vi.hoisted(() => ({
   load: vi.fn<typeof ProfileApi.loadOrCreateProfile>(),
   save: vi.fn<typeof ProfileApi.saveProfile>(),
   skills: vi.fn<typeof ProfileApi.listSkills>(),
+  unpublish: vi.fn<typeof ProfileApi.unpublishProfile>(),
 }));
 vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileApi>()),
   loadOrCreateProfile: () => calls.load(),
   saveProfile: (...args: Parameters<typeof ProfileApi.saveProfile>) => calls.save(...args),
   listSkills: (...args: Parameters<typeof ProfileApi.listSkills>) => calls.skills(...args),
+  unpublishProfile: () => calls.unpublish(),
 }));
 
 /** What the API returns for a profile nobody has filled contact details into. */
@@ -178,6 +188,9 @@ const openForEditing = async () => {
 const afterTheDraftIsWritten = () => new Promise((resolve) => setTimeout(resolve, 500));
 
 beforeEach(() => {
+  // Reset between tests: one asking for `?edit=1` must not leave every later
+  // test opening in edit mode.
+  search = new URLSearchParams();
   push.mockReset();
   window.localStorage.clear();
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
@@ -329,22 +342,60 @@ describe('ProfileBuilder', () => {
    * exists the moment the profile does; what has to be said is that it will not
    * open for anyone else yet.
    */
-  it('offers Preview and Share on an unpublished profile, warning that the link is not live', async () => {
+  /**
+   * Nothing to share until there is something at the address.
+   *
+   * The public route answers 404 until the profile is published, so a link
+   * copied before then leads nowhere. Absent rather than present-and-refused:
+   * a button that cannot be pressed reads as broken, and Preview is the useful
+   * thing to offer while a profile is still a draft.
+   */
+  it('offers Preview but no Share while the profile is a draft', async () => {
     calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'draft', slug: 's1' }) });
-    const user = await open();
+    await open();
 
     const preview = await screen.findByRole('link', { name: 'Preview' });
     expect(preview).toHaveAttribute('href', '/profile/preview');
+    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
+  });
 
-    const share = screen.getByRole('button', { name: 'Share' });
-    expect(share).toBeEnabled();
-    await user.click(share);
+  /**
+   * The header's "Edit profile" lands here with the pencils already on.
+   *
+   * Read once, as the initial state rather than on every render: reading it
+   * live would turn editing back on the moment somebody pressed "Done editing"
+   * without leaving the page, which is the one thing that button is for.
+   */
+  it('opens with editing on when the address asks for it', async () => {
+    search = new URLSearchParams('edit=1');
+    await open();
 
-    const dialog = screen.getByRole('dialog', { name: 'Share your profile' });
-    expect(dialog.textContent).toContain('not published yet');
-    expect(within(dialog).getByRole('textbox', { name: 'Your profile link' })).toHaveValue(
-      'http://localhost:3100/p/s1',
-    );
+    expect(await screen.findByRole('button', { name: 'Done editing' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Complete your profile/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * One button that says what pressing it will do.
+   *
+   * Offering to publish something already published is an action with no
+   * meaning, and it left withdrawing a profile with nowhere to be done from.
+   */
+  it('turns Publish into Unpublish once the profile is live, and takes it back down', async () => {
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'published' }) });
+    calls.unpublish
+      .mockReset()
+      .mockResolvedValue({ ok: true, profile: stored({ status: 'draft' }) });
+    const user = await open();
+
+    const withdraw = await screen.findByRole('button', { name: 'Unpublish' });
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument();
+
+    await user.click(withdraw);
+
+    expect(calls.unpublish).toHaveBeenCalledOnce();
+    // And back, without a reload: the button says Publish again, and Share goes.
+    expect(await screen.findByRole('button', { name: 'Publish' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
   });
 
   it('offers Share once the profile is published', async () => {

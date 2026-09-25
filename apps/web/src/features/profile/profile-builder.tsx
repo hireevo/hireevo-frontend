@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   LuAward,
@@ -29,6 +30,7 @@ import {
   RATE_CURRENCY,
   publishProfile,
   ratesOf,
+  unpublishProfile,
   type RateValue,
 } from '@/features/profile-setup/api.ts';
 import { profileChanged } from '@/features/profile-setup/profile-events.ts';
@@ -174,8 +176,13 @@ export function ProfileBuilder() {
   const [rates, setRates] = useState<RateValue[]>(stored?.rates ?? []);
   const [open, setOpen] = useState<OpenSection>(null);
   const contact = useContactValues();
+  const params = useSearchParams();
   /** Turned on by "Complete your profile": every filled section grows a pencil. */
-  const [editMode, setEditMode] = useState(false);
+  // `?edit=1` opens with the pencils already on, which is what the header's
+  // "Edit profile" means by it. Read once, as the initial state: reading it on
+  // every render would put editing back on the moment somebody pressed "Done
+  // editing" without leaving the page.
+  const [editMode, setEditMode] = useState(() => params.get('edit') === '1');
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
@@ -468,6 +475,7 @@ export function ProfileBuilder() {
   // figure, which mirrors the API's weights, and the API does not count contact
   // detail towards completeness. Adding it here would make the two disagree.
   const contactFilled = CONTACT_FIELDS.some((field) => contact.values[field].trim() !== '');
+  const isPublished = identity.profile?.status === 'published';
 
   const saveStatus = {
     saved: 'All changes saved',
@@ -510,6 +518,30 @@ export function ProfileBuilder() {
       result.kind === 'incomplete'
         ? 'Some sections still need attention before your profile can go public.'
         : result.message,
+    );
+  }
+
+  /**
+   * Takes it back off the public web.
+   *
+   * No save first, unlike publishing: withdrawing is about what the world can
+   * see rather than about what the profile says, and somebody pressing it in a
+   * hurry should not have half-finished edits published as a side effect of
+   * unpublishing.
+   */
+  async function unpublish() {
+    setPublishError(null);
+    setPublishing(true);
+    const result = await unpublishProfile();
+    setPublishing(false);
+
+    if (result.ok) {
+      identity.adopt(result.profile);
+      profileChanged(result.profile);
+      return;
+    }
+    setPublishError(
+      result.kind === 'incomplete' ? (result.issues[0]?.message ?? '') : result.message,
     );
   }
 
@@ -556,7 +588,7 @@ export function ProfileBuilder() {
       <ProfileHeaderCard
         draft={headerDraft}
         username={user?.username ?? null}
-        published={identity.profile?.status === 'published'}
+        published={isPublished}
         slug={identity.profile?.slug ?? null}
         editable={editMode}
         onChange={patchHeader}
@@ -596,12 +628,25 @@ export function ProfileBuilder() {
             // is the API's rule rather than this card's, and it answers with the
             // fields that are missing — which is a better thing to read than a
             // button that is simply not there.
+            //
+            // Once the profile is live the same button withdraws it, so the one
+            // control says what pressing it will do rather than offering to
+            // publish something that is already published.
+            //
             // Publishing saves first, so it is shut while files are still
             // going up for the same reason Save is: a save sent then would
             // publish a profile with the pieces missing their images.
             secondaryAction: {
-              label: uploading ? 'Uploading…' : publishing ? 'Publishing…' : 'Publish',
-              onClick: () => void publish(),
+              label: uploading
+                ? 'Uploading…'
+                : publishing
+                  ? isPublished
+                    ? 'Unpublishing…'
+                    : 'Publishing…'
+                  : isPublished
+                    ? 'Unpublish'
+                    : 'Publish',
+              onClick: () => void (isPublished ? unpublish() : publish()),
               disabled: uploading,
             },
           }}

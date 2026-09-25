@@ -431,6 +431,32 @@ export type PublishResult =
  * refusal the API might make in future, not the completeness gate that used to
  * produce it.
  */
+/**
+ * Takes a published profile back off the public web.
+ *
+ * The same shape as publishing, minus the "incomplete" case: nothing can be
+ * missing from a profile that is only being withdrawn. Withdrawing one that is
+ * already withdrawn changes nothing and answers 200, so a double press is not
+ * an error to report.
+ */
+export async function unpublishProfile(): Promise<PublishResult> {
+  try {
+    const { data, error, response } = await api.POST('/api/v1/profiles/me/unpublish');
+    if (data !== undefined) return { ok: true, profile: data };
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        kind: 'conflict',
+        message: 'This profile changed while it was being withdrawn. Try again.',
+      };
+    }
+    return { ok: false, kind: 'failed', message: messageOf(error) };
+  } catch {
+    return { ok: false, kind: 'failed', message: UNREACHABLE };
+  }
+}
+
 export async function publishProfile(): Promise<PublishResult> {
   try {
     const { data, error, response } = await api.POST('/api/v1/profiles/me/publish');
