@@ -200,13 +200,145 @@ test('the visibility row is the one that can be changed, and it writes', async (
 
   await expect(page.getByText('Offline', { exact: true })).toBeVisible();
   expect(sent).toMatchObject({ version: 7, profile: { availability: 'unavailable' } });
+});
 
-  // The other two rows say what they are rather than opening a form nothing
-  // could save: there is no endpoint behind either of them yet.
-  for (const label of ['Edit', 'Deactivate']) {
-    const refused = page.getByRole('button', { name: label, exact: true }).first();
-    await expect(refused).toHaveAttribute('aria-disabled', 'true');
+test('the name row writes both names, and clears one sent empty', async ({ page }) => {
+  let sent: unknown = null;
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/me' && url.search === '',
+    (route) => {
+      if (route.request().method() !== 'PATCH') return fulfil(route, USER);
+      sent = route.request().postDataJSON();
+      return fulfil(route, { ...USER, firstName: 'Sophie', lastName: null });
+    },
+  );
+
+  await open(page, '/account/personal');
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+
+  const box = page.getByRole('dialog');
+  await expect(box.getByRole('heading', { name: 'Change your name' })).toBeVisible();
+  // Opens on what the account holds rather than empty, so a correction is an
+  // edit and not a re-type.
+  await expect(box.getByLabel('First Name')).toHaveValue('Ayesha');
+
+  await box.getByLabel('First Name').fill('Sophie');
+  await box.getByLabel('Last Name').fill('');
+  await box.getByRole('button', { name: 'Save name' }).click();
+
+  // Polled rather than read straight after the click: the assertion is about
+  // what the request carried, and the request has not necessarily left by the
+  // time `click` resolves. Null, not '': the API leaves an absent field alone
+  // and clears an explicit null, and emptying a name has to reach it as the
+  // second.
+  await expect.poll(() => sent).toEqual({ firstName: 'Sophie', lastName: null });
+  await expect(page.getByText('Sophie', { exact: true })).toBeVisible();
+});
+
+test('the email row asks, then confirms, and never moves the address early', async ({ page }) => {
+  let asked: unknown = null;
+  let confirmed: unknown = null;
+  const pending = { newEmail: 'sophie@example.test', expiresAt: '2026-09-25T12:00:00.000Z' };
+
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/me/email-change',
+    (route) => {
+      if (route.request().method() === 'GET') return fulfil(route, null);
+      asked = route.request().postDataJSON();
+      return fulfil(route, pending, 202);
+    },
+  );
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/me/email-change/confirm',
+    (route) => {
+      confirmed = route.request().postDataJSON();
+      return fulfil(route, { ...USER, email: pending.newEmail });
+    },
+  );
+
+  await open(page, '/account/personal');
+  await page.getByRole('button', { name: 'Edit' }).nth(1).click();
+
+  const box = page.getByRole('dialog');
+  await box.getByLabel('New Email').fill(pending.newEmail);
+  await box.getByLabel('Current Password').fill('Correct-Horse-9');
+  await box.getByRole('button', { name: 'Send code' }).click();
+
+  await expect
+    .poll(() => asked)
+    .toEqual({
+      newEmail: pending.newEmail,
+      currentPassword: 'Correct-Horse-9',
+    });
+  await expect(box.getByRole('heading', { name: 'Confirm your new address' })).toBeVisible();
+  // Behind the box, the row still shows the address the account actually has.
+  await expect(page.getByText('a******************r@e*************y.com')).toBeVisible();
+
+  for (const [index, digit] of [...'123456'].entries()) {
+    await box.getByRole('textbox').nth(index).fill(digit);
   }
+  await box.getByRole('button', { name: 'Confirm new address' }).click();
+
+  await expect.poll(() => confirmed).toEqual({ code: '123456' });
+  await expect(box.getByRole('heading', { name: 'Email address changed' })).toBeVisible();
+  // Every session ended with the move, so the only way on is signing in again.
+  await expect(box.getByRole('button', { name: 'Go to sign in' })).toBeVisible();
+});
+
+test('deactivating asks for the password and leaves for sign-in', async ({ page }) => {
+  let sent: unknown = null;
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/me/deactivate',
+    (route) => {
+      sent = route.request().postDataJSON();
+      return fulfil(route, { deactivated: true });
+    },
+  );
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/logout',
+    (route) => fulfil(route, {}, 204),
+  );
+
+  await open(page, '/account/personal');
+  await page.getByRole('button', { name: 'Deactivate', exact: true }).click();
+
+  const box = page.getByRole('dialog');
+  // What it does and does not do, before it asks for anything.
+  await expect(box.getByText(/Nothing is deleted/)).toBeVisible();
+
+  await box.getByLabel('Current Password').fill('Correct-Horse-9');
+  await box.getByRole('button', { name: 'Deactivate account' }).click();
+
+  await expect.poll(() => sent).toEqual({ currentPassword: 'Correct-Horse-9' });
+  await page.waitForURL(/sign-in/);
+});
+
+test('the personal information boxes hold their layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+
+  const pending = { newEmail: 'sophie@example.test', expiresAt: '2026-09-25T12:00:00.000Z' };
+  await page.route(
+    (url) => url.pathname === '/api/v1/auth/me/email-change',
+    (route) => fulfil(route, route.request().method() === 'GET' ? null : pending, 200),
+  );
+
+  await open(page, '/account/personal');
+
+  // Each box in turn: they are different shapes, and the one with six code
+  // boxes in a row is the one a 320px screen is most likely to break.
+  await page.getByRole('button', { name: 'Edit' }).first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await sweep(page, 'the change name box');
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Edit' }).nth(1).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await sweep(page, 'the confirm address box');
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Deactivate', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await sweep(page, 'the deactivate box');
 });
 
 test('account security holds its layout at every window size', async ({ page }) => {
