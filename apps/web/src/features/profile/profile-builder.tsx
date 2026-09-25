@@ -74,6 +74,7 @@ import { FileThumbnails } from '@/features/media/attachments.tsx';
 import { uploadsInFlight, watchUploads } from '@/features/media/upload.ts';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
+import type { SavePart } from '@/features/profile-setup/use-profile-draft.ts';
 import { SectionCard } from './section-card.tsx';
 import {
   ContactEditor,
@@ -244,6 +245,46 @@ export function ProfileBuilder() {
   useEffect(() => {
     contact.seed(identity.profile);
   }, [contact, identity.profile]);
+
+  /**
+   * Asks before the tab closes on work that has not been sent.
+   *
+   * The browser's own copy means nothing is lost by closing this page and
+   * coming back to it — but it is *this* browser's copy, and somebody who
+   * finishes a section here and opens the profile on their phone finds it as
+   * the server has it. The one moment worth interrupting is the one where they
+   * would not otherwise know.
+   *
+   * `beforeunload` covers closing, reloading and leaving the site. It does not
+   * see a move to another page of this app, and does not need to: the draft is
+   * still here when they come back.
+   */
+  useEffect(() => {
+    if (identity.unsaved.length === 0) return;
+
+    const ask = (event: BeforeUnloadEvent) => {
+      // Both, because browsers disagree about which one arms the prompt. The
+      // wording is theirs; a page cannot choose it.
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', ask);
+    return () => window.removeEventListener('beforeunload', ask);
+  }, [identity.unsaved]);
+
+  // The browser's copy exists to protect work that has not reached the server.
+  // With each section saving itself there is no single moment when that stops
+  // being true, so it is let go of whenever nothing is left unsaved.
+  //
+  // Only once the profile has arrived. Before that "nothing is unsaved" is the
+  // state this starts in rather than an answer about anything, and acting on it
+  // threw away the draft of somebody who opened the page, looked at it and
+  // closed it again — leaving the work gone by the next reload.
+  useEffect(() => {
+    if (userId === null || identity.load.status !== 'ready') return;
+    if (identity.unsaved.length === 0) clearDraft(userId);
+  }, [identity.unsaved, identity.load.status, userId]);
 
   // The profile arrives after the page has rendered. Where this browser holds a
   // draft it is the later of the two and is left alone; otherwise the sections
@@ -477,19 +518,6 @@ export function ProfileBuilder() {
   const contactFilled = CONTACT_FIELDS.some((field) => contact.values[field].trim() !== '');
   const isPublished = identity.profile?.status === 'published';
 
-  const saveStatus = {
-    saved: 'All changes saved',
-    saving: 'Saving your changes…',
-    unsaved: 'Not saved yet',
-    failed: identity.save.kind === 'failed' ? identity.save.message : '',
-    conflict: identity.save.kind === 'conflict' ? identity.save.message : '',
-  }[identity.save.kind];
-
-  /** Saves the whole profile, and lets go of the draft that was protecting it. */
-  async function save() {
-    if ((await identity.flush()) && userId !== null) clearDraft(userId);
-  }
-
   /**
    * Takes a finished profile public.
    *
@@ -567,9 +595,73 @@ export function ProfileBuilder() {
    * something and the ones still empty alike — so there is one way in to learn
    * rather than one per state.
    */
-  function actionFor(section: Exclude<OpenSection, null>, name: string) {
+
+  /**
+   * The Save a section carries, and what it sends.
+   *
+   * One button per card, sending that card's parts and nothing else: the API
+   * leaves out every key a request does not mention, so a section saved on its
+   * own cannot write its neighbours back — including any left half-typed.
+   *
+   * Disabled while there is nothing to send, because a Save that would make no
+   * request is a button that does nothing, and it is the section's own parts
+   * that decide: another card's unsaved work is not this one's to report.
+   */
+  function saveFor(parts: readonly SavePart[]) {
+    const dirty = parts.some((part) => identity.unsaved.includes(part));
+    const busy = parts.some((part) => identity.saving.includes(part));
+    // A failed save has to say so where it was pressed. There is no page-wide
+    // status line any more, so without this the button simply stops spinning
+    // and the section goes on saying "Not saved yet" with no reason given
+    // (§6.7). A conflict is not shown here — it stops every section, and is
+    // answered by the banner above them.
+    const failure = identity.save.kind === 'failed' ? identity.save.message : null;
+
+    return (
+      <>
+        {failure === null ? null : (
+          <div className="w-full">
+            <FormMessage>{failure}</FormMessage>
+          </div>
+        )}
+        <p role="status" aria-live="polite" className="mr-auto text-xs text-content-subtle">
+          {busy ? 'Saving…' : dirty ? 'Not saved yet' : 'Saved'}
+        </p>
+        <Button
+          type="button"
+          onClick={() => void identity.flush(parts)}
+          loading={busy}
+          loadingLabel="Saving"
+          disabled={!dirty || uploading}
+          className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+        >
+          {uploading ? 'Uploading…' : 'Save'}
+        </Button>
+      </>
+    );
+  }
+
+  function actionFor(
+    section: Exclude<OpenSection, null>,
+    name: string,
+    parts?: readonly SavePart[],
+  ) {
     if (open === section) return close;
-    return editMode ? <EditButton section={name} onClick={() => toggle(section)} /> : null;
+    if (!editMode) return null;
+
+    // A closed section shows what was typed into it, saved or not — the browser
+    // keeps it either way. Without this, a section filled in and left unsaved
+    // looks exactly like one that was saved, and the difference only shows up
+    // on another device or after the draft is cleared.
+    const unsaved = parts?.some((part) => identity.unsaved.includes(part)) ?? false;
+    return (
+      <div className="flex items-center gap-3">
+        {unsaved ? (
+          <span className="text-xs font-medium text-content-warning">Not saved</span>
+        ) : null}
+        <EditButton section={name} onClick={() => toggle(section)} />
+      </div>
+    );
   }
 
   return (
@@ -669,13 +761,21 @@ export function ProfileBuilder() {
           filled={contactFilled}
           icon={<LuPhone />}
           editing={open === 'contact'}
-          action={actionFor('contact', 'contact details')}
+          action={actionFor('contact', 'contact details', ['contact'])}
+          footer={saveFor(['contact'])}
         >
           {open === 'contact' ? (
             <ContactEditor
               values={contact.values}
               fieldErrors={identity.fieldErrors}
-              onChange={contact.change}
+              onChange={(field, value) => {
+                contact.change(field, value);
+                // The draft holds these beside itself rather than inside, so it
+                // has to be told: without this its idea of what is unsaved never
+                // includes them, and the section's Save stays disabled while the
+                // fields fill up.
+                identity.touch();
+              }}
             />
           ) : contactFilled ? (
             <ContactSummary values={contact.values} />
@@ -688,7 +788,8 @@ export function ProfileBuilder() {
           filled={filled.about}
           icon={<LuUser />}
           editing={open === 'about'}
-          action={actionFor('about', 'About')}
+          action={actionFor('about', 'About', ['about'])}
+          footer={saveFor(['about'])}
         >
           {open === 'about' ? (
             <IdentityEditor
@@ -709,7 +810,8 @@ export function ProfileBuilder() {
           filled={filled.skills}
           icon={<LuStar />}
           editing={open === 'skills'}
-          action={actionFor('skills', 'skills and expertise')}
+          action={actionFor('skills', 'skills and expertise', ['skills'])}
+          footer={saveFor(['skills'])}
         >
           {open === 'skills' ? (
             <SkillsEditor skills={skills} heading={false} />
@@ -725,7 +827,8 @@ export function ProfileBuilder() {
           filled={filled.experience}
           icon={<LuBriefcaseBusiness />}
           editing={open === 'experience'}
-          action={actionFor('experience', 'work experience')}
+          action={actionFor('experience', 'work experience', ['experience'])}
+          footer={saveFor(['experience'])}
         >
           {open === 'experience' ? (
             <ExperienceEditor experience={experience} heading={false} />
@@ -755,7 +858,8 @@ export function ProfileBuilder() {
             icon={<LuGraduationCap />}
             className={open === 'education' ? 'lg:col-span-2' : ''}
             editing={open === 'education'}
-            action={actionFor('education', 'education')}
+            action={actionFor('education', 'education', ['education'])}
+            footer={saveFor(['education'])}
           >
             {open === 'education' ? (
               <EducationEditor education={education} heading={false} />
@@ -782,7 +886,8 @@ export function ProfileBuilder() {
             icon={<LuAward />}
             className={open === 'certifications' ? 'lg:col-span-2' : ''}
             editing={open === 'certifications'}
-            action={actionFor('certifications', 'certifications')}
+            action={actionFor('certifications', 'certifications', ['licenses'])}
+            footer={saveFor(['licenses'])}
           >
             {open === 'certifications' ? (
               <LicenseEditor licenses={licenses} heading={false} />
@@ -801,14 +906,16 @@ export function ProfileBuilder() {
 
         <LanguagesSection
           open={open === 'languages'}
-          action={actionFor('languages', 'languages')}
+          action={actionFor('languages', 'languages', ['languages'])}
+          footer={saveFor(['languages'])}
           languages={draft.languages}
           onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
         />
 
         <PortfolioSection
           open={open === 'portfolio'}
-          action={actionFor('portfolio', 'portfolio')}
+          action={actionFor('portfolio', 'portfolio', ['portfolio'])}
+          footer={saveFor(['portfolio'])}
           records={draft.records.portfolio}
           onChange={(records) =>
             setDraft((current) => ({
@@ -825,7 +932,8 @@ export function ProfileBuilder() {
           filled={filled.videoIntro}
           icon={<LuVideo />}
           editing={open === 'video'}
-          action={actionFor('video', 'video intro')}
+          action={actionFor('video', 'video intro', ['video'])}
+          footer={saveFor(['video'])}
         >
           {open === 'video' ? (
             <VideoIntroEditor
@@ -863,7 +971,8 @@ export function ProfileBuilder() {
           filled={preferenceSummary.length > 0}
           icon={<LuClock />}
           editing={open === 'preferences'}
-          action={actionFor('preferences', 'working preferences')}
+          action={actionFor('preferences', 'working preferences', ['preferences'])}
+          footer={saveFor(['preferences'])}
         >
           {open === 'preferences' ? (
             <WorkingPreferencesEditor
@@ -886,7 +995,8 @@ export function ProfileBuilder() {
           filled={rateSummary.length > 0}
           icon={<LuCircleDollarSign />}
           editing={open === 'rates'}
-          action={actionFor('rates', 'expected rates')}
+          action={actionFor('rates', 'expected rates', ['rates'])}
+          footer={saveFor(['rates'])}
         >
           {open === 'rates' ? (
             <RatesEditor
@@ -903,33 +1013,39 @@ export function ProfileBuilder() {
           )}
         </SectionCard>
 
-        {/* One save, at the end of the form, for the whole of it — and only
-            while there is a form. On the page as it is landed on, nothing can
-            be typed, so a Save button offers to write changes that cannot
-            exist. */}
-        {!editMode ? null : (
-          <Card className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        {/* A conflict is the one thing a section cannot report for itself: it
+            stops every save on the page, not just the one that met it, and the
+            way out is to take the newer copy. */}
+        {identity.save.kind !== 'conflict' ? null : (
+          <Card className="flex flex-col gap-4 border-border-accent px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p role="status" aria-live="polite" className="text-sm font-medium text-content">
-                {uploading ? 'Waiting for your files to finish uploading…' : saveStatus}
+              <p role="alert" className="text-sm font-medium text-content">
+                {identity.save.message}
               </p>
               <p className="mt-1 text-xs text-content-subtle">
-                Everything you type is kept in this browser until you save, so nothing is lost if
-                you close the page. Saving sends the whole profile — your details and every section.
+                Nothing further can be saved until this page catches up. Reloading takes the newer
+                copy — anything typed here and not yet saved is replaced by it.
               </p>
             </div>
             <Button
               type="button"
-              onClick={() => void save()}
-              loading={identity.save.kind === 'saving'}
-              loadingLabel="Saving"
-              disabled={uploading}
-              className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
+              variant="secondary"
+              onClick={() => void identity.reload()}
+              className="shrink-0"
             >
-              {uploading ? 'Uploading…' : 'Save'}
+              Reload the profile
             </Button>
           </Card>
         )}
+
+        {/* No page-wide Save, and no page-wide status either. Each section
+            carries its own, under the fields it sends: two buttons that save
+            different things — one of them silently wider — is how somebody
+            presses the wrong one and writes back a section they had not
+            finished, and a second running commentary beside each card's own
+            would say the same thing twice in two places. What the page still
+            owes is the promise that nothing is lost, which the card under the
+            editor makes where the work is. */}
       </div>
     </div>
   );

@@ -15,6 +15,8 @@ export type PortfolioSectionProps = {
   onChange: (records: ProfileRecord[]) => void;
   open: boolean;
   action: ReactNode;
+  /** The section's own Save, shown under its editor. */
+  footer?: ReactNode;
   className?: string;
 };
 
@@ -33,6 +35,7 @@ export function PortfolioSection({
   onChange,
   open,
   action,
+  footer,
   className,
 }: PortfolioSectionProps) {
   function update(id: string, change: (record: ProfileRecord) => ProfileRecord) {
@@ -49,6 +52,7 @@ export function PortfolioSection({
       className={className}
       editing={open}
       action={action}
+      {...(footer === undefined ? {} : { footer })}
     >
       {!open ? (
         records.length === 0 ? undefined : (

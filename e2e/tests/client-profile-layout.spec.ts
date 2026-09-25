@@ -274,7 +274,7 @@ test('fetches a section’s editor only when that section is opened', async ({ p
   expect(scripts.length, 'opening a section fetches its editor').toBeGreaterThan(settled);
 });
 
-test('opens About in place, and saves the whole form from the end of it', async ({ page }) => {
+test('opens About in place, and saves it from its own end', async ({ page }) => {
   await openForEditing(page);
   await page.getByRole('button', { name: 'Edit About' }).click();
 
@@ -282,16 +282,15 @@ test('opens About in place, and saves the whole form from the end of it', async 
   await about
     .getByLabel('Biography')
     .fill('I map difficult journeys and ship accessible services.');
-  // The section itself has no save: the form has one, at its end.
-  await expect(about.getByRole('button', { name: /Save and/ })).toHaveCount(0);
 
+  // The Save is the section's own, under the fields it sends.
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/api/v1/profiles/me') && request.method() === 'PATCH',
   );
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await about.getByRole('button', { name: 'Save', exact: true }).click();
   await saved;
 
-  await expect(page.getByText('All changes saved')).toBeVisible();
+  await expect(about.getByText('Saved')).toBeVisible();
 });
 
 test('opens again on what was typed but never saved', async ({ page }) => {
@@ -337,6 +336,99 @@ test('opens again on what was typed but never saved', async ({ page }) => {
  * profile goes to this screen with its pencils already on, which is what the
  * menu entry means by "edit".
  */
+/**
+ * A section's Save sends that section and nothing else.
+ *
+ * This is the seam worth holding: the API leaves out every key a request does
+ * not mention, so a body carrying one list leaves the other five alone — and a
+ * body that carried the whole profile from a section's button would write back
+ * whatever its neighbours happened to hold, finished or not.
+ */
+test('each section saves itself, and carries only its own parts', async ({ page }) => {
+  const bodies: Record<string, unknown>[] = [];
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => {
+      if (route.request().method() !== 'PATCH') return fulfil(route, PROFILE);
+      bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+      return fulfil(route, { ...PROFILE, version: PROFILE.version + 1 });
+    },
+  );
+
+  await openForEditing(page);
+
+  // Typed into two sections; only one of them is saved.
+  await page.getByRole('button', { name: 'Edit About' }).click();
+  await page.getByLabel('Biography').fill('Typed, and deliberately left unsaved.');
+  await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
+  await page.getByLabel('Skill', { exact: true }).first().fill('Service design');
+
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(Object.keys(bodies[0] ?? {}).sort()).toEqual(['sections', 'version']);
+  expect(bodies[0]?.sections).toMatchObject({ skills: [{ name: 'Service design' }] });
+
+  // The section that was not saved says so where its Save would be.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByText('Not saved')).toBeVisible();
+});
+
+/**
+ * The browser's own copy means nothing is lost by coming back to this page —
+ * but it is *this* browser's copy. Somebody who finishes a section here and
+ * opens the profile on their phone finds it as the server has it, so closing
+ * the tab on work that was never sent is the one moment worth interrupting.
+ *
+ * Driven through a real browser because `beforeunload` is the browser's own
+ * machinery: a jsdom event says the listener ran, not that the page would
+ * actually hold anybody up.
+ */
+test('closing the tab on unsaved work is interrupted', async ({ page }) => {
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => fulfil(route, { ...PROFILE, displayName: 'Ayesha Khan' }),
+  );
+  await openForEditing(page);
+
+  // Playwright answers the browser's own prompt itself, so what is asserted is
+  // that one was asked for at all. `runBeforeUnload` is what makes a close ask;
+  // an ordinary one does not.
+  let asked = 0;
+  page.on('dialog', (dialog) => {
+    asked += 1;
+    void dialog.dismiss();
+  });
+
+  await page.getByRole('button', { name: 'Edit About' }).click();
+  await page.getByLabel('Biography').fill('Typed, never sent.');
+
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => asked).toBeGreaterThan(0);
+});
+
+test('a section offers no Save until something in it changes', async ({ page }) => {
+  // A profile that already carries a name, so nothing is filled in from the
+  // account on load: with no display name the page opens on the account's own,
+  // which is unsaved work the moment it appears — true, and not what this test
+  // is about.
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => fulfil(route, { ...PROFILE, displayName: 'Ayesha Khan' }),
+  );
+
+  await openForEditing(page);
+  await page.getByRole('button', { name: 'Edit About' }).click();
+
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeDisabled();
+  await expect(page.getByText('Saved')).toBeVisible();
+
+  await page.getByLabel('Biography').fill('Something to send.');
+  await expect(save).toBeEnabled();
+  await expect(page.getByText('Not saved yet')).toBeVisible();
+});
+
 test('the header names Dashboard without linking, and Edit profile opens editing', async ({
   page,
 }) => {
