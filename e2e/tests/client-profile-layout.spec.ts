@@ -387,6 +387,36 @@ test('the portfolio gallery holds its layout at every window size', async ({ pag
   await sweep(page, 'client profile with the portfolio editor open');
 });
 
+/**
+ * Share opens a dialog holding the profile's address.
+ *
+ * A dialog is a screen of its own — it takes the focus and covers the page —
+ * so it is measured like one, and checked for violations while it is open
+ * rather than only behind it.
+ */
+test('the share dialog holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+
+  // Share waits for publishing, because the public route answers 404 until
+  // then. This registers after the one in `beforeEach`, and the last route
+  // registered is the one Playwright uses.
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) => fulfil(route, { ...PROFILE, status: 'published' }),
+  );
+
+  await open(page);
+  await page.getByRole('button', { name: 'Share' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Share your profile' });
+  await expect(dialog.getByRole('textbox', { name: 'Your profile link' })).toHaveValue(
+    /\/p\/opaque-slug-for-e2e$/,
+  );
+
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await sweep(page, 'client profile with the share dialog open');
+});
+
 test('the client profile has no automatically detectable accessibility violations', async ({
   page,
 }) => {
