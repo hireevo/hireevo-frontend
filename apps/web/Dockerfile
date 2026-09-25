@@ -31,8 +31,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS builder
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SITE_URL
+# Optional, but build-time like the rest: the Content-Security-Policy names the
+# storage origins, and the sign-up form only loads reCAPTCHA when the site key
+# is set. Left empty they are simply unset, which env.ts accepts.
+ARG NEXT_PUBLIC_STORAGE_ORIGINS
+ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_STORAGE_ORIGINS=$NEXT_PUBLIC_STORAGE_ORIGINS
+ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 # `next start` cannot serve a standalone build, so the flag is set here and
 # nowhere else — see the comment in next.config.ts.

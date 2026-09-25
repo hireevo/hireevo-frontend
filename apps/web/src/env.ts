@@ -88,9 +88,11 @@ const schema = z.object({
 const parsed = schema.safeParse({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL,
-  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY,
-  NEXT_PUBLIC_STORAGE_ORIGINS: process.env.NEXT_PUBLIC_STORAGE_ORIGINS,
+  // The optional ones treat an empty string as unset: a Docker build arg that
+  // was not passed arrives as "", and "" is neither a URL nor a key.
+  NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL || undefined,
+  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || undefined,
+  NEXT_PUBLIC_STORAGE_ORIGINS: process.env.NEXT_PUBLIC_STORAGE_ORIGINS || undefined,
   NODE_ENV: process.env.NODE_ENV,
 });
 
