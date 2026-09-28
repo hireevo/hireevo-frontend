@@ -1,0 +1,37 @@
+# Deploys dev.hireevo.com from whatever lands on dev.
+#
+# The job only opens an SSH connection: the key in DEV_DEPLOY_SSH_KEY is bound
+# on the server to a forced command (/srv/hireevo/deploy) that pulls both
+# repositories (this one and hireevo-backend), rebuilds, migrates, restarts and checks health, so the runner
+# can neither run anything else nor skip the checks. The wrapper serialises
+# deploys, and the concurrency group below keeps this repository's own runs
+# from queueing up behind each other.
+name: Deploy to dev
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEV_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEV_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -i ~/.ssh/deploy_key "deploy@$HOST" dev
