@@ -119,6 +119,7 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     avatarUrl: null,
     headline: null,
     overview: null,
+    videoIntroUrl: null,
     availabilityNote: null,
     locationCountry: null,
     locationRegion: null,
@@ -221,6 +222,12 @@ beforeEach(() => {
         ...(rates === undefined
           ? {}
           : { rates: rates.map((rate) => ({ ...rate, currency: RATE_CURRENCY })) }),
+        // The API answers a section save with the sections the profile now
+        // holds, so a saved list is reflected back — which is what lets the
+        // completion figure move only once a section has actually been saved.
+        ...(patch.sections === undefined
+          ? {}
+          : { sections: { ...NO_SECTIONS, ...patch.sections } as OwnProfile['sections'] }),
       }),
     });
   });
@@ -885,7 +892,9 @@ describe('ProfileBuilder', () => {
 
     const skills = section(/Skills and expertise/);
     await user.type(await skills.findByLabelText('Skill'), 'Figma');
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    // Typed, not saved: the section shows the skill, but the figure does not
+    // move until the section has been saved.
+    expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
     await user.click(skills.getByRole('button', { name: 'Close' }));
     expect(skills.getByText('Figma')).toBeInTheDocument();
@@ -922,17 +931,20 @@ describe('ProfileBuilder', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('counts what a buyer decides on more heavily than the rest', async () => {
+  it('moves the figure only on save, by what a buyer decides on most heavily', async () => {
     const user = await openForEditing();
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
+    // Skills are worth twenty — the heavier weight, since it is what a buyer
+    // decides on — but only once saved. Typing leaves the figure where it was;
+    // the save is what moves it. About being worth only ten once saved is what
+    // the "worth ten" test above shows, so between them the weighting holds.
     await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
-    await user.click(screen.getByRole('button', { name: 'Edit About' }));
-    await user.type(await section(/About/).findByLabelText('Biography'), 'I build things.');
-    expect(bar()).toHaveAttribute('aria-valuenow', '30');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(bar()).toHaveAttribute('aria-valuenow', '20'));
   });
 
   it('removes a language from the section that owns the list', async () => {
@@ -1033,7 +1045,9 @@ describe('ProfileBuilder', () => {
     await user.click(portfolio().getByRole('button', { name: 'Close' }));
 
     expect(portfolio().getByText('Checkout redesign')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuenow', '20');
+    // Added, not saved: the piece shows in the section, but the figure waits for
+    // the save before it counts the portfolio's twenty.
+    expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
   it('shows a preview of a portfolio piece’s images, not a count of them', async () => {
