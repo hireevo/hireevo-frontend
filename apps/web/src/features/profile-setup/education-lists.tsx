@@ -174,14 +174,13 @@ export function LicenseList({
                   </SetupField>
                   {/* The scan or PDF of the certificate, attached the same way a
                       portfolio piece attaches its images. Full width so the
-                      gallery and the pickers are not squeezed into one column. */}
+                      gallery and the picker are not squeezed into one column. */}
                   <div className="flex flex-col gap-3 sm:col-span-2">
                     <AttachmentsEditor
                       files={item.files ?? []}
                       group="certification"
                       onChange={(files) => licenses.setFiles(item.key, files)}
-                      imageLabel="Certificate images"
-                      documentLabel="Certificate PDFs"
+                      label="Certificate files"
                     />
                   </div>
                 </div>

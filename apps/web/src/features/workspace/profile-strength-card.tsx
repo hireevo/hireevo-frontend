@@ -120,8 +120,13 @@ export function ProfileStrengthCard({
 
       {/* Side by side, as the design draws them, and stacked when the column is
           too narrow for two. The arrow sits on publishing because that is the
-          step out of this page; editing stays the quieter of the pair. */}
-      <div className="mt-6 flex flex-wrap gap-3 *:min-w-28 *:flex-1 *:basis-0">
+          step out of this page; editing stays the quieter of the pair.
+          `min-w-max` is what makes the stacking honest: a button's floor is the
+          width of its own label, so a pair that cannot both fit wraps instead
+          of squeezing one of them until "Complete your profile" spills out of
+          its own border. Labels here are as long as a sentence and the column
+          is 338px, so the two states are a hair apart. */}
+      <div className="mt-6 flex flex-wrap gap-3 *:min-w-max *:flex-1 *:basis-0">
         {'href' in strength.action ? (
           <Link
             href={strength.action.href}

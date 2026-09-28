@@ -1052,6 +1052,48 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
+  it('says a picture is not saved rather than pretending there is none', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              // Chosen, uploaded, never saved: the object is in storage and the
+              // profile has never been told where, so by the next visit there is
+              // no address left to show it from.
+              files: [
+                {
+                  kind: 'image',
+                  url: '',
+                  thumbUrl: null,
+                  objectKey: 'profiles/p/portfolio/never-saved.webp',
+                  thumbKey: null,
+                  contentType: 'image/webp',
+                  byteSize: 2048,
+                  width: null,
+                  height: null,
+                  fileName: 'shot.png',
+                },
+              ],
+            },
+            { title: 'No pictures at all', url: null, summary: null, files: [] },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    const portfolio = section(/Portfolio/);
+    // The one that has a file says so; the one that has none says nothing,
+    // because "not saved" would be a lie about a piece nobody attached to.
+    expect(await portfolio.findAllByText('Not saved yet')).toHaveLength(1);
+  });
+
   it('shows every picture attached to a piece, not only the one on the tile', async () => {
     const image = (index: number) => ({
       kind: 'image' as const,
@@ -1149,12 +1191,12 @@ describe('ProfileBuilder', () => {
     await user.type(title, ' redesign');
 
     expect(title).toHaveValue('Checkout redesign');
-    // Both drop zones are there from the start, each stating what it takes and
-    // how much room is left, so nobody has to guess whether twenty is the limit.
-    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP/)).toBeInTheDocument();
-    expect(portfolio().getByText(/0 of 20 added/)).toBeInTheDocument();
-    expect(portfolio().getByText(/Supported formats: PDF/)).toBeInTheDocument();
-    expect(portfolio().getByText(/0 of 5 added/)).toBeInTheDocument();
+    // The one drop zone is there from the start, stating both kinds it takes
+    // and how much room is left in each, so nobody has to guess whether twenty
+    // is the limit — or which of two boxes a PDF belongs in.
+    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP, PDF/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 20 images/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 5 PDFs/)).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {

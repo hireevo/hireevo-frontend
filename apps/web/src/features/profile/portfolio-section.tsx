@@ -129,14 +129,23 @@ function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
             >
               <span className="flex aspect-[4/3] w-full">
                 {/* The caption already names the piece, so a tile with no
-                    cover says it has none rather than repeating the name. */}
+                    cover says what is missing rather than repeating the name.
+                    A picture that was chosen but never saved is a different
+                    thing from a piece with no picture: the file is in storage
+                    and the profile has never been told about it, so its address
+                    is gone the moment the page is reloaded. Saying "not saved"
+                    is both true and the way out. */}
                 <MediaThumb
                   src={image?.thumbUrl ?? null}
                   alt={title}
                   fallback={
-                    <span className="flex size-full items-center justify-center bg-surface-muted">
+                    <span className="flex size-full flex-col items-center justify-center gap-1 bg-surface-muted p-2 text-center">
                       <LuImages aria-hidden="true" className="size-6 text-content-subtle" />
-                      <span className="sr-only">No picture yet</span>
+                      {image === undefined ? (
+                        <span className="sr-only">No picture yet</span>
+                      ) : (
+                        <span className="text-xs text-content-subtle">Not saved yet</span>
+                      )}
                     </span>
                   }
                 />

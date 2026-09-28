@@ -30,6 +30,19 @@ const fileFor = (index: number): DraftFile => ({
   fileName: `shot-${index}.jpg`,
 });
 
+const pdfFor = (index: number): DraftFile => ({
+  kind: 'document',
+  objectKey: `profiles/p1/portfolio/${String(index).padStart(16, '0')}.pdf`,
+  thumbKey: null,
+  url: `https://media.test/${index}.pdf`,
+  thumbUrl: null,
+  contentType: 'application/pdf',
+  byteSize: 900_000,
+  width: null,
+  height: null,
+  fileName: `case-study-${index}.pdf`,
+});
+
 /** The editor with its own state, the way every screen uses it. */
 function Editor({ onFiles }: { onFiles: (files: DraftFile[]) => void }) {
   const [files, setFiles] = useState<DraftFile[]>([]);
@@ -105,5 +118,63 @@ describe('attaching several files at once', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Storage refused'));
     expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(1);
+  });
+});
+
+/**
+ * One box for both kinds.
+ *
+ * There used to be two zones side by side, identical apart from their captions,
+ * and a PDF dropped on the images one simply did nothing — no upload, no
+ * message. Somebody attaching a certificate has a scan or a PDF in front of
+ * them and no reason to know which half of the row it belongs in, so the file's
+ * own type decides.
+ */
+describe('the one box that takes images and PDFs', () => {
+  const chooseIn = (picker: HTMLInputElement | null, chosen: File[]) => {
+    Object.defineProperty(picker, 'files', { value: chosen, configurable: true });
+    picker?.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const box = () => document.querySelectorAll('input[type=file]');
+
+  it('sends each file to the uploader its own type belongs to', async () => {
+    const onFiles = vi.fn<(files: DraftFile[]) => void>();
+    uploads.uploadImage.mockResolvedValue({ ok: true, value: fileFor(1) });
+    uploads.uploadDocument.mockResolvedValue({ ok: true, value: pdfFor(1) });
+
+    render(<Editor onFiles={onFiles} />);
+
+    // One picker, not one per kind.
+    expect(box()).toHaveLength(1);
+    const picker = document.querySelector<HTMLInputElement>('input[type=file]');
+    expect(picker?.accept).toContain('image/png');
+    expect(picker?.accept).toContain('application/pdf');
+
+    chooseIn(picker, [
+      new File(['x'], 'shot-1.jpg', { type: 'image/jpeg' }),
+      new File(['x'], 'case-study-1.pdf', { type: 'application/pdf' }),
+    ]);
+
+    await waitFor(() => expect(uploads.uploadImage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(uploads.uploadDocument).toHaveBeenCalledTimes(1));
+    expect(uploads.uploadImage.mock.calls[0]?.[0].name).toBe('shot-1.jpg');
+    expect(uploads.uploadDocument.mock.calls[0]?.[0].name).toBe('case-study-1.pdf');
+    await waitFor(() => expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(2));
+  });
+
+  it('says which files it would not take, and still takes the rest', async () => {
+    const onFiles = vi.fn<(files: DraftFile[]) => void>();
+    uploads.uploadImage.mockResolvedValue({ ok: true, value: fileFor(2) });
+
+    render(<Editor onFiles={onFiles} />);
+
+    chooseIn(document.querySelector<HTMLInputElement>('input[type=file]'), [
+      new File(['x'], 'clip.mov', { type: 'video/quicktime' }),
+      new File(['x'], 'shot-2.jpg', { type: 'image/jpeg' }),
+    ]);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('clip.mov'));
+    await waitFor(() => expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(1));
+    expect(uploads.uploadDocument).not.toHaveBeenCalled();
   });
 });
