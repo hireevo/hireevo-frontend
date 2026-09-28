@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import type { ChangeEvent, DragEvent } from 'react';
+import type { ChangeEvent, DragEvent, ReactNode } from 'react';
 import { LuCloudUpload, LuDownload, LuFileText, LuTrash2 } from 'react-icons/lu';
 import {
   ACCEPT,
@@ -12,7 +12,6 @@ import {
   type DraftFile,
   type FileGroup,
 } from './upload.ts';
-import { FileTile } from './file-preview.tsx';
 import { MediaThumb } from './media-thumb.tsx';
 
 /**
@@ -105,6 +104,37 @@ export function AttachmentsEditor({
 }
 
 /**
+ * A file's own address, where there is one that will still work.
+ *
+ * A file chosen a moment ago shows from a `blob:` preview belonging to this
+ * page; opening that in another tab gives an empty document, and by the next
+ * visit it is gone entirely. Only an address that outlives the page is worth
+ * making a link out of.
+ */
+function openable(file: DraftFile): string | null {
+  const address = file.url ?? '';
+  return address === '' || address.startsWith('blob:') ? null : address;
+}
+
+/** Wraps a thumbnail in the link that opens the file, where the file has one. */
+function OpensInATab({ file, children }: { file: DraftFile; children: ReactNode }) {
+  const href = openable(file);
+  if (href === null) return <>{children}</>;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block size-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+    >
+      {children}
+      <span className="sr-only">Open {file.fileName ?? 'the file'} in a new tab</span>
+    </a>
+  );
+}
+
+/**
  * The image previews a closed record shows, so a section reads as the work — or
  * the certificate — it is rather than a count of it. `thumbUrl` is the API's for
  * a saved image and a blob for one this tab still holds — the same field either
@@ -121,11 +151,13 @@ export function FileThumbnails({ files }: { files: readonly DraftFile[] }) {
           key={image.objectKey}
           className="block aspect-square overflow-hidden rounded-md bg-surface-muted"
         >
-          <MediaThumb
-            src={image.thumbUrl ?? null}
-            alt={image.fileName ?? ''}
-            fileName={image.fileName ?? null}
-          />
+          <OpensInATab file={image}>
+            <MediaThumb
+              src={image.thumbUrl ?? null}
+              alt={image.fileName ?? ''}
+              fileName={image.fileName ?? null}
+            />
+          </OpensInATab>
         </li>
       ))}
     </ul>
@@ -153,11 +185,13 @@ function Gallery({ images, onRemove }: { images: DraftFile[]; onRemove: (key: st
       {images.map((image) => (
         <li key={image.objectKey} className="group relative">
           <span className="block aspect-square overflow-hidden rounded-md bg-surface-muted">
-            <MediaThumb
-              src={image.thumbUrl ?? null}
-              alt={image.fileName ?? ''}
-              fileName={image.fileName ?? null}
-            />
+            <OpensInATab file={image}>
+              <MediaThumb
+                src={image.thumbUrl ?? null}
+                alt={image.fileName ?? ''}
+                fileName={image.fileName ?? null}
+              />
+            </OpensInATab>
           </span>
           <button
             type="button"
@@ -174,36 +208,41 @@ function Gallery({ images, onRemove }: { images: DraftFile[]; onRemove: (key: st
 }
 
 /**
- * The name of an attached document, and a look at it where there is one.
+ * The name of an attached document, and the way to read it.
  *
- * A file this tab has only just chosen has no URL until it has been stored, and
- * pressing a name that cannot open anything is worse than a name that plainly
- * does not — so the button appears when the file does.
+ * In the editor the name opens the file in another tab rather than in a box
+ * over the form: somebody checking what they attached wants to read it beside
+ * what they are writing, not on top of it. A file this tab has only just chosen
+ * has no address that outlives the page, so it is a name and nothing more —
+ * a link that opens an empty tab is worse than no link.
  */
 function DraftDocumentName({ file }: { file: DraftFile }) {
-  if (file.url === undefined || file.url === null || file.url === '') {
+  const href = openable(file);
+  const name = file.fileName ?? 'Document';
+  const icon = <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />;
+
+  if (href === null) {
     return (
       <>
-        <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
-        <span className="min-w-0 flex-1 truncate text-sm text-content">
-          {file.fileName ?? 'Document'}
-        </span>
+        {icon}
+        <span className="min-w-0 flex-1 truncate text-sm text-content">{name}</span>
       </>
     );
   }
 
   return (
-    <FileTile
-      file={{
-        kind: 'document',
-        url: file.url,
-        thumbUrl: file.thumbUrl ?? null,
-        objectKey: file.objectKey,
-        fileName: file.fileName ?? null,
-      }}
-      fallbackName="Document"
-      className="min-w-0 flex-1 border-0 px-0 py-0 hover:border-0"
-    />
+    <>
+      {icon}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="min-w-0 flex-1 truncate rounded-sm text-sm text-content hover:text-content-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        {name}
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    </>
   );
 }
 
