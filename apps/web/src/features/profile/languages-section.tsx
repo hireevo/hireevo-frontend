@@ -71,7 +71,10 @@ export function LanguagesSection({
                       className="size-3.5 shrink-0 fill-current text-content-warning"
                     />
                   )}
-                  {language.name} &middot; {language.proficiency}
+                  {/* The level set apart from the name, as the design draws
+                      it: the language is the fact, the level qualifies it. */}
+                  {language.name}
+                  <span className="text-content-subtle">&mdash; {language.proficiency}</span>
                   {!language.starred ? null : (
                     <span className="sr-only">, shown beside my name</span>
                   )}

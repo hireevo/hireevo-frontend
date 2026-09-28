@@ -80,11 +80,34 @@ export type SummaryRow = {
   media?: ReactNode;
 };
 
-export function SummaryList({ rows }: { rows: readonly SummaryRow[] }) {
+export function SummaryList({
+  rows,
+  variant = 'boxed',
+}: {
+  rows: readonly SummaryRow[];
+  /**
+   * How the rows are separated. The design boxes a role, because it carries a
+   * paragraph and needs an edge to hold it; it rules between certificates,
+   * which are two lines each and look like a form in boxes.
+   */
+  variant?: 'boxed' | 'ruled';
+}) {
+  const ruled = variant === 'ruled';
+
   return (
-    <ul className="flex flex-col gap-3">
-      {rows.map((row) => (
-        <li key={row.key} className="flex gap-3 rounded-lg border border-border-subtle p-4">
+    <ul className={cn('flex flex-col', ruled ? 'gap-0' : 'gap-3')}>
+      {rows.map((row, index) => (
+        <li
+          key={row.key}
+          className={cn(
+            'flex gap-3',
+            ruled
+              ? index === 0
+                ? ''
+                : 'mt-4 border-t border-border-subtle pt-4'
+              : 'rounded-lg border border-border-subtle bg-surface-subtle p-4',
+          )}
+        >
           {row.icon === undefined ? null : (
             <span aria-hidden="true" className="mt-0.5 shrink-0 text-content-link">
               {row.icon}

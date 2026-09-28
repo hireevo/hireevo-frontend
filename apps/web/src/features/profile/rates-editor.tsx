@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { LuInfo } from 'react-icons/lu';
 import { Checkbox, cn } from '@hireevo/ui-web';
 import {
   RATE_CURRENCY,
@@ -175,7 +176,8 @@ export function RatesEditor({
         ))}
       </div>
 
-      <p className="text-sm text-content-subtle">
+      <p className="flex items-start gap-2 rounded-lg border border-border-subtle bg-surface-subtle p-3 text-sm text-content-subtle">
+        <LuInfo aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
         Buyers only see the rates you enable — you can adjust or hide them anytime.
       </p>
 

@@ -241,7 +241,7 @@ describe('ProfileBuilder', () => {
     // name is text here and gains its pencil only in edit mode.
     expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 7 steps done');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -260,7 +260,9 @@ describe('ProfileBuilder', () => {
     });
     await open();
 
-    expect(await screen.findByText('German · Fluent')).toBeInTheDocument();
+    const german = await screen.findByText('German');
+    expect(german).toBeInTheDocument();
+    expect(german.parentElement).toHaveTextContent('German— Fluent');
     expect(screen.getByText('Austria')).toBeInTheDocument();
     expect(section(/Skills and expertise/).getByText('Service design')).toBeInTheDocument();
     // Filling the page in from the server is not work to send back.

@@ -11,10 +11,10 @@ describe('completionOf', () => {
     const completion = completionOf(NOTHING_FILLED);
     expect(completion.percent).toBe(0);
     expect(completion.done).toBe(0);
-    expect(completion.total).toBe(7);
+    expect(completion.total).toBe(6);
   });
 
-  it('lists every section as its own row, education and certifications apart', () => {
+  it('lists the rows the design draws, in its order', () => {
     const completion = completionOf(filled('about', 'skills', 'experience'));
     // About (10) + Skills (20) + Work experience (10) = 40.
     expect(completion.percent).toBe(40);
@@ -24,10 +24,9 @@ describe('completionOf', () => {
       ['About section', true],
       ['Skills & expertise', true],
       ['Work experience', true],
-      ['Education', false],
-      ['Certifications', false],
+      ['Education & certifications', false],
       ['Portfolio', false],
-      ['Add a video intro', false],
+      ['Video intro', false],
     ]);
   });
 
@@ -50,17 +49,18 @@ describe('completionOf', () => {
     expect(everything.label).toBe('Complete');
   });
 
-  it('counts education and certifications as two separate rows', () => {
+  it('weighs education and certifications separately, and lists them as one row', () => {
+    const row = 'Education & certifications';
     const edu = completionOf(filled('education'));
-    // Education alone is worth twenty, and finishes only its own row.
+    // Education alone is worth twenty — the weighting is per section — but the
+    // row the design draws is not finished until both are.
     expect(edu.percent).toBe(20);
-    expect(edu.items.find((item) => item.label === 'Education')?.done).toBe(true);
-    expect(edu.items.find((item) => item.label === 'Certifications')?.done).toBe(false);
+    expect(edu.items.find((item) => item.label === row)?.done).toBe(false);
 
     const both = completionOf(filled('education', 'certifications'));
-    // Certifications adds its own ten.
+    // Certifications adds its own ten, and now the row is done.
     expect(both.percent).toBe(30);
-    expect(both.items.find((item) => item.label === 'Certifications')?.done).toBe(true);
+    expect(both.items.find((item) => item.label === row)?.done).toBe(true);
   });
 
   it('does not count visibility or rates, which are settings rather than profile', () => {

@@ -70,12 +70,14 @@ export function StatusBar({
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.9375rem] text-content-accent">
           {seller.profileLive ? (
-            <span className="inline-flex items-center gap-2">
-              <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
-              Profile live
-            </span>
+            <>
+              <span className="inline-flex items-center gap-2">
+                <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
+                Profile live
+              </span>
+              <span aria-hidden="true" className="h-4 w-px bg-border-subtle" />
+            </>
           ) : null}
-          <span aria-hidden="true" className="h-4 w-px bg-border-subtle" />
           <span className="inline-flex items-center gap-2">
             <Switch
               checked={available}

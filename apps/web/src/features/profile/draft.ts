@@ -2,7 +2,10 @@ import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import type { DraftFile } from '@/features/media/upload.ts';
 
 /** How well someone speaks a language, in the order the options are offered. */
-export const PROFICIENCIES = ['Basic', 'Conversational', 'Fluent', 'Native or bilingual'] as const;
+// "Native", as the design writes it. The API stores one word either way — the
+// payload maps both this and the older "Native or bilingual" onto `native`, so
+// a draft written before this change still says what it meant.
+export const PROFICIENCIES = ['Basic', 'Conversational', 'Fluent', 'Native'] as const;
 
 export type Proficiency = (typeof PROFICIENCIES)[number];
 
@@ -114,10 +117,12 @@ const ROWS: readonly { label: string; sections: readonly SectionId[] }[] = [
   { label: 'About section', sections: ['about'] },
   { label: 'Skills & expertise', sections: ['skills'] },
   { label: 'Work experience', sections: ['experience'] },
-  { label: 'Education', sections: ['education'] },
-  { label: 'Certifications', sections: ['certifications'] },
+  // One row for the two, as the design lists them: they sit side by side on the
+  // page and a row is a place to go, not a table of the weighting — which is
+  // still per section, so the percentage does not move.
+  { label: 'Education & certifications', sections: ['education', 'certifications'] },
   { label: 'Portfolio', sections: ['portfolio'] },
-  { label: 'Add a video intro', sections: ['videoIntro'] },
+  { label: 'Video intro', sections: ['videoIntro'] },
 ];
 
 export type CompletionItem = { label: string; done: boolean };

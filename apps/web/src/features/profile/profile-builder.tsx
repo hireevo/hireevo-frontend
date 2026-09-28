@@ -711,7 +711,38 @@ export function ProfileBuilder() {
         slug={identity.profile?.slug ?? null}
         editable={editMode}
         onChange={patchHeader}
-      />
+      >
+        {/* Above About, where the design puts it, and never on the published
+              page: these go to the profile's private row, which the public
+              serializer is never given. The card says so, because a form asking
+              for two phone numbers should say where they end up. */}
+        <SectionCard
+          title="Contact Details"
+          description="How clients reach you once you agree to talk. Kept private — never shown on your public profile."
+          filled={contactFilled}
+          icon={<LuPhone />}
+          editing={open === 'contact'}
+          action={actionFor('contact', 'contact details', ['contact'])}
+          footer={saveFor(['contact'])}
+        >
+          {open === 'contact' ? (
+            <ContactEditor
+              values={contact.values}
+              fieldErrors={identity.fieldErrors}
+              onChange={(field, value) => {
+                contact.change(field, value);
+                // The draft holds these beside itself rather than inside, so it
+                // has to be told: without this its idea of what is unsaved never
+                // includes them, and the section's Save stays disabled while the
+                // fields fill up.
+                identity.touch();
+              }}
+            />
+          ) : contactFilled ? (
+            <ContactSummary values={contact.values} />
+          ) : undefined}
+        </SectionCard>
+      </ProfileHeaderCard>
 
       {/* After the header in the markup, so a phone meets the profile before
           the summary of it, and beside both rows from `lg`. */}
@@ -778,37 +809,6 @@ export function ProfileBuilder() {
       </div>
 
       <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
-        {/* Above About, where the design puts it, and never on the published
-            page: these go to the profile's private row, which the public
-            serializer is never given. The card says so, because a form asking
-            for two phone numbers should say where they end up. */}
-        <SectionCard
-          title="Contact Details"
-          description="How clients reach you once you agree to talk. Kept private — never shown on your public profile."
-          filled={contactFilled}
-          icon={<LuPhone />}
-          editing={open === 'contact'}
-          action={actionFor('contact', 'contact details', ['contact'])}
-          footer={saveFor(['contact'])}
-        >
-          {open === 'contact' ? (
-            <ContactEditor
-              values={contact.values}
-              fieldErrors={identity.fieldErrors}
-              onChange={(field, value) => {
-                contact.change(field, value);
-                // The draft holds these beside itself rather than inside, so it
-                // has to be told: without this its idea of what is unsaved never
-                // includes them, and the section's Save stays disabled while the
-                // fields fill up.
-                identity.touch();
-              }}
-            />
-          ) : contactFilled ? (
-            <ContactSummary values={contact.values} />
-          ) : undefined}
-        </SectionCard>
-
         <SectionCard
           title="About"
           description="Share some details about yourself, your expertise, and what you offer."
@@ -893,6 +893,7 @@ export function ProfileBuilder() {
               <EducationEditor education={education} heading={false} />
             ) : filled.education ? (
               <SummaryList
+                variant="ruled"
                 rows={courses.map((item) => ({
                   key: item.key,
                   // The degree is the thing; the school is where it came from.
@@ -924,6 +925,7 @@ export function ProfileBuilder() {
               <LicenseEditor licenses={licenses} heading={false} />
             ) : filled.certifications ? (
               <SummaryList
+                variant="ruled"
                 rows={certificates.map((item) => ({
                   key: item.key,
                   icon: <LuBadgeCheck className="size-5" />,
