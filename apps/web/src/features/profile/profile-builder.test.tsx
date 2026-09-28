@@ -943,7 +943,7 @@ describe('ProfileBuilder', () => {
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'Save section' }));
     await waitFor(() => expect(bar()).toHaveAttribute('aria-valuenow', '20'));
   });
 
