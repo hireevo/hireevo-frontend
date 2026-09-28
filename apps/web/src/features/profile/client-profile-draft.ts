@@ -2,6 +2,7 @@
 
 import type { ProfileValues, RateValue } from '@/features/profile-setup/api.ts';
 import type { Entry } from '@/features/profile-setup/use-entries.ts';
+import type { DraftFile } from '@/features/media/upload.ts';
 import type { ProfileLanguage, ProfileRecord } from './draft.ts';
 
 /**
@@ -65,9 +66,39 @@ export function readDraft(userId: string): DraftContents | null {
   }
 }
 
+/**
+ * A file as it can be written down: without the preview this tab is holding.
+ *
+ * A file chosen a moment ago shows from a `blob:` address belonging to this
+ * document, and that address dies with the page. Keeping it in the draft is
+ * keeping a picture nobody can ever load again — which is what a reload used
+ * to show: the tiles were there and every one of them was empty. The object is
+ * already in storage, and the profile knows where; the draft only has to not
+ * lie about it.
+ */
+const withoutPreviews = (files: readonly DraftFile[]): DraftFile[] =>
+  files.map(({ url, thumbUrl, ...file }) => ({
+    ...file,
+    ...(url !== undefined && url !== null && !url.startsWith('blob:') ? { url } : {}),
+    ...(thumbUrl !== undefined && thumbUrl !== null && !thumbUrl.startsWith('blob:')
+      ? { thumbUrl }
+      : {}),
+  }));
+
 export function writeDraft(userId: string, contents: DraftContents): void {
   try {
-    window.localStorage.setItem(keyFor(userId), JSON.stringify({ version: VERSION, ...contents }));
+    const kept: DraftContents = {
+      ...contents,
+      licenses: contents.licenses.map((entry) => ({
+        ...entry,
+        files: withoutPreviews(entry.files ?? []),
+      })),
+      portfolio: contents.portfolio.map((piece) => ({
+        ...piece,
+        files: withoutPreviews(piece.files ?? []),
+      })),
+    };
+    window.localStorage.setItem(keyFor(userId), JSON.stringify({ version: VERSION, ...kept }));
   } catch {
     // Out of quota, or storage blocked. Nothing on screen changes: what is typed
     // is still in the page, and what was saved is still on the server.

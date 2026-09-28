@@ -566,9 +566,7 @@ function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border-subtle">
-      {cover === undefined ? null : (
-        <FileCover file={cover} alt={piece.title} more={images.length - 1} />
-      )}
+      {cover === undefined ? null : <FileCover file={cover} alt={piece.title} />}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
         <h3 className="text-base font-bold text-content-accent">{piece.title}</h3>
@@ -590,6 +588,11 @@ function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }
             Visit the work
           </a>
         )}
+
+        {/* Every other picture of the piece, under its description. A cover
+            with "+5 more" written on it is a count of the work rather than the
+            work: somebody looking at a portfolio came to see all of it. */}
+        <FileThumbGrid files={images.slice(1)} alt={piece.title} className="mt-2" />
 
         <FileDocuments files={piece.files} className="mt-2" />
       </div>

@@ -36,3 +36,42 @@ export function validateVideoUrl(value: string): string | null {
 
   return null;
 }
+
+/**
+ * The still frame for a video introduction, where one can be had for free.
+ *
+ * YouTube publishes a thumbnail at a fixed address built from the video's id,
+ * so the picture costs nothing but the image request — no API key, no call to
+ * ask for it. Every other host needs an interrogation the page has no reason to
+ * make, so they get no frame and the tile stays a play button.
+ *
+ * `hqdefault` rather than `maxresdefault`: the larger one is missing for any
+ * video that was never uploaded at that size, and a missing frame is worse than
+ * a smaller one.
+ */
+export function videoThumbnail(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return null;
+  }
+
+  const host = parsed.hostname.replace(/^www\.|^m\./, '');
+  const path = parsed.pathname.replace(/^\//, '');
+  const id =
+    host === 'youtu.be'
+      ? path
+      : host === 'youtube.com' || host === 'youtube-nocookie.com'
+        ? (parsed.searchParams.get('v') ?? path.replace(/^(embed|shorts|v)\//, ''))
+        : null;
+
+  // Eleven characters of YouTube's own alphabet. Anything else is a link that
+  // happens to be on the domain — a channel, a playlist page, a search.
+  return id !== null && /^[\w-]{11}$/.test(id)
+    ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+    : null;
+}

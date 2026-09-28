@@ -1052,6 +1052,51 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
+  it('shows every picture attached to a piece, not only the one on the tile', async () => {
+    const image = (index: number) => ({
+      kind: 'image' as const,
+      url: `https://storage.test/full-${index}.png`,
+      thumbUrl: `https://storage.test/thumb-${index}.png`,
+      objectKey: `obj-${index}`,
+      thumbKey: `thumb-${index}`,
+      contentType: 'image/png',
+      byteSize: 1024,
+      width: 800,
+      height: 600,
+      fileName: `shot-${index}.png`,
+    });
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              files: [1, 2, 3, 4].map(image),
+            },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    // Somebody who attached four pictures came back to a page showing one of
+    // them and a badge counting the rest. All four are the work.
+    const shown = await section(/Portfolio/).findAllByRole('img');
+    expect(shown).toHaveLength(4);
+    expect(shown.map((img) => img.getAttribute('src'))).toEqual([
+      'https://storage.test/thumb-1.png',
+      'https://storage.test/thumb-2.png',
+      'https://storage.test/thumb-3.png',
+      'https://storage.test/thumb-4.png',
+    ]);
+    // Named once, on the first, rather than four times over.
+    expect(section(/Portfolio/).getAllByText('Checkout redesign')).toHaveLength(1);
+  });
+
   it('shows a preview of a portfolio piece’s images, not a count of them', async () => {
     calls.load.mockResolvedValue({
       ok: true,

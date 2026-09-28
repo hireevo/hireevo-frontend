@@ -128,7 +128,7 @@ export function FileTile({
 }
 
 /**
- * The one image that stands for a portfolio piece, and the rest behind it.
+ * The image that leads a portfolio piece.
  *
  * Its own component because the screen it sits on is rendered on the server:
  * the piece around it stays server-rendered, and only the part that has to
@@ -137,12 +137,9 @@ export function FileTile({
 export function FileCover({
   file,
   alt,
-  more,
 }: {
   file: StoredFile & { width?: number | null; height?: number | null };
   alt: string;
-  /** How many further images the piece carries, shown as a count on the cover. */
-  more: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -163,11 +160,6 @@ export function FileCover({
           />
         </span>
         <span className="sr-only">Open {file.fileName ?? alt}</span>
-        {more < 1 ? null : (
-          <span className="absolute right-2 bottom-2 rounded-full bg-surface-inverse px-2.5 py-1 text-xs font-medium text-content-inverse">
-            +{more} more
-          </span>
-        )}
       </button>
 
       {open ? <FilePreview file={file} fallbackName={alt} onClose={() => setOpen(false)} /> : null}

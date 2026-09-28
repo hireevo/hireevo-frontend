@@ -83,7 +83,8 @@ export function PortfolioSection({
 }
 
 /**
- * The closed section: one tile a piece, its own picture, its name across it.
+ * The closed section: every picture attached to the work, its name across the
+ * first of them.
  *
  * The design draws the portfolio as work rather than as a list — a row of
  * covers, each captioned — which is how anyone reads a portfolio and how the
@@ -112,21 +113,25 @@ function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
   return (
     <div className="flex flex-col gap-3">
       <ul className="grid grid-cols-2 gap-3 *:min-w-0 sm:grid-cols-3 lg:grid-cols-4">
-        {records.map((record) => {
-          const cover = (record.files ?? []).find((file) => file.kind === 'image');
+        {records.flatMap((record) => {
+          const images = (record.files ?? []).filter((file) => file.kind === 'image');
           const title = record.fields.title ?? '';
           const summary = record.fields.summary ?? '';
 
-          return (
+          // A piece with nothing attached still has a name, so it keeps a tile
+          // and says it has no picture rather than disappearing from the page.
+          const tiles = images.length === 0 ? [undefined] : images;
+
+          return tiles.map((image, index) => (
             <li
-              key={record.id}
+              key={`${record.id}-${image?.objectKey ?? 'empty'}`}
               className="relative overflow-hidden rounded-lg border border-border-subtle bg-surface-muted"
             >
               <span className="flex aspect-[4/3] w-full">
                 {/* The caption already names the piece, so a tile with no
                     cover says it has none rather than repeating the name. */}
                 <MediaThumb
-                  src={cover?.thumbUrl ?? null}
+                  src={image?.thumbUrl ?? null}
                   alt={title}
                   fallback={
                     <span className="flex size-full items-center justify-center bg-surface-muted">
@@ -136,7 +141,10 @@ function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
                   }
                 />
               </span>
-              {title === '' && summary === '' ? null : (
+              {/* Named once a piece, on its first picture: six tiles carrying
+                  the same title six times is the piece shouting rather than
+                  showing. The rest are the same work, side by side. */}
+              {index > 0 || (title === '' && summary === '') ? null : (
                 <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-surface-inverse/85 to-transparent px-3 pt-8 pb-2.5">
                   <span className="block truncate text-sm font-semibold text-content-inverse">
                     {title}
@@ -149,7 +157,7 @@ function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
                 </span>
               )}
             </li>
-          );
+          ));
         })}
       </ul>
 

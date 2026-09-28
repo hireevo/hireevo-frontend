@@ -75,7 +75,9 @@ import {
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
-import { uploadsInFlight, watchUploads } from '@/features/media/upload.ts';
+import { uploadsInFlight, watchUploads, type DraftFile } from '@/features/media/upload.ts';
+import { MediaThumb } from '@/features/media/media-thumb.tsx';
+import { videoThumbnail } from './video-url.ts';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
 import type { SavePart } from '@/features/profile-setup/use-profile-draft.ts';
@@ -309,6 +311,8 @@ export function ProfileBuilder() {
   const sent = useRef('');
   /** Whether the draft this browser opened on has been measured against the server yet. */
   const judged = useRef(stored === null);
+  /** Whether the kept draft's files have been given the server's addresses. */
+  const addressed = useRef(stored === null);
   const { profile, rebaseline, touch } = identity;
 
   useEffect(() => {
@@ -334,6 +338,52 @@ export function ProfileBuilder() {
         if (userId !== null) clearDraft(userId);
         window.location.reload();
         return;
+      }
+    }
+
+    /*
+     * A kept draft knows which files are attached; the server knows where they
+     * are. The preview a file showed from when it was chosen belonged to the
+     * page that chose it, so it is gone by the next visit — and the draft is
+     * deliberately not keeping it any more. Once the profile arrives, every
+     * file it recognises takes its real addresses back, which is how six
+     * attached pictures stop being six empty tiles.
+     */
+    if (!addressed.current) {
+      addressed.current = true;
+      const saved = new Map<string, { url: string; thumbUrl: string | null }>();
+      for (const piece of profile.sections.portfolio) {
+        for (const file of piece.files) saved.set(file.objectKey, file);
+      }
+      for (const certificate of profile.sections.licenses) {
+        for (const file of certificate.files) saved.set(file.objectKey, file);
+      }
+
+      // A `blob:` address counts as no address: drafts written before this
+      // change kept them, and they died with the page that made them.
+      const usable = (address?: string | null) =>
+        address !== undefined && address !== null && address !== '' && !address.startsWith('blob:');
+
+      const addressOf = (files: readonly DraftFile[]): DraftFile[] =>
+        files.map((file) => {
+          const known = saved.get(file.objectKey);
+          if (known === undefined || usable(file.thumbUrl) || usable(file.url)) return file;
+          return { ...file, url: known.url, thumbUrl: known.thumbUrl };
+        });
+
+      setDraft((current) => ({
+        ...current,
+        records: {
+          ...current.records,
+          portfolio: current.records.portfolio.map((piece) => ({
+            ...piece,
+            files: addressOf(piece.files ?? []),
+          })),
+        },
+      }));
+      for (const entry of licenses.items) {
+        if ((entry.files ?? []).length > 0)
+          licenses.setFiles(entry.key, addressOf(entry.files ?? []));
       }
     }
 
@@ -479,7 +529,12 @@ export function ProfileBuilder() {
     const { displayName, title, avatarKey, country, ...rest } = patch;
     if (displayName !== undefined) identity.change('displayName', displayName);
     if (title !== undefined) identity.change('headline', title);
-    if (avatarKey !== undefined) identity.change('avatarKey', avatarKey);
+    if (avatarKey !== undefined) {
+      identity.change('avatarKey', avatarKey);
+      // Straight away: see the note on the `avatar` group. `change` writes the
+      // value where the save reads it from before this line runs.
+      void identity.flush(['avatar']);
+    }
     if (country !== undefined) {
       // The field takes a country's name; the profile stores its code. A name
       // that is not one of them clears the code rather than saving something
@@ -1090,15 +1145,18 @@ export function ProfileBuilder() {
 }
 
 /**
- * The video as the design draws it: something to press, beside its address.
+ * The video as the design draws it: its own frame, with something to press.
  *
- * No still frame, because there is none to show — a profile stores the address
- * of the video and nothing else, and fetching a thumbnail would mean asking the
- * hosting site for it on a page that has no reason to talk to them. The tile is
- * the way into the video instead of a picture of it, which is also what the
- * published profile does rather than framing somebody else's player.
+ * YouTube's still frame is built from the video's id, so it costs one image
+ * request and no interrogation of anyone. Every other host would need an API
+ * call to find out, and a page has no business making one to draw a picture —
+ * so those keep the plain tile. Either way this is a link out rather than an
+ * embedded player: the published profile sends a visitor to the video instead
+ * of framing somebody else's, and the editor says the same thing.
  */
 function VideoIntroSummary({ url, onReplace }: { url: string; onReplace: (() => void) | null }) {
+  const frame = videoThumbnail(url);
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
       <a
@@ -1107,9 +1165,17 @@ function VideoIntroSummary({ url, onReplace }: { url: string; onReplace: (() => 
         rel="noopener noreferrer ugc"
         className="group relative flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:w-64"
       >
+        {/* Behind the button and filling the tile, so the play mark sits over
+            the middle of the picture rather than beside it. YouTube's frame is
+            4:3 and the tile is 16:9, so it is cropped rather than letterboxed. */}
+        {frame === null ? null : (
+          <span className="absolute inset-0">
+            <MediaThumb src={frame} alt="" />
+          </span>
+        )}
         <span
           aria-hidden="true"
-          className="flex size-12 items-center justify-center rounded-full bg-surface-inverse text-content-inverse transition-transform group-hover:scale-105"
+          className="relative flex size-12 items-center justify-center rounded-full bg-surface-inverse text-content-inverse transition-transform group-hover:scale-105"
         >
           <LuPlay className="size-5" />
         </span>
