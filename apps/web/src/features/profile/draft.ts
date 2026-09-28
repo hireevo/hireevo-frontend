@@ -1,3 +1,4 @@
+import type { OwnProfile } from '@/features/profile-setup/api.ts';
 import type { DraftFile } from '@/features/media/upload.ts';
 
 /** How well someone speaks a language, in the order the options are offered. */
@@ -144,6 +145,30 @@ function headlineFor(percent: number): string {
   if (percent === 100) return 'Your profile is market-ready';
   if (percent >= 50) return 'You’re nearly market-ready';
   return 'Let’s make you market-ready';
+}
+
+/**
+ * Which sections a *saved* profile has something in — the basis for the figure.
+ *
+ * Read from the profile the server returned, never from what is being typed, so
+ * completion moves only when a section has actually been saved. A section is
+ * counted the moment its saved data is non-empty, exactly as the API decides it:
+ * the builder and the dashboard both read the figure from here, so they cannot
+ * disagree about what "filled" means or drift as one is edited and the other is
+ * not.
+ */
+export function filledFromProfile(profile: OwnProfile): SectionsFilled {
+  const s = profile.sections;
+  return {
+    ...NOTHING_FILLED,
+    about: profile.overview !== null && profile.overview.trim() !== '',
+    skills: s.skills.length > 0,
+    experience: s.experience.length > 0,
+    education: s.education.length > 0,
+    certifications: s.licenses.length > 0,
+    portfolio: s.portfolio.length > 0,
+    videoIntro: profile.videoIntroUrl !== null && profile.videoIntroUrl.trim() !== '',
+  };
 }
 
 export function completionOf(filled: SectionsFilled): Completion {

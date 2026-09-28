@@ -1,8 +1,13 @@
 import type { Route } from 'next';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import type { OwnProfile } from '@/features/profile-setup/api.ts';
-import { NOTHING_FILLED, completionOf, type SectionsFilled } from '@/features/profile/draft.ts';
+import { completionOf, filledFromProfile } from '@/features/profile/draft.ts';
 import type { NavItem, ProfileStrength, Stat, WorkspaceCard } from './types.ts';
+
+// Kept as part of this module's surface because `snapshot.test.ts` and callers
+// reach it here; it lives with the completion weights in `draft.ts` so the
+// builder and the dashboard share one definition of a filled section.
+export { filledFromProfile };
 
 type NamedUser = Pick<AuthenticatedUser, 'firstName' | 'lastName' | 'username' | 'email'>;
 
@@ -89,21 +94,6 @@ export type ChromeSnapshot = {
 export function chromeSnapshot(user: AuthenticatedUser): ChromeSnapshot {
   const name = displayNameOf(user);
   return { user: { name, initials: initialsOf(name) }, nav: WORKSPACE_NAV, utilities: true };
-}
-
-/** Which sections a loaded profile has something in — the real basis for the strength card. */
-export function filledFromProfile(profile: OwnProfile): SectionsFilled {
-  const s = profile.sections;
-  return {
-    ...NOTHING_FILLED,
-    about: profile.overview !== null && profile.overview.trim() !== '',
-    skills: s.skills.length > 0,
-    experience: s.experience.length > 0,
-    education: s.education.length > 0,
-    certifications: s.licenses.length > 0,
-    portfolio: s.portfolio.length > 0,
-    videoIntro: profile.videoIntroUrl !== null && profile.videoIntroUrl.trim() !== '',
-  };
 }
 
 /** Everything the dashboard body draws — derived from the signed-in person's own profile. */
