@@ -69,12 +69,14 @@ export function SessionChrome() {
       nav={snapshot.nav}
       utilities={snapshot.utilities}
       user={snapshot.user}
-      // The strip's real parts, and only those: whether the profile is live and
-      // the availability the switch saves. There is no membership module yet, so
-      // no tier and no upgrade are shown — an empty tier is nothing invented.
+      // The tier and the upgrade are the design's, and the design is what this
+      // strip is for. There is no membership module behind them yet, so the
+      // upgrade carries no address: `ActionLink` then draws the same line
+      // without making it a link, and says "not available yet" to a screen
+      // reader, so nobody is sent to a page that does not exist (§6.7).
       seller={{
-        tier: '',
-        upgrade: null,
+        tier: 'New seller',
+        upgrade: { label: 'Upgrade to Professional Plus', href: null },
         profileLive: availability.published,
         available: availability.on,
       }}

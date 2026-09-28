@@ -141,7 +141,7 @@ function labelFor(percent: number): string {
 }
 
 function headlineFor(percent: number): string {
-  if (percent === 100) return 'Your profile is market-ready';
+  if (percent === 100) return 'You’re fully market-ready';
   if (percent >= 50) return 'You’re nearly market-ready';
   return 'Let’s make you market-ready';
 }

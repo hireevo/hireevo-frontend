@@ -287,7 +287,7 @@ test('opens About in place, and saves it from its own end', async ({ page }) => 
   const saved = page.waitForRequest(
     (request) => request.url().endsWith('/api/v1/profiles/me') && request.method() === 'PATCH',
   );
-  await about.getByRole('button', { name: 'Save', exact: true }).click();
+  await about.getByRole('button', { name: 'Save section', exact: true }).click();
   await saved;
 
   await expect(about.getByText('Saved')).toBeVisible();
@@ -363,7 +363,7 @@ test('each section saves itself, and carries only its own parts', async ({ page 
   await page.getByRole('button', { name: 'Edit skills and expertise' }).click();
   await page.getByLabel('Skill', { exact: true }).first().fill('Service design');
 
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Save section', exact: true }).click();
 
   await expect.poll(() => bodies.length).toBe(1);
   expect(Object.keys(bodies[0] ?? {}).sort()).toEqual(['sections', 'version']);
@@ -420,7 +420,7 @@ test('a section offers no Save until something in it changes', async ({ page }) 
   await openForEditing(page);
   await page.getByRole('button', { name: 'Edit About' }).click();
 
-  const save = page.getByRole('button', { name: 'Save', exact: true });
+  const save = page.getByRole('button', { name: 'Save section', exact: true });
   await expect(save).toBeDisabled();
   await expect(page.getByText('Saved')).toBeVisible();
 
@@ -486,7 +486,7 @@ test('contact details sit above About and save as their own object', async ({ pa
   await page.locator('input[name="linkedinUrl"]').fill('linkedin.com/in/ayesha-khan');
   await page.locator('input[name="figmaUrl"]').fill('figma.com/@ayesha');
 
-  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Save section', exact: true }).first().click();
 
   await expect
     .poll(() => (sent as SaveBody | null)?.contact)

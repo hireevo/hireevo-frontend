@@ -48,7 +48,6 @@ export function LanguagesSection({
   return (
     <SectionCard
       title="Languages"
-      optional
       description="Add the languages you work in, and star the ones to show beside your name."
       filled={languages.length > 0}
       icon={<LuGlobe />}

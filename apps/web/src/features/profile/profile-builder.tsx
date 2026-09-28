@@ -4,11 +4,13 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   LuAward,
+  LuBadgeCheck,
   LuBriefcaseBusiness,
   LuCircleDollarSign,
   LuClock,
   LuGraduationCap,
   LuPhone,
+  LuPlay,
   LuShieldCheck,
   LuStar,
   LuUser,
@@ -88,7 +90,15 @@ import {
   VideoIntroEditor,
   VisibilityEditor,
 } from './section-editors.tsx';
-import { ContactSummary, SkillChips, SummaryList, joined, rangeOf } from './section-summaries.tsx';
+import {
+  ContactSummary,
+  SkillChips,
+  SummaryList,
+  durationOf,
+  joined,
+  rangeOf,
+  yearOf,
+} from './section-summaries.tsx';
 
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
 type OpenSection =
@@ -635,7 +645,7 @@ export function ProfileBuilder() {
           disabled={!dirty || uploading}
           className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
         >
-          {uploading ? 'Uploading…' : 'Save'}
+          {uploading ? 'Uploading…' : 'Save section'}
         </Button>
       </>
     );
@@ -837,9 +847,11 @@ export function ProfileBuilder() {
               rows={roles.map((item) => ({
                 key: item.key,
                 primary: item.values.role,
-                secondary: joined(
-                  item.values.organization,
+                secondary: item.values.organization,
+                accentSecondary: true,
+                tertiary: joined(
                   rangeOf(item.values.startDate, item.values.endDate),
+                  durationOf(item.values.startDate, item.values.endDate),
                 ),
                 body: item.values.summary,
               }))}
@@ -852,7 +864,6 @@ export function ProfileBuilder() {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
           <SectionCard
             title="Education"
-            optional
             description="Back up your skills by adding any educational degrees or programs."
             filled={filled.education}
             icon={<LuGraduationCap />}
@@ -867,12 +878,16 @@ export function ProfileBuilder() {
               <SummaryList
                 rows={courses.map((item) => ({
                   key: item.key,
-                  primary: item.values.institution,
-                  secondary: joined(
-                    item.values.qualification,
-                    item.values.fieldOfStudy,
-                    rangeOf(item.values.startDate, item.values.endDate),
-                  ),
+                  // The degree is the thing; the school is where it came from.
+                  // Read in that order on the published profile too, so the two
+                  // screens cannot describe the same entry differently.
+                  primary: joined(item.values.qualification, item.values.fieldOfStudy),
+                  secondary: item.values.institution,
+                  accentSecondary: true,
+                  tertiary:
+                    yearOf(item.values.endDate) === ''
+                      ? ''
+                      : `Graduated ${yearOf(item.values.endDate)}`,
                 }))}
               />
             ) : undefined}
@@ -880,7 +895,6 @@ export function ProfileBuilder() {
 
           <SectionCard
             title="Certifications"
-            optional
             description="Showcase your mastery with certifications earned in your field."
             filled={filled.certifications}
             icon={<LuAward />}
@@ -895,22 +909,17 @@ export function ProfileBuilder() {
               <SummaryList
                 rows={certificates.map((item) => ({
                   key: item.key,
+                  icon: <LuBadgeCheck className="size-5" />,
                   primary: item.values.name,
-                  secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+                  secondary: [item.values.issuer, yearOf(item.values.issued)]
+                    .filter((part) => part.trim() !== '')
+                    .join(' • '),
                   media: <FileThumbnails files={item.files ?? []} />,
                 }))}
               />
             ) : undefined}
           </SectionCard>
         </div>
-
-        <LanguagesSection
-          open={open === 'languages'}
-          action={actionFor('languages', 'languages', ['languages'])}
-          footer={saveFor(['languages'])}
-          languages={draft.languages}
-          onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
-        />
 
         <PortfolioSection
           open={open === 'portfolio'}
@@ -927,7 +936,6 @@ export function ProfileBuilder() {
 
         <SectionCard
           title="Video intro"
-          optional
           description="Record a short video to introduce yourself and make a great first impression."
           filled={filled.videoIntro}
           icon={<LuVideo />}
@@ -942,13 +950,16 @@ export function ProfileBuilder() {
               onChange={(url) => identity.change('videoIntroUrl', url)}
             />
           ) : filled.videoIntro ? (
-            <p className="truncate text-sm text-content-muted">{values.videoIntroUrl}</p>
+            <VideoIntroSummary
+              url={values.videoIntroUrl}
+              onReplace={editMode ? () => toggle('video') : null}
+            />
           ) : undefined}
         </SectionCard>
 
         <SectionCard
-          title="Visibility"
-          description="Control who can see your profile and manage your online presence."
+          title="Visibility and publication"
+          description="Publishing uses only the sections you explicitly mark public. Contact details are never eligible."
           filled
           icon={<LuShieldCheck />}
           editing={open === 'visibility'}
@@ -964,6 +975,14 @@ export function ProfileBuilder() {
             </p>
           )}
         </SectionCard>
+
+        <LanguagesSection
+          open={open === 'languages'}
+          action={actionFor('languages', 'languages', ['languages'])}
+          footer={saveFor(['languages'])}
+          languages={draft.languages}
+          onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
+        />
 
         <SectionCard
           title="Working preferences"
@@ -990,7 +1009,7 @@ export function ProfileBuilder() {
         </SectionCard>
 
         <SectionCard
-          title="Expected rates"
+          title="Expected Rates"
           description="Set a price for each period you quote for. Buyers see only the ones you fill in."
           filled={rateSummary.length > 0}
           icon={<LuCircleDollarSign />}
@@ -1046,6 +1065,46 @@ export function ProfileBuilder() {
             would say the same thing twice in two places. What the page still
             owes is the promise that nothing is lost, which the card under the
             editor makes where the work is. */}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The video as the design draws it: something to press, beside its address.
+ *
+ * No still frame, because there is none to show — a profile stores the address
+ * of the video and nothing else, and fetching a thumbnail would mean asking the
+ * hosting site for it on a page that has no reason to talk to them. The tile is
+ * the way into the video instead of a picture of it, which is also what the
+ * published profile does rather than framing somebody else's player.
+ */
+function VideoIntroSummary({ url, onReplace }: { url: string; onReplace: (() => void) | null }) {
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer ugc"
+        className="group relative flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:w-64"
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-12 items-center justify-center rounded-full bg-surface-inverse text-content-inverse transition-transform group-hover:scale-105"
+        >
+          <LuPlay className="size-5" />
+        </span>
+        <span className="sr-only">Watch the introduction</span>
+      </a>
+
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
+        <p className="min-w-0 text-sm break-all text-content-muted">{url}</p>
+        {onReplace === null ? null : (
+          <Button type="button" variant="secondary" size="sm" onClick={onReplace}>
+            <LuVideo aria-hidden="true" className="size-4" />
+            Replace video
+          </Button>
+        )}
       </div>
     </div>
   );
