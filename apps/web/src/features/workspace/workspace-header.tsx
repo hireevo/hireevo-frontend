@@ -29,7 +29,12 @@ function UtilityButton({ utility }: { utility: (typeof UTILITIES)[number] }) {
     <button
       type="button"
       aria-disabled="true"
-      className="relative flex size-10 cursor-not-allowed items-center justify-center rounded-md text-content-muted"
+      // Quieter than the navigation beside them: these four are drawn because
+      // the design draws them, and none of them does anything yet. The fade is
+      // the same one every disabled control in the design system carries —
+      // `opacity-60` — reached directly because these are `aria-disabled`
+      // rather than `disabled`, so the `disabled:` variant never applies.
+      className="relative flex size-10 cursor-not-allowed items-center justify-center rounded-md text-content-subtle opacity-60"
     >
       <Icon aria-hidden="true" className="size-5" />
       {utility.dot ? (
