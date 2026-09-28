@@ -12,6 +12,8 @@ import {
   type DraftFile,
   type FileGroup,
 } from './upload.ts';
+import { FileTile } from './file-preview.tsx';
+import { MediaThumb } from './media-thumb.tsx';
 
 /**
  * Attaching images and documents to a record — a portfolio piece or a
@@ -119,14 +121,10 @@ export function FileThumbnails({ files }: { files: readonly DraftFile[] }) {
           key={image.objectKey}
           className="block aspect-square overflow-hidden rounded-md bg-surface-muted"
         >
-          {/* Not `next/image`: the source is either object storage, whose host
-              is configuration, or a blob this tab is holding. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image.thumbUrl ?? ''}
+          <MediaThumb
+            src={image.thumbUrl ?? null}
             alt={image.fileName ?? ''}
-            loading="lazy"
-            className="size-full object-cover"
+            fileName={image.fileName ?? null}
           />
         </li>
       ))}
@@ -155,14 +153,10 @@ function Gallery({ images, onRemove }: { images: DraftFile[]; onRemove: (key: st
       {images.map((image) => (
         <li key={image.objectKey} className="group relative">
           <span className="block aspect-square overflow-hidden rounded-md bg-surface-muted">
-            {/* Not `next/image`: the source is either object storage, whose host
-                is configuration, or a blob this tab is holding. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={image.thumbUrl ?? ''}
+            <MediaThumb
+              src={image.thumbUrl ?? null}
               alt={image.fileName ?? ''}
-              loading="lazy"
-              className="size-full object-cover"
+              fileName={image.fileName ?? null}
             />
           </span>
           <button
@@ -176,6 +170,40 @@ function Gallery({ images, onRemove }: { images: DraftFile[]; onRemove: (key: st
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The name of an attached document, and a look at it where there is one.
+ *
+ * A file this tab has only just chosen has no URL until it has been stored, and
+ * pressing a name that cannot open anything is worse than a name that plainly
+ * does not — so the button appears when the file does.
+ */
+function DraftDocumentName({ file }: { file: DraftFile }) {
+  if (file.url === undefined || file.url === null || file.url === '') {
+    return (
+      <>
+        <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+        <span className="min-w-0 flex-1 truncate text-sm text-content">
+          {file.fileName ?? 'Document'}
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <FileTile
+      file={{
+        kind: 'document',
+        url: file.url,
+        thumbUrl: file.thumbUrl ?? null,
+        objectKey: file.objectKey,
+        fileName: file.fileName ?? null,
+      }}
+      fallbackName="Document"
+      className="min-w-0 flex-1 border-0 px-0 py-0 hover:border-0"
+    />
   );
 }
 
@@ -195,10 +223,7 @@ function Documents({
           key={document.objectKey}
           className="flex min-w-0 items-center gap-3 rounded-md border border-border-subtle px-3 py-2"
         >
-          <LuFileText aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
-          <span className="min-w-0 flex-1 truncate text-sm text-content">
-            {document.fileName ?? 'Document'}
-          </span>
+          <DraftDocumentName file={document} />
           <span className="shrink-0 text-xs text-content-subtle">
             {megabytes(document.byteSize)}
           </span>

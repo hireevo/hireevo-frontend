@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { LuExternalLink, LuGlobe, LuMapPin, LuShare2 } from 'react-icons/lu';
 import { Button, Card, Chip, buttonVariants, cn } from '@hireevo/ui-web';
 import { IDENTITY_LIMITS } from '@/features/profile-setup/limits.ts';
@@ -97,6 +97,14 @@ export type ProfileHeaderCardProps = {
    */
   editable: boolean;
   onChange: (patch: Partial<ProfileDraft>) => void;
+  /**
+   * What sits inside this card under the identity row — the contact details.
+   *
+   * Inside rather than in a card of its own, because that is where the design
+   * puts them: who you are and how to reach you are one block, and the details
+   * are the only part of it that is never published.
+   */
+  children?: ReactNode;
 };
 
 export function ProfileHeaderCard({
@@ -106,6 +114,7 @@ export function ProfileHeaderCard({
   published,
   editable,
   onChange,
+  children,
 }: ProfileHeaderCardProps) {
   /**
    * Only the starred ones sit beside the name.
@@ -122,87 +131,91 @@ export function ProfileHeaderCard({
     // Wraps only below `sm`, where three columns leave none of them usable.
     // From there the row holds: photo, details, and the two public controls in
     // the corner the design puts them in.
-    <Card
-      aria-labelledby="profile-identity"
-      className="flex flex-wrap items-start gap-x-6 gap-y-4 sm:flex-nowrap"
-    >
-      <AvatarPicker
-        url={draft.avatarUrl}
-        editable={editable}
-        onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
-      />
+    <Card aria-labelledby="profile-identity" className="border-border-accent-subtle">
+      {/* Wraps only below `sm`, where three columns leave none of them usable.
+          From there the row holds: photo, details, and the two public controls
+          in the corner the design puts them in. */}
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-4 sm:flex-nowrap">
+        <AvatarPicker
+          url={draft.avatarUrl}
+          editable={editable}
+          onChange={(photo) => onChange({ avatarUrl: photo.url, avatarKey: photo.key })}
+        />
 
-      {/* `min-w-0` so this column gives way to the corner's controls rather
+        {/* `min-w-0` so this column gives way to the corner's controls rather
           than pushing them onto a line of their own. */}
-      <div className="min-w-0 flex-1">
-        <h2 id="profile-identity" className="sr-only">
-          Your name and details
-        </h2>
+        <div className="min-w-0 flex-1">
+          <h2 id="profile-identity" className="sr-only">
+            Your name and details
+          </h2>
 
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
-          <InlineEdit
-            value={draft.displayName}
-            placeholder="Add display name"
-            label="Edit display name"
-            maxLength={IDENTITY_LIMITS.displayName}
-            onSave={(displayName) => onChange({ displayName })}
-            editable={editable}
-            className="-ml-2 text-[1.375rem] leading-8 font-bold"
-          />
-          {username === null ? null : (
-            <span className="text-base text-content-subtle">@{username}</span>
-          )}
-        </div>
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
+            <InlineEdit
+              value={draft.displayName}
+              placeholder="Add display name"
+              label="Edit display name"
+              maxLength={IDENTITY_LIMITS.displayName}
+              onSave={(displayName) => onChange({ displayName })}
+              editable={editable}
+              className="-ml-2 text-[1.375rem] leading-8 font-bold"
+            />
+            {username === null ? null : (
+              <span className="text-base text-content-subtle">@{username}</span>
+            )}
+          </div>
 
-        {/* Its own row, from a wrapper rather than from `block` on the control
+          {/* Its own row, from a wrapper rather than from `block` on the control
             itself: the control lays its text and its pencil out as a flex row,
             and a `display` passed in here replaces that one. It did, so the
             pencil stopped being a flex item and wrapped onto a line of its own
             as soon as the title was long enough to fill the first. */}
-        <div className="mt-0.5">
-          <InlineEdit
-            value={draft.title}
-            placeholder="Add title"
-            label="Edit professional title"
-            maxLength={IDENTITY_LIMITS.headline}
-            onSave={(title) => onChange({ title })}
-            editable={editable}
-            className="-ml-2 text-sm text-content-muted"
-          />
-        </div>
+          <div className="mt-0.5">
+            <InlineEdit
+              value={draft.title}
+              placeholder="Add title"
+              label="Edit professional title"
+              maxLength={IDENTITY_LIMITS.headline}
+              onSave={(title) => onChange({ title })}
+              editable={editable}
+              className="-ml-2 text-sm text-content-muted"
+            />
+          </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="inline-flex items-center gap-1 text-sm text-content-muted">
-            <LuMapPin aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
-            {/* The frame shows "Pakistan" with no edit control, which implies it
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="inline-flex items-center gap-1 text-sm text-content-muted">
+              <LuMapPin aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+              {/* The frame shows "Pakistan" with no edit control, which implies it
                 is derived from the account. Nothing on the account carries a
                 country yet, so it is filled in here rather than left blank with
                 no way to set it. */}
-            <InlineEdit
-              value={draft.country}
-              placeholder="Add location"
-              label="Edit location"
-              maxLength={56}
-              onSave={(country) => onChange({ country })}
-              editable={editable}
-              className="-mx-1 px-1"
-            />
-          </span>
-
-          {starred.length === 0 ? null : (
-            <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
-              <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
-              {starred.map((language) => (
-                <Chip key={language.name}>
-                  {language.name} &middot; {language.proficiency}
-                </Chip>
-              ))}
+              <InlineEdit
+                value={draft.country}
+                placeholder="Add location"
+                label="Edit location"
+                maxLength={56}
+                onSave={(country) => onChange({ country })}
+                editable={editable}
+                className="-mx-1 px-1"
+              />
             </span>
-          )}
+
+            {starred.length === 0 ? null : (
+              <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
+                <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+                {starred.map((language) => (
+                  <Chip key={language.name}>
+                    {language.name} &middot; {language.proficiency}
+                  </Chip>
+                ))}
+              </span>
+            )}
+          </div>
         </div>
+
+        <PublicLinks slug={slug} published={published} />
       </div>
 
-      <PublicLinks slug={slug} published={published} />
+      {children === undefined ? null : <div className="mt-6">{children}</div>}
     </Card>
   );
 }

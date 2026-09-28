@@ -5,11 +5,8 @@ import { Badge, Button, Card, ProgressRing, buttonVariants, cn } from '@hireevo/
 import { EYEBROW } from './layout.ts';
 import type { ProfileStrength } from './types.ts';
 
-/** The button at the foot of the card, whether it navigates or acts in place. */
-const ACTION = 'mt-6 h-11 rounded-lg font-semibold';
-
-/** Directly under the first, so the two read as one pair rather than two rows. */
-const SECONDARY_ACTION = 'mt-3 h-11 rounded-lg font-semibold';
+/** Either button at the foot of the card, whether it navigates or acts in place. */
+const ACTION = 'h-11 rounded-lg font-semibold';
 
 export function ProfileStrengthCard({
   strength,
@@ -26,13 +23,20 @@ export function ProfileStrengthCard({
 }) {
   const headingId = useId();
   const { percent, done, total } = strength;
-  const blurb = 'A stronger profile ranks higher and wins more briefs.';
+  const complete = percent === 100;
+  // A finished profile is told what it has earned rather than what it could
+  // still do, which is what the design writes into this card.
+  const blurb = complete
+    ? 'Every section is complete — you’ll rank higher and win more briefs.'
+    : 'A stronger profile ranks higher and wins more briefs.';
 
   return (
     <Card aria-labelledby={headingId} className="border-l-4 border-border-accent p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className={EYEBROW}>Profile strength</p>
-        {strength.label === null ? null : <Badge icon={<LuZap />}>{strength.label}</Badge>}
+        {strength.label === null ? null : (
+          <Badge icon={complete ? <LuCheck /> : <LuZap />}>{strength.label}</Badge>
+        )}
       </div>
 
       <div className="mt-5 flex items-center gap-4">
@@ -40,18 +44,18 @@ export function ProfileStrengthCard({
           value={percent}
           label="Profile strength"
           valueText={`${percent} percent complete, ${done} of ${total} steps done`}
-          size={compact ? 72 : 92}
+          size={compact ? 84 : 92}
           thickness={compact ? 6 : 7}
         >
           <span
             className={cn(
               'leading-none font-bold text-content-accent',
-              compact ? 'text-xl' : 'text-2xl',
+              compact ? 'text-lg' : 'text-2xl',
             )}
           >
             {percent}%
           </span>
-          <span className="mt-1 text-xs text-content-subtle">complete</span>
+          <span className="mt-0.5 text-[0.625rem] text-content-subtle">complete</span>
         </ProgressRing>
         <div className="min-w-0">
           <h2
@@ -101,66 +105,62 @@ export function ProfileStrengthCard({
               {item.label}
               <span className="sr-only">{item.done ? ', done' : ', to do'}</span>
             </span>
-            {item.done ? null : (
-              <span
-                aria-hidden="true"
-                className="shrink-0 text-xs font-medium tracking-wide text-content-warning uppercase"
-              >
-                To do
-              </span>
-            )}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'shrink-0 text-xs font-medium tracking-wide uppercase',
+                item.done ? 'text-content-link' : 'text-content-warning',
+              )}
+            >
+              {item.done ? 'Done' : 'To do'}
+            </span>
           </li>
         ))}
       </ul>
 
-      {'href' in strength.action ? (
-        <Link
-          href={strength.action.href}
-          className={cn(
-            buttonVariants({ variant: 'primary', size: 'md', fullWidth: true }),
-            ACTION,
-          )}
-        >
-          {strength.action.label}
-          <LuArrowRight aria-hidden="true" className="size-4" />
-        </Link>
-      ) : (
-        <Button
-          type="button"
-          fullWidth
-          onClick={strength.action.onClick}
-          disabled={strength.action.disabled ?? false}
-          className={ACTION}
-        >
-          {strength.action.label}
-          <LuArrowRight aria-hidden="true" className="size-4" />
-        </Button>
-      )}
+      {/* Side by side, as the design draws them, and stacked when the column is
+          too narrow for two. The arrow sits on publishing because that is the
+          step out of this page; editing stays the quieter of the pair. */}
+      <div className="mt-6 flex flex-wrap gap-3 *:min-w-28 *:flex-1 *:basis-0">
+        {'href' in strength.action ? (
+          <Link
+            href={strength.action.href}
+            className={cn(buttonVariants({ variant: 'secondary', size: 'md' }), ACTION)}
+          >
+            {strength.action.label}
+          </Link>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={strength.action.onClick}
+            disabled={strength.action.disabled ?? false}
+            className={ACTION}
+          >
+            {strength.action.label}
+          </Button>
+        )}
 
-      {/* No arrow on this one, and a quieter variant: it is the same card's
-          second choice, not a second way forward. */}
-      {strength.secondaryAction === undefined ? null : 'href' in strength.secondaryAction ? (
-        <Link
-          href={strength.secondaryAction.href}
-          className={cn(
-            buttonVariants({ variant: 'secondary', size: 'md', fullWidth: true }),
-            SECONDARY_ACTION,
-          )}
-        >
-          {strength.secondaryAction.label}
-        </Link>
-      ) : (
-        <Button
-          type="button"
-          variant="secondary"
-          fullWidth
-          onClick={strength.secondaryAction.onClick}
-          disabled={strength.secondaryAction.disabled ?? false}
-          className={SECONDARY_ACTION}
-        >
-          {strength.secondaryAction.label}
-        </Button>
-      )}
+        {strength.secondaryAction === undefined ? null : 'href' in strength.secondaryAction ? (
+          <Link
+            href={strength.secondaryAction.href}
+            className={cn(buttonVariants({ variant: 'primary', size: 'md' }), ACTION)}
+          >
+            {strength.secondaryAction.label}
+            <LuArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        ) : (
+          <Button
+            type="button"
+            onClick={strength.secondaryAction.onClick}
+            disabled={strength.secondaryAction.disabled ?? false}
+            className={ACTION}
+          >
+            {strength.secondaryAction.label}
+            <LuArrowRight aria-hidden="true" className="size-4" />
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }

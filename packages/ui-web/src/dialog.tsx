@@ -2,24 +2,33 @@
 
 import { useEffect, useId, useRef } from 'react';
 import { LuX } from 'react-icons/lu';
+import { cn } from './cn.ts';
 
 /**
- * The box a settings row opens when its Edit is used.
+ * A modal box, with the parts nobody rewrites correctly the second time.
  *
- * One dialog rather than one per row: the parts that have to be right are the
- * parts nobody rewrites correctly the second time — focus moving into the box
- * and being kept there, Escape and the backdrop both closing it, the page
- * behind it not scrolling, and focus returning to the control that opened it
- * (§6.8). A row supplies a title and its contents; everything else is here.
+ * One dialog for the whole app rather than one per caller: focus moving into
+ * the box and being kept there, Escape and the backdrop both closing it, the
+ * page behind it not scrolling, and focus returning to the control that opened
+ * it (§6.8). A caller supplies a title and its contents; everything else is
+ * here. It lives in the design system because the third copy of this logic is
+ * the one that quietly gets a detail wrong (§8.4).
  */
-export function SettingsDialog({
+export function Dialog({
   title,
   description,
+  size = 'form',
   onClose,
   children,
 }: {
   title: string;
   description?: string;
+  /**
+   * How wide the box may grow. `form` is the width a few fields read well at;
+   * `wide` is for content that is the point of the box rather than a control —
+   * a document or a photograph, which a 460px column would shrink to nothing.
+   */
+  size?: 'form' | 'wide';
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -100,7 +109,10 @@ export function SettingsDialog({
             aria-modal="true"
             aria-labelledby={titleId}
             {...(description === undefined ? {} : { 'aria-describedby': descriptionId })}
-            className="relative flex w-full max-w-[460px] min-w-0 flex-col rounded-xl border border-border-subtle bg-surface p-6 shadow-lg sm:p-7"
+            className={cn(
+              'relative flex w-full min-w-0 flex-col rounded-xl border border-border-subtle bg-surface p-6 shadow-lg sm:p-7',
+              size === 'wide' ? 'max-w-[900px]' : 'max-w-[460px]',
+            )}
           >
             <div className="flex min-w-0 items-start justify-between gap-4">
               <div className="min-w-0">

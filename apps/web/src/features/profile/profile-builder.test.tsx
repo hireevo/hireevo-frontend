@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RATE_CURRENCY } from '@/features/profile-setup/api.ts';
@@ -241,7 +241,7 @@ describe('ProfileBuilder', () => {
     // name is text here and gains its pencil only in edit mode.
     expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
-    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 7 steps done');
+    expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
     expect(calls.save).not.toHaveBeenCalled();
   });
 
@@ -260,7 +260,9 @@ describe('ProfileBuilder', () => {
     });
     await open();
 
-    expect(await screen.findByText('German · Fluent')).toBeInTheDocument();
+    const german = await screen.findByText('German');
+    expect(german).toBeInTheDocument();
+    expect(german.parentElement).toHaveTextContent('German— Fluent');
     expect(screen.getByText('Austria')).toBeInTheDocument();
     expect(section(/Skills and expertise/).getByText('Service design')).toBeInTheDocument();
     // Filling the page in from the server is not work to send back.
@@ -1050,6 +1052,51 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
+  it('shows every picture attached to a piece, not only the one on the tile', async () => {
+    const image = (index: number) => ({
+      kind: 'image' as const,
+      url: `https://storage.test/full-${index}.png`,
+      thumbUrl: `https://storage.test/thumb-${index}.png`,
+      objectKey: `obj-${index}`,
+      thumbKey: `thumb-${index}`,
+      contentType: 'image/png',
+      byteSize: 1024,
+      width: 800,
+      height: 600,
+      fileName: `shot-${index}.png`,
+    });
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              files: [1, 2, 3, 4].map(image),
+            },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    // Somebody who attached four pictures came back to a page showing one of
+    // them and a badge counting the rest. All four are the work.
+    const shown = await section(/Portfolio/).findAllByRole('img');
+    expect(shown).toHaveLength(4);
+    expect(shown.map((img) => img.getAttribute('src'))).toEqual([
+      'https://storage.test/thumb-1.png',
+      'https://storage.test/thumb-2.png',
+      'https://storage.test/thumb-3.png',
+      'https://storage.test/thumb-4.png',
+    ]);
+    // Named once, on the first, rather than four times over.
+    expect(section(/Portfolio/).getAllByText('Checkout redesign')).toHaveLength(1);
+  });
+
   it('shows a preview of a portfolio piece’s images, not a count of them', async () => {
     calls.load.mockResolvedValue({
       ok: true,
@@ -1082,9 +1129,11 @@ describe('ProfileBuilder', () => {
     });
     await open();
 
-    // The closed section shows the image itself, not the words "1 image".
-    const preview = await section(/Portfolio/).findByRole('img', { name: 'checkout.png' });
+    // The closed section shows the work itself, not the words "1 image": one
+    // tile a piece, carrying its cover and its name.
+    const preview = await section(/Portfolio/).findByRole('img', { name: 'Checkout redesign' });
     expect(preview).toHaveAttribute('src', 'https://storage.test/thumb.png');
+    expect(section(/Portfolio/).getByText('Checkout redesign')).toBeInTheDocument();
     expect(section(/Portfolio/).queryByText(/\bimage\b/)).not.toBeInTheDocument();
   });
 
@@ -1131,17 +1180,19 @@ describe('ProfileBuilder', () => {
 
     expect(screen.getByRole('region', { name: /Video intro/ })).toBeInTheDocument();
     expect(section(/Visibility/).getByText(/Private/)).toBeInTheDocument();
-    expect(section(/Expected rates/).getByText('No rates set yet.')).toBeInTheDocument();
+    expect(section(/Expected Rates/).getByText('No rates set yet.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
-    const rates = section(/Expected rates/);
+    const rates = section(/Expected Rates/);
     // A box per period, so somebody who charges by the hour for small jobs and
     // by the month for a retainer can say both.
-    await user.type(await rates.findByLabelText('Per hour'), '85');
-    await user.type(rates.getByLabelText('Per month'), '5200');
+    await user.type(await rates.findByLabelText('Hourly rate'), '85');
+    await user.type(rates.getByLabelText('Monthly rate'), '5200');
 
-    expect(rates.getByLabelText('Per hour')).toHaveValue('85');
-    expect(rates.getByLabelText('Per month')).toHaveValue('5200');
+    expect(rates.getByLabelText('Hourly rate')).toHaveValue('85');
+    expect(rates.getByLabelText('Monthly rate')).toHaveValue('5200');
+    // Both are offered now, and the card says so in the words the design uses.
+    expect(rates.getByText('2 rates enabled')).toBeInTheDocument();
   });
 
   /**
@@ -1149,13 +1200,29 @@ describe('ProfileBuilder', () => {
    * the two are a hundred apart. It used to be typed in minor units behind a
    * "$", so anyone who typed what they charge priced their week at 85 cents.
    */
+  it('wakes Save on the first change to a price, not the second', async () => {
+    const user = await openForEditing();
+    await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
+    const rates = section(/Expected Rates/);
+    const save = rates.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+
+    // One event, the way a paste or a single keystroke arrives. The prices used
+    // to be read from the render that had just been replaced, so the first
+    // change left Save asleep and only a second one woke it — which meant a
+    // price typed once and saved was a price that never left the page.
+    fireEvent.change(await rates.findByLabelText('Hourly rate'), { target: { value: '45' } });
+
+    await waitFor(() => expect(save).toBeEnabled());
+  });
+
   it('sends every price as minor units, not as the numbers that were typed', async () => {
     const user = await openForEditing();
 
     await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
-    const rates = section(/Expected rates/);
-    await user.type(await rates.findByLabelText('Per month'), '85.50');
-    await user.type(rates.getByLabelText('Per hour'), '45');
+    const rates = section(/Expected Rates/);
+    await user.type(await rates.findByLabelText('Monthly rate'), '85.50');
+    await user.type(rates.getByLabelText('Hourly rate'), '45');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     // Shortest period first, whatever order the boxes were filled in: that is

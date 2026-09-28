@@ -4,11 +4,13 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   LuAward,
+  LuBadgeCheck,
   LuBriefcaseBusiness,
   LuCircleDollarSign,
   LuClock,
   LuGraduationCap,
   LuPhone,
+  LuPlay,
   LuShieldCheck,
   LuStar,
   LuUser,
@@ -73,7 +75,9 @@ import {
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
-import { uploadsInFlight, watchUploads } from '@/features/media/upload.ts';
+import { uploadsInFlight, watchUploads, type DraftFile } from '@/features/media/upload.ts';
+import { MediaThumb } from '@/features/media/media-thumb.tsx';
+import { videoThumbnail } from './video-url.ts';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
 import type { SavePart } from '@/features/profile-setup/use-profile-draft.ts';
@@ -90,7 +94,15 @@ import {
   VideoIntroEditor,
   VisibilityEditor,
 } from './section-editors.tsx';
-import { ContactSummary, SkillChips, SummaryList, joined, rangeOf } from './section-summaries.tsx';
+import {
+  ContactSummary,
+  SkillChips,
+  SummaryList,
+  durationOf,
+  joined,
+  rangeOf,
+  yearOf,
+} from './section-summaries.tsx';
 
 /** Which section is open. One at a time: two long forms at once is a page nobody reads. */
 type OpenSection =
@@ -176,7 +188,21 @@ export function ProfileBuilder() {
    * lists are — sent whole with the next save — and because what the browser
    * kept is newer than what the server holds.
    */
-  const [rates, setRates] = useState<RateValue[]>(stored?.rates ?? []);
+  const [rates, setRatesState] = useState<RateValue[]>(stored?.rates ?? []);
+  /**
+   * The prices as they are *now*, not as of the last render.
+   *
+   * `touch` asks what the section holds the moment something changes, and a
+   * getter closed over state answers with the render that has just been
+   * replaced — so the first change to a rate left Save disabled and only the
+   * second one woke it up. The contact fields are held this way for the same
+   * reason; rates were not, and this is what that cost.
+   */
+  const latestRates = useRef(rates);
+  const setRates = useCallback((next: RateValue[]) => {
+    latestRates.current = next;
+    setRatesState(next);
+  }, []);
   const [open, setOpen] = useState<OpenSection>(null);
   const contact = useContactValues();
   const params = useSearchParams();
@@ -228,7 +254,7 @@ export function ProfileBuilder() {
     [languages, portfolio, skills.items, experience.items, education.items, licenses.items],
   );
 
-  const collectRates = useCallback(() => rates, [rates]);
+  const collectRates = useCallback(() => latestRates.current, []);
 
   const identity = useProfileDraft({
     autosave: false,
@@ -299,6 +325,8 @@ export function ProfileBuilder() {
   const sent = useRef('');
   /** Whether the draft this browser opened on has been measured against the server yet. */
   const judged = useRef(stored === null);
+  /** Whether the kept draft's files have been given the server's addresses. */
+  const addressed = useRef(stored === null);
   const { profile, rebaseline, touch } = identity;
 
   useEffect(() => {
@@ -324,6 +352,52 @@ export function ProfileBuilder() {
         if (userId !== null) clearDraft(userId);
         window.location.reload();
         return;
+      }
+    }
+
+    /*
+     * A kept draft knows which files are attached; the server knows where they
+     * are. The preview a file showed from when it was chosen belonged to the
+     * page that chose it, so it is gone by the next visit — and the draft is
+     * deliberately not keeping it any more. Once the profile arrives, every
+     * file it recognises takes its real addresses back, which is how six
+     * attached pictures stop being six empty tiles.
+     */
+    if (!addressed.current) {
+      addressed.current = true;
+      const saved = new Map<string, { url: string; thumbUrl: string | null }>();
+      for (const piece of profile.sections.portfolio) {
+        for (const file of piece.files) saved.set(file.objectKey, file);
+      }
+      for (const certificate of profile.sections.licenses) {
+        for (const file of certificate.files) saved.set(file.objectKey, file);
+      }
+
+      // A `blob:` address counts as no address: drafts written before this
+      // change kept them, and they died with the page that made them.
+      const usable = (address?: string | null) =>
+        address !== undefined && address !== null && address !== '' && !address.startsWith('blob:');
+
+      const addressOf = (files: readonly DraftFile[]): DraftFile[] =>
+        files.map((file) => {
+          const known = saved.get(file.objectKey);
+          if (known === undefined || usable(file.thumbUrl) || usable(file.url)) return file;
+          return { ...file, url: known.url, thumbUrl: known.thumbUrl };
+        });
+
+      setDraft((current) => ({
+        ...current,
+        records: {
+          ...current.records,
+          portfolio: current.records.portfolio.map((piece) => ({
+            ...piece,
+            files: addressOf(piece.files ?? []),
+          })),
+        },
+      }));
+      for (const entry of licenses.items) {
+        if ((entry.files ?? []).length > 0)
+          licenses.setFiles(entry.key, addressOf(entry.files ?? []));
       }
     }
 
@@ -469,7 +543,12 @@ export function ProfileBuilder() {
     const { displayName, title, avatarKey, country, ...rest } = patch;
     if (displayName !== undefined) identity.change('displayName', displayName);
     if (title !== undefined) identity.change('headline', title);
-    if (avatarKey !== undefined) identity.change('avatarKey', avatarKey);
+    if (avatarKey !== undefined) {
+      identity.change('avatarKey', avatarKey);
+      // Straight away: see the note on the `avatar` group. `change` writes the
+      // value where the save reads it from before this line runs.
+      void identity.flush(['avatar']);
+    }
     if (country !== undefined) {
       // The field takes a country's name; the profile stores its code. A name
       // that is not one of them clears the code rather than saving something
@@ -701,7 +780,38 @@ export function ProfileBuilder() {
         slug={identity.profile?.slug ?? null}
         editable={editMode}
         onChange={patchHeader}
-      />
+      >
+        {/* Above About, where the design puts it, and never on the published
+              page: these go to the profile's private row, which the public
+              serializer is never given. The card says so, because a form asking
+              for two phone numbers should say where they end up. */}
+        <SectionCard
+          title="Contact Details"
+          description="How clients reach you once you agree to talk. Kept private — never shown on your public profile."
+          filled={contactFilled}
+          icon={<LuPhone />}
+          editing={open === 'contact'}
+          action={actionFor('contact', 'contact details', ['contact'])}
+          footer={saveFor(['contact'])}
+        >
+          {open === 'contact' ? (
+            <ContactEditor
+              values={contact.values}
+              fieldErrors={identity.fieldErrors}
+              onChange={(field, value) => {
+                contact.change(field, value);
+                // The draft holds these beside itself rather than inside, so it
+                // has to be told: without this its idea of what is unsaved never
+                // includes them, and the section's Save stays disabled while the
+                // fields fill up.
+                identity.touch();
+              }}
+            />
+          ) : contactFilled ? (
+            <ContactSummary values={contact.values} />
+          ) : undefined}
+        </SectionCard>
+      </ProfileHeaderCard>
 
       {/* After the header in the markup, so a phone meets the profile before
           the summary of it, and beside both rows from `lg`. */}
@@ -768,37 +878,6 @@ export function ProfileBuilder() {
       </div>
 
       <div className="flex min-w-0 flex-col gap-5 lg:col-start-1">
-        {/* Above About, where the design puts it, and never on the published
-            page: these go to the profile's private row, which the public
-            serializer is never given. The card says so, because a form asking
-            for two phone numbers should say where they end up. */}
-        <SectionCard
-          title="Contact Details"
-          description="How clients reach you once you agree to talk. Kept private — never shown on your public profile."
-          filled={contactFilled}
-          icon={<LuPhone />}
-          editing={open === 'contact'}
-          action={actionFor('contact', 'contact details', ['contact'])}
-          footer={saveFor(['contact'])}
-        >
-          {open === 'contact' ? (
-            <ContactEditor
-              values={contact.values}
-              fieldErrors={identity.fieldErrors}
-              onChange={(field, value) => {
-                contact.change(field, value);
-                // The draft holds these beside itself rather than inside, so it
-                // has to be told: without this its idea of what is unsaved never
-                // includes them, and the section's Save stays disabled while the
-                // fields fill up.
-                identity.touch();
-              }}
-            />
-          ) : contactFilled ? (
-            <ContactSummary values={contact.values} />
-          ) : undefined}
-        </SectionCard>
-
         <SectionCard
           title="About"
           description="Share some details about yourself, your expertise, and what you offer."
@@ -854,9 +933,11 @@ export function ProfileBuilder() {
               rows={roles.map((item) => ({
                 key: item.key,
                 primary: item.values.role,
-                secondary: joined(
-                  item.values.organization,
+                secondary: item.values.organization,
+                accentSecondary: true,
+                tertiary: joined(
                   rangeOf(item.values.startDate, item.values.endDate),
+                  durationOf(item.values.startDate, item.values.endDate),
                 ),
                 body: item.values.summary,
               }))}
@@ -869,7 +950,6 @@ export function ProfileBuilder() {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
           <SectionCard
             title="Education"
-            optional
             description="Back up your skills by adding any educational degrees or programs."
             filled={filled.education}
             icon={<LuGraduationCap />}
@@ -882,14 +962,19 @@ export function ProfileBuilder() {
               <EducationEditor education={education} heading={false} />
             ) : filled.education ? (
               <SummaryList
+                variant="ruled"
                 rows={courses.map((item) => ({
                   key: item.key,
-                  primary: item.values.institution,
-                  secondary: joined(
-                    item.values.qualification,
-                    item.values.fieldOfStudy,
-                    rangeOf(item.values.startDate, item.values.endDate),
-                  ),
+                  // The degree is the thing; the school is where it came from.
+                  // Read in that order on the published profile too, so the two
+                  // screens cannot describe the same entry differently.
+                  primary: joined(item.values.qualification, item.values.fieldOfStudy),
+                  secondary: item.values.institution,
+                  accentSecondary: true,
+                  tertiary:
+                    yearOf(item.values.endDate) === ''
+                      ? ''
+                      : `Graduated ${yearOf(item.values.endDate)}`,
                 }))}
               />
             ) : undefined}
@@ -897,7 +982,6 @@ export function ProfileBuilder() {
 
           <SectionCard
             title="Certifications"
-            optional
             description="Showcase your mastery with certifications earned in your field."
             filled={filled.certifications}
             icon={<LuAward />}
@@ -910,24 +994,20 @@ export function ProfileBuilder() {
               <LicenseEditor licenses={licenses} heading={false} />
             ) : filled.certifications ? (
               <SummaryList
+                variant="ruled"
                 rows={certificates.map((item) => ({
                   key: item.key,
+                  icon: <LuBadgeCheck className="size-5" />,
                   primary: item.values.name,
-                  secondary: joined(item.values.issuer, rangeOf(item.values.issued, '')),
+                  secondary: [item.values.issuer, yearOf(item.values.issued)]
+                    .filter((part) => part.trim() !== '')
+                    .join(' • '),
                   media: <FileThumbnails files={item.files ?? []} />,
                 }))}
               />
             ) : undefined}
           </SectionCard>
         </div>
-
-        <LanguagesSection
-          open={open === 'languages'}
-          action={actionFor('languages', 'languages', ['languages'])}
-          footer={saveFor(['languages'])}
-          languages={draft.languages}
-          onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
-        />
 
         <PortfolioSection
           open={open === 'portfolio'}
@@ -944,7 +1024,6 @@ export function ProfileBuilder() {
 
         <SectionCard
           title="Video intro"
-          optional
           description="Record a short video to introduce yourself and make a great first impression."
           filled={filled.videoIntro}
           icon={<LuVideo />}
@@ -959,13 +1038,16 @@ export function ProfileBuilder() {
               onChange={(url) => identity.change('videoIntroUrl', url)}
             />
           ) : filled.videoIntro ? (
-            <p className="truncate text-sm text-content-muted">{values.videoIntroUrl}</p>
+            <VideoIntroSummary
+              url={values.videoIntroUrl}
+              onReplace={editMode ? () => toggle('video') : null}
+            />
           ) : undefined}
         </SectionCard>
 
         <SectionCard
-          title="Visibility"
-          description="Control who can see your profile and manage your online presence."
+          title="Visibility and publication"
+          description="Publishing uses only the sections you explicitly mark public. Contact details are never eligible."
           filled
           icon={<LuShieldCheck />}
           editing={open === 'visibility'}
@@ -981,6 +1063,14 @@ export function ProfileBuilder() {
             </p>
           )}
         </SectionCard>
+
+        <LanguagesSection
+          open={open === 'languages'}
+          action={actionFor('languages', 'languages', ['languages'])}
+          footer={saveFor(['languages'])}
+          languages={draft.languages}
+          onChange={(languages) => setDraft((current) => ({ ...current, languages }))}
+        />
 
         <SectionCard
           title="Working preferences"
@@ -1007,7 +1097,7 @@ export function ProfileBuilder() {
         </SectionCard>
 
         <SectionCard
-          title="Expected rates"
+          title="Expected Rates"
           description="Set a price for each period you quote for. Buyers see only the ones you fill in."
           filled={rateSummary.length > 0}
           icon={<LuCircleDollarSign />}
@@ -1063,6 +1153,57 @@ export function ProfileBuilder() {
             would say the same thing twice in two places. What the page still
             owes is the promise that nothing is lost, which the card under the
             editor makes where the work is. */}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The video as the design draws it: its own frame, with something to press.
+ *
+ * YouTube's still frame is built from the video's id, so it costs one image
+ * request and no interrogation of anyone. Every other host would need an API
+ * call to find out, and a page has no business making one to draw a picture —
+ * so those keep the plain tile. Either way this is a link out rather than an
+ * embedded player: the published profile sends a visitor to the video instead
+ * of framing somebody else's, and the editor says the same thing.
+ */
+function VideoIntroSummary({ url, onReplace }: { url: string; onReplace: (() => void) | null }) {
+  const frame = videoThumbnail(url);
+
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer ugc"
+        className="group relative flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:w-64"
+      >
+        {/* Behind the button and filling the tile, so the play mark sits over
+            the middle of the picture rather than beside it. YouTube's frame is
+            4:3 and the tile is 16:9, so it is cropped rather than letterboxed. */}
+        {frame === null ? null : (
+          <span className="absolute inset-0">
+            <MediaThumb src={frame} alt="" />
+          </span>
+        )}
+        <span
+          aria-hidden="true"
+          className="relative flex size-12 items-center justify-center rounded-full bg-surface-inverse text-content-inverse transition-transform group-hover:scale-105"
+        >
+          <LuPlay className="size-5" />
+        </span>
+        <span className="sr-only">Watch the introduction</span>
+      </a>
+
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
+        <p className="min-w-0 text-sm break-all text-content-muted">{url}</p>
+        {onReplace === null ? null : (
+          <Button type="button" variant="secondary" size="sm" onClick={onReplace}>
+            <LuVideo aria-hidden="true" className="size-4" />
+            Replace video
+          </Button>
+        )}
       </div>
     </div>
   );

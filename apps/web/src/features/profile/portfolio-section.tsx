@@ -5,10 +5,11 @@ import { LuImages, LuTrash2 } from 'react-icons/lu';
 import { TextField } from '@hireevo/ui-web';
 import type { DraftFile } from '@/features/media/upload.ts';
 import { AddButton } from './add-button.tsx';
-import { AttachmentsEditor, FileThumbnails, documentCount } from '@/features/media/attachments.tsx';
+import { AttachmentsEditor } from '@/features/media/attachments.tsx';
+import { FileDocuments } from '@/features/media/file-gallery.tsx';
+import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import type { ProfileRecord } from './draft.ts';
 import { SectionCard } from './section-card.tsx';
-import { SummaryList } from './section-summaries.tsx';
 
 export type PortfolioSectionProps = {
   records: ProfileRecord[];
@@ -45,7 +46,6 @@ export function PortfolioSection({
   return (
     <SectionCard
       title="Portfolio"
-      optional
       description="Showcase your best work to attract potential clients."
       filled={records.length > 0}
       icon={<LuImages />}
@@ -56,15 +56,7 @@ export function PortfolioSection({
     >
       {!open ? (
         records.length === 0 ? undefined : (
-          <SummaryList
-            rows={records.map((record) => ({
-              key: record.id,
-              primary: record.fields.title ?? '',
-              secondary: describe(record),
-              body: record.fields.summary ?? '',
-              media: <FileThumbnails files={record.files ?? []} />,
-            }))}
-          />
+          <PieceTiles records={records} />
         )
       ) : (
         <div className="flex flex-col gap-4">
@@ -91,21 +83,87 @@ export function PortfolioSection({
 }
 
 /**
- * What a closed section says about a piece: its link, and any documents.
+ * The closed section: every picture attached to the work, its name across the
+ * first of them.
  *
- * Images are not counted here — the closed piece shows their previews (see
- * FileThumbnails), which say more than "1 image" ever could. Documents have no
- * preview, so they are still named.
+ * The design draws the portfolio as work rather than as a list — a row of
+ * covers, each captioned — which is how anyone reads a portfolio and how the
+ * published profile shows it too.
+ *
+ * The documents follow the grid rather than sitting on a tile. A case study is
+ * a thing to open, not a thing to look at, and a tile is too small to say which
+ * file it is; listing them keeps every attachment reachable from the closed
+ * section (§6.7) instead of only from inside the editor.
  */
-function describe(record: ProfileRecord): string {
-  const documents = documentCount(record.files ?? []);
+function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
+  // Only the ones that have been stored: a file chosen a moment ago has no
+  // address to open yet, and a row that opens nothing is worse than no row.
+  const documents = records.flatMap((record) =>
+    (record.files ?? [])
+      .filter((file) => file.kind === 'document' && (file.url ?? '') !== '')
+      .map((file) => ({
+        kind: 'document' as const,
+        url: file.url ?? '',
+        thumbUrl: file.thumbUrl ?? null,
+        objectKey: file.objectKey,
+        fileName: file.fileName ?? null,
+      })),
+  );
 
-  const parts = [
-    record.fields.url ?? '',
-    documents === 0 ? '' : `${documents} document${documents === 1 ? '' : 's'}`,
-  ].filter((part) => part !== '');
+  return (
+    <div className="flex flex-col gap-3">
+      <ul className="grid grid-cols-2 gap-3 *:min-w-0 sm:grid-cols-3 lg:grid-cols-4">
+        {records.flatMap((record) => {
+          const images = (record.files ?? []).filter((file) => file.kind === 'image');
+          const title = record.fields.title ?? '';
+          const summary = record.fields.summary ?? '';
 
-  return parts.join(' · ');
+          // A piece with nothing attached still has a name, so it keeps a tile
+          // and says it has no picture rather than disappearing from the page.
+          const tiles = images.length === 0 ? [undefined] : images;
+
+          return tiles.map((image, index) => (
+            <li
+              key={`${record.id}-${image?.objectKey ?? 'empty'}`}
+              className="relative overflow-hidden rounded-lg border border-border-subtle bg-surface-muted"
+            >
+              <span className="flex aspect-[4/3] w-full">
+                {/* The caption already names the piece, so a tile with no
+                    cover says it has none rather than repeating the name. */}
+                <MediaThumb
+                  src={image?.thumbUrl ?? null}
+                  alt={title}
+                  fallback={
+                    <span className="flex size-full items-center justify-center bg-surface-muted">
+                      <LuImages aria-hidden="true" className="size-6 text-content-subtle" />
+                      <span className="sr-only">No picture yet</span>
+                    </span>
+                  }
+                />
+              </span>
+              {/* Named once a piece, on its first picture: six tiles carrying
+                  the same title six times is the piece shouting rather than
+                  showing. The rest are the same work, side by side. */}
+              {index > 0 || (title === '' && summary === '') ? null : (
+                <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-surface-inverse/85 to-transparent px-3 pt-8 pb-2.5">
+                  <span className="block truncate text-sm font-semibold text-content-inverse">
+                    {title}
+                  </span>
+                  {summary === '' ? null : (
+                    <span className="block truncate text-xs text-content-inverse/85">
+                      {summary}
+                    </span>
+                  )}
+                </span>
+              )}
+            </li>
+          ));
+        })}
+      </ul>
+
+      <FileDocuments files={documents} fallbackName="Document" />
+    </div>
+  );
 }
 
 function Piece({

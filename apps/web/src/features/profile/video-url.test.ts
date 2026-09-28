@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
-import { VIDEO_INTRO_URL_MAX, VIDEO_URL_ERROR, validateVideoUrl } from './video-url.ts';
+import {
+  VIDEO_INTRO_URL_MAX,
+  VIDEO_URL_ERROR,
+  validateVideoUrl,
+  videoThumbnail,
+} from './video-url.ts';
 
 /**
  * The client rule, checked against the one the API publishes.
@@ -71,5 +76,31 @@ describe('validateVideoUrl', () => {
     const tooLong = `https://vimeo.com/${'9'.repeat(VIDEO_INTRO_URL_MAX)}`;
     expect(tooLong.length).toBeGreaterThan(VIDEO_INTRO_URL_MAX);
     expect(validateVideoUrl(tooLong)).toBe(VIDEO_URL_ERROR);
+  });
+});
+
+describe('the still frame a link can give for free', () => {
+  it.each([
+    ['https://youtu.be/ZHreWJaGU1c?si=7eZrDilkF65XgeFS', 'ZHreWJaGU1c'],
+    ['https://www.youtube.com/watch?v=ZHreWJaGU1c&t=42', 'ZHreWJaGU1c'],
+    ['https://m.youtube.com/watch?v=ZHreWJaGU1c', 'ZHreWJaGU1c'],
+    ['https://www.youtube.com/embed/ZHreWJaGU1c', 'ZHreWJaGU1c'],
+    ['https://www.youtube.com/shorts/ZHreWJaGU1c', 'ZHreWJaGU1c'],
+    ['https://www.youtube-nocookie.com/embed/ZHreWJaGU1c', 'ZHreWJaGU1c'],
+  ])('%s', (url, id) => {
+    expect(videoThumbnail(url)).toBe(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
+  });
+
+  it.each([
+    // Vimeo publishes no address that can be guessed; asking for one is a call
+    // this page has no reason to make.
+    'https://vimeo.com/123456789',
+    // On the right domain, but not a video.
+    'https://www.youtube.com/@hireevo',
+    'https://www.youtube.com/playlist?list=PL1234567890',
+    'not a url at all',
+    '',
+  ])('has none for %s', (url) => {
+    expect(videoThumbnail(url)).toBeNull();
   });
 });

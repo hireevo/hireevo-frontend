@@ -530,9 +530,11 @@ test('the rates and visibility editors hold their layout at every window size', 
   // Five amount boxes, one per period: the row most likely to be unusable once
   // the column narrows to a phone.
   await page.getByRole('button', { name: 'Edit expected rates' }).click();
-  const rates = page.getByRole('region', { name: /Expected rates/ });
-  await expect(rates.getByLabel('Per hour')).toBeVisible();
-  await expect(rates.getByLabel('Per year')).toBeVisible();
+  const rates = page.getByRole('region', { name: /Expected Rates/ });
+  // A card a period, each ticked to offer it: the first and the last of the
+  // five, so a row that stopped rendering one of them fails here.
+  await expect(rates.getByLabel('Hourly rate')).toBeVisible();
+  await expect(rates.getByLabel('Yearly rate')).toBeVisible();
   await sweep(page, 'client profile with the rates editor open');
 
   // And the working preferences beside them, four controls in one card.
@@ -544,7 +546,7 @@ test('the rates and visibility editors hold their layout at every window size', 
 
   await page.getByRole('button', { name: 'Edit visibility' }).click();
   const visibility = page.getByRole('region', { name: /Visibility/ });
-  await expect(visibility.getByRole('button', { name: 'Save section' })).toBeVisible();
+  await expect(visibility.getByRole('button', { name: 'Save' })).toBeVisible();
   await sweep(page, 'client profile with the visibility editor open');
 });
 

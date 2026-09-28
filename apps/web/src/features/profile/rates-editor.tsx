@@ -1,13 +1,20 @@
 'use client';
 
+import { useId, useState } from 'react';
+import { LuInfo } from 'react-icons/lu';
+import { Checkbox, cn } from '@hireevo/ui-web';
 import {
   RATE_CURRENCY,
   RATE_PERIODS,
   type RatePeriod,
   type RateValue,
 } from '@/features/profile-setup/api.ts';
-import { RATE_PERIOD_LABEL, asRateInput } from '@/features/profile-setup/location-options.ts';
-import { SetupField } from '@/features/profile-setup/setup-field.tsx';
+import {
+  RATE_PERIOD_SHORT,
+  asRateInput,
+  toMinorUnits,
+  formatRate,
+} from '@/features/profile-setup/location-options.ts';
 
 /** The currency's sign, for the box the amount is typed into. */
 function symbolOf(currency: string): string {
@@ -19,20 +26,47 @@ function symbolOf(currency: string): string {
   }
 }
 
-/** "hourly" as the label above its box: "Per hour". */
-function labelOf(period: RatePeriod): string {
-  const label = RATE_PERIOD_LABEL[period] ?? period;
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
+/** The period as the card's own heading: "hourly" is "Hourly". */
+const PERIOD_TITLE: Record<RatePeriod, string> = {
+  hourly: 'Hourly',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+};
+
+/** What each period is good for, under its amount, as the design writes it. */
+const PERIOD_BLURB: Record<RatePeriod, string> = {
+  hourly: 'Best for short briefs & revisions',
+  daily: 'Good for a day of focused work',
+  weekly: 'Good for sprint-based work',
+  monthly: 'Ideal for ongoing retainers',
+  yearly: 'For a year-long engagement',
+};
 
 /**
- * What the work costs — one box per period, filled in for the ones quoted.
+ * Every currency the design offers, and the one the API stores.
  *
- * A box per period rather than an add-a-rate list. There are exactly five
+ * The others are drawn because the design draws them, and refused because a
+ * rate is stored in one currency and nothing in the API takes another. A
+ * disabled control that says why is the honest version of a design that is
+ * ahead of the product: it cannot silently do nothing (§6.7).
+ */
+const CURRENCIES = ['USD', 'EUR', 'GBP'] as const;
+
+/**
+ * What the work costs — one card per period, priced for the ones quoted.
+ *
+ * A card per period rather than an add-a-rate list. There are exactly five
  * periods and the API stores at most one price for each, so a list with an
  * "Add" button would only offer the person a way to pick a period twice and
- * then be refused for it. Leaving a box empty is how a period is not quoted,
- * and clearing the last one clears the prices.
+ * then be refused for it.
+ *
+ * The tick is how a period is offered at all. Underneath it is still the same
+ * fact the API stores — a period with no amount is a period not quoted — so
+ * clearing the tick clears the price. What was typed is kept here while the
+ * editor is open, because unticking to compare two prices and then ticking
+ * again should not cost somebody the number they had typed.
  *
  * The amount is typed the way it is spoken — 85 is eighty-five dollars, not
  * eighty-five cents — and converted to the minor units the API stores at the
@@ -51,6 +85,11 @@ export function RatesEditor({
   onChange: (rates: RateValue[]) => void;
 }) {
   const sign = symbolOf(RATE_CURRENCY);
+  const currencyLabelId = useId();
+  // What each period held before it was unticked, so ticking it again brings
+  // the number back rather than an empty box.
+  const [remembered, setRemembered] = useState<Partial<Record<RatePeriod, string>>>({});
+
   const amountOf = (period: RatePeriod) =>
     rates.find((rate) => rate.period === period)?.amount ?? '';
 
@@ -64,46 +103,179 @@ export function RatesEditor({
     );
   };
 
+  const toggle = (period: RatePeriod, on: boolean) => {
+    if (on) {
+      set(period, remembered[period] ?? '');
+      return;
+    }
+    setRemembered((held) => ({ ...held, [period]: amountOf(period) }));
+    set(period, '');
+  };
+
+  const enabled = RATE_PERIODS.filter((period) => amountOf(period).trim() !== '');
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-content-muted">
-        Fill in the periods you quote for. Leave the rest empty — buyers see only the prices you
-        give.
+        Your price is visible only in the sections you mark public — contact details stay private.
       </p>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-medium tracking-wide text-content-subtle uppercase">
+          Choose the rates you offer
+        </p>
+
+        <div className="flex items-center gap-2">
+          <span id={currencyLabelId} className="text-sm text-content-muted">
+            Currency
+          </span>
+          <div
+            role="group"
+            aria-labelledby={currencyLabelId}
+            className="flex overflow-hidden rounded-md border border-border"
+          >
+            {CURRENCIES.map((currency) => {
+              const current = currency === RATE_CURRENCY;
+              return (
+                <button
+                  key={currency}
+                  type="button"
+                  disabled={!current}
+                  aria-pressed={current}
+                  className={cn(
+                    'min-h-9 px-3 text-sm font-medium transition-colors',
+                    current
+                      ? 'bg-surface-accent-subtle text-content-accent'
+                      : 'text-content-subtle',
+                  )}
+                >
+                  {currency}
+                  {current ? null : <span className="sr-only"> (not available yet)</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* One column on a phone, two from `sm`, three where there is room: five
-          narrow boxes in a row leaves none of them wide enough to read. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          narrow cards in a row leaves none of them wide enough to read.
+          `min-w-0` on the cards because a grid track is sized by its content's
+          minimum width unless it is told otherwise, and WebKit held these at
+          the width of a card rather than of the phone. */}
+      <div className="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-3">
         {RATE_PERIODS.map((period) => (
-          // No "Optional" tag on any of the five: the line above already says
-          // they are, and five copies of the word is noise.
-          <SetupField key={period} label={labelOf(period)} optional={false}>
-            {(control) => (
-              <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 transition-colors focus-within:border-border-accent">
-                <span aria-hidden="true" className="shrink-0 text-sm text-content-subtle">
-                  {sign}
-                </span>
-                <input
-                  {...control}
-                  name={`rate-${period}`}
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0"
-                  value={amountOf(period)}
-                  onChange={(event) => set(period, asRateInput(event.target.value, RATE_CURRENCY))}
-                  className="h-10 min-w-0 flex-1 bg-transparent text-sm text-content tabular-nums outline-none placeholder:text-content-subtle"
-                />
-              </div>
-            )}
-          </SetupField>
+          <RateCard
+            key={period}
+            period={period}
+            sign={sign}
+            amount={amountOf(period)}
+            onAmount={(amount) => set(period, amount)}
+            onToggle={(on) => toggle(period, on)}
+          />
         ))}
       </div>
+
+      <p className="flex items-start gap-2 rounded-lg border border-border-subtle bg-surface-subtle p-3 text-sm text-content-subtle">
+        <LuInfo aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        Buyers only see the rates you enable — you can adjust or hide them anytime.
+      </p>
+
+      {enabled.length === 0 ? null : (
+        <div className="rounded-lg border border-border-subtle p-4">
+          <p className="text-xs font-medium tracking-wide text-content-subtle uppercase">
+            How buyers see this
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {enabled.map((period) => {
+              const minor = toMinorUnits(amountOf(period), RATE_CURRENCY);
+              const shown = minor === null ? null : formatRate(minor, RATE_CURRENCY);
+              return (
+                <li
+                  key={period}
+                  className="rounded-md bg-surface-muted px-3 py-1.5 text-sm text-content"
+                >
+                  {shown ?? `${sign}${amountOf(period)}`}{' '}
+                  <span className="text-content-subtle">{RATE_PERIOD_SHORT[period]}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      <p className="text-sm text-content-subtle">
+        {enabled.length} {enabled.length === 1 ? 'rate' : 'rates'} enabled
+      </p>
 
       {error === undefined ? null : (
         <p role="alert" className="text-sm text-content-danger">
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+function RateCard({
+  period,
+  sign,
+  amount,
+  onAmount,
+  onToggle,
+}: {
+  period: RatePeriod;
+  sign: string;
+  amount: string;
+  onAmount: (amount: string) => void;
+  onToggle: (on: boolean) => void;
+}) {
+  const on = amount.trim() !== '';
+  const title = PERIOD_TITLE[period];
+
+  return (
+    <div
+      className={cn(
+        'flex min-w-0 flex-col rounded-lg border p-4 transition-colors',
+        on ? 'border-border-accent bg-surface' : 'border-border-subtle bg-surface-subtle',
+      )}
+    >
+      {/* Reversed, so the period reads first and its tick sits at the far edge,
+          which is where the design puts it. The tick is the label: ticking the
+          row is what offers the period at all. */}
+      <Checkbox
+        checked={on}
+        onChange={(event) => onToggle(event.target.checked)}
+        className="w-full flex-row-reverse justify-between"
+      >
+        <span className="text-sm font-semibold text-content-accent">{title}</span>
+      </Checkbox>
+
+      <div
+        className={cn(
+          'mt-3 flex items-center gap-2 rounded-md border bg-surface px-3 transition-colors focus-within:border-border-accent',
+          on ? 'border-border' : 'border-border-subtle',
+        )}
+      >
+        <span aria-hidden="true" className="shrink-0 text-sm text-content-subtle">
+          {sign}
+        </span>
+        <input
+          name={`rate-${period}`}
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="0"
+          value={amount}
+          aria-label={`${title} rate`}
+          onChange={(event) => onAmount(asRateInput(event.target.value, RATE_CURRENCY))}
+          className="h-10 min-w-0 flex-1 bg-transparent text-sm text-content tabular-nums outline-none placeholder:text-content-subtle"
+        />
+        <span aria-hidden="true" className="shrink-0 text-sm text-content-subtle">
+          {RATE_PERIOD_SHORT[period]}
+        </span>
+      </div>
+
+      <p className="mt-2 text-xs text-content-subtle">{PERIOD_BLURB[period]}</p>
     </div>
   );
 }

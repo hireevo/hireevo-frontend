@@ -10,6 +10,8 @@ import {
 } from 'react-icons/lu';
 import { RATE_PERIOD_LABEL, formatRate } from '@/features/profile-setup/location-options.ts';
 import { FileDocuments, FileThumbGrid } from '@/features/media/file-gallery.tsx';
+import { FileCover } from '@/features/media/file-preview.tsx';
+import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import type { PublicProfile } from './api.ts';
 import type { MakerStats } from './maker-stats.ts';
 
@@ -173,14 +175,11 @@ export function PublicProfileScreen({
         <Card className="lg:col-start-1 lg:row-start-1">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-muted">
-              {profile.avatarUrl === null ? (
-                <LuUser aria-hidden="true" className="size-9 text-content-subtle" />
-              ) : (
-                // Not `next/image`: the source is object storage, whose host is
-                // configuration rather than something to pin in the build.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.avatarUrl} alt="" className="size-full object-cover" />
-              )}
+              <MediaThumb
+                src={profile.avatarUrl}
+                alt=""
+                fallback={<LuUser aria-hidden="true" className="size-9 text-content-subtle" />}
+              />
             </span>
 
             <div className="min-w-0 flex-1">
@@ -567,32 +566,7 @@ function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border-subtle">
-      {cover === undefined ? null : (
-        <a
-          href={cover.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="relative block bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-        >
-          {/* Not `next/image`: the source is object storage, whose host is
-              configuration rather than something the optimiser is told about at
-              build time. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={cover.thumbUrl ?? cover.url}
-            alt={cover.fileName ?? piece.title}
-            width={cover.width ?? undefined}
-            height={cover.height ?? undefined}
-            loading="lazy"
-            className="aspect-[4/3] w-full object-cover"
-          />
-          {images.length < 2 ? null : (
-            <span className="absolute right-2 bottom-2 rounded-full bg-surface-inverse px-2.5 py-1 text-xs font-medium text-content-inverse">
-              +{images.length - 1} more
-            </span>
-          )}
-        </a>
-      )}
+      {cover === undefined ? null : <FileCover file={cover} alt={piece.title} />}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
         <h3 className="text-base font-bold text-content-accent">{piece.title}</h3>
@@ -614,6 +588,11 @@ function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }
             Visit the work
           </a>
         )}
+
+        {/* Every other picture of the piece, under its description. A cover
+            with "+5 more" written on it is a count of the work rather than the
+            work: somebody looking at a portfolio came to see all of it. */}
+        <FileThumbGrid files={images.slice(1)} alt={piece.title} className="mt-2" />
 
         <FileDocuments files={piece.files} className="mt-2" />
       </div>

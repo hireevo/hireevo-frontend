@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '@hireevo/api-client';
 import {
   Button,
   Card,
+  Dialog,
   OtpInput,
   PasswordField,
   TextField,
@@ -30,7 +31,6 @@ import {
   updateName,
   type PendingEmailChange,
 } from './api.ts';
-import { SettingsDialog } from './settings-dialog.tsx';
 import { RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
 
 /**
@@ -280,7 +280,7 @@ function NameDialog({
   }
 
   return (
-    <SettingsDialog
+    <Dialog
       title="Change your name"
       description="This is the name on your account. Your profile's display name is separate."
       onClose={onClose}
@@ -307,7 +307,7 @@ function NameDialog({
           Save name
         </Button>
       </form>
-    </SettingsDialog>
+    </Dialog>
   );
 }
 
@@ -413,7 +413,7 @@ function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose:
 
   if (moved !== null) {
     return (
-      <SettingsDialog title="Email address changed" onClose={() => void leave()}>
+      <Dialog title="Email address changed" onClose={() => void leave()}>
         <p role="status" className="text-sm text-content-muted">
           Your account now uses <strong className="font-medium text-content-accent">{moved}</strong>
           . Every device has been signed out, including this one — sign in again with the new
@@ -422,23 +422,23 @@ function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose:
         <Button type="button" size="xl" fullWidth className="mt-5" onClick={() => void leave()}>
           Go to sign in
         </Button>
-      </SettingsDialog>
+      </Dialog>
     );
   }
 
   if (!checked) {
     return (
-      <SettingsDialog title="Change email address" onClose={onClose}>
+      <Dialog title="Change email address" onClose={onClose}>
         <p role="status" className="text-sm text-content-subtle">
           Checking…
         </p>
-      </SettingsDialog>
+      </Dialog>
     );
   }
 
   if (pending !== null) {
     return (
-      <SettingsDialog
+      <Dialog
         title="Confirm your new address"
         description={`Enter the six-digit code we sent to ${pending.newEmail}. Your account keeps its current address until you do.`}
         onClose={onClose}
@@ -464,12 +464,12 @@ function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose:
             Confirm new address
           </Button>
         </form>
-      </SettingsDialog>
+      </Dialog>
     );
   }
 
   return (
-    <SettingsDialog
+    <Dialog
       title="Change email address"
       description="We will email a code to the new address. Nothing changes until it comes back."
       onClose={onClose}
@@ -499,7 +499,7 @@ function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose:
           Send code
         </Button>
       </form>
-    </SettingsDialog>
+    </Dialog>
   );
 }
 
@@ -567,7 +567,7 @@ function DeactivateDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <SettingsDialog
+    <Dialog
       title="Deactivate your account"
       description="Your profile comes off the web and every device is signed out. Nothing is deleted — signing in again brings your account and your profile back."
       onClose={onClose}
@@ -588,7 +588,7 @@ function DeactivateDialog({ onClose }: { onClose: () => void }) {
           Deactivate account
         </Button>
       </form>
-    </SettingsDialog>
+    </Dialog>
   );
 }
 

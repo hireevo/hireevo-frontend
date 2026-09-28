@@ -20,7 +20,9 @@ export function EditButton({ onClick, section }: { onClick: () => void; section:
       variant="ghost"
       onClick={onClick}
       aria-label={`Edit ${section}`}
-      className="rounded-lg"
+      // A filled pill, as the design draws it: on a page of headings the
+      // control that opens one has to read as a control.
+      className="rounded-lg bg-surface-accent-subtle text-content-accent hover:bg-surface-accent-subtle/70"
     >
       <LuPencil aria-hidden="true" className="size-3.5" />
       Edit

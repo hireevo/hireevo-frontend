@@ -79,8 +79,17 @@ export const PROFILE_GROUPS = {
     'locationCity',
     'serviceArea',
     'timezone',
-    'avatarKey',
   ],
+  /**
+   * The photo saves by itself, so it is a part of its own.
+   *
+   * It sits in the header card, nowhere near a section's Save, and the bytes
+   * are already in storage by the time it appears — choosing it is the whole
+   * action. Leaving it inside `about` meant a photo was only claimed when
+   * somebody pressed Save in a card further down the page, and one that never
+   * was looked exactly like an upload that had failed.
+   */
+  avatar: ['avatarKey'],
   preferences: ['remoteMode', 'responseTime', 'projectLength', 'availableFrom'],
   video: ['videoIntroUrl'],
 } as const satisfies Record<string, readonly ProfileField[]>;
