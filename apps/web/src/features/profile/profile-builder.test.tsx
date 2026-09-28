@@ -1052,6 +1052,48 @@ describe('ProfileBuilder', () => {
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
   });
 
+  it('says a picture is not saved rather than pretending there is none', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              // Chosen, uploaded, never saved: the object is in storage and the
+              // profile has never been told where, so by the next visit there is
+              // no address left to show it from.
+              files: [
+                {
+                  kind: 'image',
+                  url: '',
+                  thumbUrl: null,
+                  objectKey: 'profiles/p/portfolio/never-saved.webp',
+                  thumbKey: null,
+                  contentType: 'image/webp',
+                  byteSize: 2048,
+                  width: null,
+                  height: null,
+                  fileName: 'shot.png',
+                },
+              ],
+            },
+            { title: 'No pictures at all', url: null, summary: null, files: [] },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    const portfolio = section(/Portfolio/);
+    // The one that has a file says so; the one that has none says nothing,
+    // because "not saved" would be a lie about a piece nobody attached to.
+    expect(await portfolio.findAllByText('Not saved yet')).toHaveLength(1);
+  });
+
   it('shows every picture attached to a piece, not only the one on the tile', async () => {
     const image = (index: number) => ({
       kind: 'image' as const,
