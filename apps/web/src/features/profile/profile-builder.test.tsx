@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RATE_CURRENCY } from '@/features/profile-setup/api.ts';
@@ -303,7 +303,7 @@ describe('ProfileBuilder', () => {
     await afterTheDraftIsWritten();
     expect(calls.save).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({
@@ -322,7 +322,7 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit skills and expertise' }));
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
     const sections = calls.save.mock.calls.at(-1)?.[1].sections;
@@ -525,7 +525,7 @@ describe('ProfileBuilder', () => {
     await user.click(
       await section(/Languages/).findByRole('button', { name: 'Show German beside my name' }),
     );
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
     const sections = calls.save.mock.calls.at(-1)?.[1].sections;
@@ -550,7 +550,7 @@ describe('ProfileBuilder', () => {
         name: 'Stop showing German beside my name',
       }),
     );
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
     const sections = calls.save.mock.calls.at(-1)?.[1].sections;
@@ -593,7 +593,7 @@ describe('ProfileBuilder', () => {
     await afterTheDraftIsWritten();
     expect(window.localStorage.length).toBe(1);
 
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(window.localStorage.length).toBe(0));
   });
@@ -638,11 +638,11 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit About' }));
     await user.type(await section(/About/).findByLabelText('Biography'), 'Something.');
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await section(/About/).findByText('Could not reach HireEvo.')).toBeInTheDocument();
     // Still offered, because the work is still there to send.
-    expect(screen.getByRole('button', { name: 'Save section' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
   /**
@@ -659,7 +659,7 @@ describe('ProfileBuilder', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit About' }));
     await user.type(await section(/About/).findByLabelText('Biography'), 'Something.');
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(
       await screen.findByText('This profile was changed in another tab or window.'),
@@ -694,7 +694,7 @@ describe('ProfileBuilder', () => {
     await user.type(await section(/About/).findByLabelText('Biography'), 'Not sent yet.');
     expect(leaving()).toBe(true);
 
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(calls.save).toHaveBeenCalled());
 
     // Sent, so there is nothing to interrupt for.
@@ -945,7 +945,7 @@ describe('ProfileBuilder', () => {
     await user.type(await section(/Skills and expertise/).findByLabelText('Skill'), 'Figma');
     expect(bar()).toHaveAttribute('aria-valuenow', '0');
 
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(bar()).toHaveAttribute('aria-valuenow', '20'));
   });
 
@@ -1028,9 +1028,9 @@ describe('ProfileBuilder', () => {
 
     // Save belongs to a section rather than to the page: it appears with the
     // editor it saves, and there is none open yet.
-    expect(screen.queryByRole('button', { name: 'Save section' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit languages' }));
-    expect(screen.getByRole('button', { name: 'Save section' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
   it('brings the portfolio into edit mode like every other section', async () => {
@@ -1165,7 +1165,7 @@ describe('ProfileBuilder', () => {
       await section(/Video intro/).findByLabelText('Link to your video'),
       'https://vimeo.com/123456789',
     );
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>
       expect(calls.save.mock.calls.at(-1)?.[1].profile).toMatchObject({
@@ -1200,6 +1200,22 @@ describe('ProfileBuilder', () => {
    * the two are a hundred apart. It used to be typed in minor units behind a
    * "$", so anyone who typed what they charge priced their week at 85 cents.
    */
+  it('wakes Save on the first change to a price, not the second', async () => {
+    const user = await openForEditing();
+    await user.click(screen.getByRole('button', { name: 'Edit expected rates' }));
+    const rates = section(/Expected Rates/);
+    const save = rates.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+
+    // One event, the way a paste or a single keystroke arrives. The prices used
+    // to be read from the render that had just been replaced, so the first
+    // change left Save asleep and only a second one woke it — which meant a
+    // price typed once and saved was a price that never left the page.
+    fireEvent.change(await rates.findByLabelText('Hourly rate'), { target: { value: '45' } });
+
+    await waitFor(() => expect(save).toBeEnabled());
+  });
+
   it('sends every price as minor units, not as the numbers that were typed', async () => {
     const user = await openForEditing();
 
@@ -1207,7 +1223,7 @@ describe('ProfileBuilder', () => {
     const rates = section(/Expected Rates/);
     await user.type(await rates.findByLabelText('Monthly rate'), '85.50');
     await user.type(rates.getByLabelText('Hourly rate'), '45');
-    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
 
     // Shortest period first, whatever order the boxes were filled in: that is
     // the order the API answers in, and the order the profile shows them.

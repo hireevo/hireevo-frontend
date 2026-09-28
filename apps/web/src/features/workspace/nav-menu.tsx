@@ -20,7 +20,10 @@ const ROW: Record<Layout, string> = {
  */
 function SoonRow({ label, layout }: { label: string; layout: Layout }) {
   return (
-    <span className={cn(ROW[layout], 'text-content-muted')}>
+    // Quieter than the rows above it, by colour rather than by fading: a faded
+    // label drops under the contrast floor, and a row nobody can use still has
+    // to be legible to everybody. The badge is what says it is not ready.
+    <span className={cn(ROW[layout], 'text-content-subtle')}>
       {label}
       <Badge className="px-2 py-0.5 text-xs">Soon</Badge>
     </span>

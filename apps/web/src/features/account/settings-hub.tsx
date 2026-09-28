@@ -53,11 +53,15 @@ const AREAS: readonly Area[] = [
 ];
 
 /** The tile in the card's corner. Smaller than the section cards': this is a list, not a page. */
-function Tile({ children }: { children: ReactNode }) {
+function Tile({ children, faded }: { children: ReactNode; faded?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-11 items-center justify-center rounded-xl bg-surface-accent-subtle text-content-accent [&>svg]:size-5"
+      className={cn(
+        'flex size-11 items-center justify-center rounded-xl bg-surface-accent-subtle text-content-accent [&>svg]:size-5',
+        // The icon is decoration, so it may fade where the words may not.
+        faded === true && 'opacity-60',
+      )}
     >
       {children}
     </span>
@@ -68,7 +72,7 @@ function AreaCard({ area }: { area: Area }) {
   const body = (
     <>
       <div className="flex items-start justify-between gap-4">
-        <Tile>{area.icon}</Tile>
+        <Tile faded={area.href === undefined}>{area.icon}</Tile>
         {area.href === undefined ? (
           <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-content-subtle">
             Soon
@@ -83,7 +87,14 @@ function AreaCard({ area }: { area: Area }) {
 
       {/* The heading sits well below the tile, as the frame draws it: the card
           is mostly air, and the copy is the bottom third of it. */}
-      <h2 className="mt-14 text-xl font-bold text-content-accent">{area.title}</h2>
+      <h2
+        className={cn(
+          'mt-14 text-xl font-bold',
+          area.href === undefined ? 'text-content-muted' : 'text-content-accent',
+        )}
+      >
+        {area.title}
+      </h2>
       <p className="mt-2 text-sm leading-[1.6] text-content-subtle">{area.description}</p>
     </>
   );
@@ -91,8 +102,12 @@ function AreaCard({ area }: { area: Area }) {
   const shape =
     'flex h-full w-full min-w-0 flex-col rounded-xl border border-border-subtle bg-surface-raised p-6 transition-colors';
 
+  // An area with nowhere to go sits on the page's own grey rather than on the
+  // raised white the others have, so the two kinds are told apart before either
+  // is pressed. Not faded: fading takes the words under the contrast floor, and
+  // a card nobody can open still has to be readable.
   return area.href === undefined ? (
-    <div className={shape}>{body}</div>
+    <div className={cn(shape, 'bg-surface-subtle')}>{body}</div>
   ) : (
     <Link
       href={area.href}

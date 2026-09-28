@@ -124,7 +124,7 @@ export function VisibilityEditor({
         complete
         onContinue={() => void visibility.save()}
         loading={visibility.saving}
-        label="Save section"
+        label="Save"
         arrow={false}
       />
     </div>

@@ -188,7 +188,21 @@ export function ProfileBuilder() {
    * lists are — sent whole with the next save — and because what the browser
    * kept is newer than what the server holds.
    */
-  const [rates, setRates] = useState<RateValue[]>(stored?.rates ?? []);
+  const [rates, setRatesState] = useState<RateValue[]>(stored?.rates ?? []);
+  /**
+   * The prices as they are *now*, not as of the last render.
+   *
+   * `touch` asks what the section holds the moment something changes, and a
+   * getter closed over state answers with the render that has just been
+   * replaced — so the first change to a rate left Save disabled and only the
+   * second one woke it up. The contact fields are held this way for the same
+   * reason; rates were not, and this is what that cost.
+   */
+  const latestRates = useRef(rates);
+  const setRates = useCallback((next: RateValue[]) => {
+    latestRates.current = next;
+    setRatesState(next);
+  }, []);
   const [open, setOpen] = useState<OpenSection>(null);
   const contact = useContactValues();
   const params = useSearchParams();
@@ -240,7 +254,7 @@ export function ProfileBuilder() {
     [languages, portfolio, skills.items, experience.items, education.items, licenses.items],
   );
 
-  const collectRates = useCallback(() => rates, [rates]);
+  const collectRates = useCallback(() => latestRates.current, []);
 
   const identity = useProfileDraft({
     autosave: false,
@@ -717,7 +731,7 @@ export function ProfileBuilder() {
           disabled={!dirty || uploading}
           className="h-10 shrink-0 rounded-lg px-6 text-sm font-semibold"
         >
-          {uploading ? 'Uploading…' : 'Save section'}
+          {uploading ? 'Uploading…' : 'Save'}
         </Button>
       </>
     );
