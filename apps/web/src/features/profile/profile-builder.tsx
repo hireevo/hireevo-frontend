@@ -56,8 +56,10 @@ import {
 } from './client-profile-draft.ts';
 import {
   EMPTY_DRAFT,
+  NOTHING_FILLED,
   PROFICIENCIES,
   completionOf,
+  filledFromProfile,
   type ProfileDraft,
   type Proficiency,
   type SectionsFilled,
@@ -501,6 +503,13 @@ export function ProfileBuilder() {
     return shown === null ? [] : [`${shown} ${RATE_PERIOD_LABEL[rate.period] ?? rate.period}`];
   });
 
+  // Read from the saved profile, not from what is on screen: the figure moves
+  // only once a section has actually been saved, never as it is being typed.
+  // Each section saves itself, so between a keystroke and its save the sections
+  // above still show what was typed — that is the live view — while completion
+  // stays put until the save lands and `identity.profile` carries the new state.
+  // Drives what each section shows: the content on screen, saved or not, so a
+  // section a person is part-way through reads as filled while they edit it.
   const filled: SectionsFilled = {
     about: values.overview.trim() !== '',
     skills: namedSkills.length > 0,
@@ -510,7 +519,15 @@ export function ProfileBuilder() {
     portfolio: draft.records.portfolio.length > 0,
     videoIntro: values.videoIntroUrl.trim() !== '',
   };
-  const completion = completionOf(filled);
+
+  // Drives the completion figure, which is a different question: it counts a
+  // section only once it has been saved, so it is read from the profile the
+  // server returned rather than from what is being typed. The two differ on
+  // purpose — a section shows your work as you type it, but the percentage moves
+  // only when that work has actually been saved (each section saves itself).
+  const savedFilled =
+    identity.profile === null ? NOTHING_FILLED : filledFromProfile(identity.profile);
+  const completion = completionOf(savedFilled);
 
   // Its own boolean rather than a row in `filled`: that map feeds the strength
   // figure, which mirrors the API's weights, and the API does not count contact
