@@ -1191,12 +1191,12 @@ describe('ProfileBuilder', () => {
     await user.type(title, ' redesign');
 
     expect(title).toHaveValue('Checkout redesign');
-    // Both drop zones are there from the start, each stating what it takes and
-    // how much room is left, so nobody has to guess whether twenty is the limit.
-    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP/)).toBeInTheDocument();
-    expect(portfolio().getByText(/0 of 20 added/)).toBeInTheDocument();
-    expect(portfolio().getByText(/Supported formats: PDF/)).toBeInTheDocument();
-    expect(portfolio().getByText(/0 of 5 added/)).toBeInTheDocument();
+    // The one drop zone is there from the start, stating both kinds it takes
+    // and how much room is left in each, so nobody has to guess whether twenty
+    // is the limit — or which of two boxes a PDF belongs in.
+    expect(portfolio().getByText(/Supported formats: JPG, PNG, WebP, PDF/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 20 images/)).toBeInTheDocument();
+    expect(portfolio().getByText(/0 of 5 PDFs/)).toBeInTheDocument();
   });
 
   it('saves the video link to the profile rather than keeping it here', async () => {
