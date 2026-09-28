@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { LuLaptop, LuSmartphone } from 'react-icons/lu';
-import { Button, Card, PasswordField } from '@hireevo/ui-web';
+import { Button, Card, Dialog, PasswordField } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { PasswordRules } from '@/features/auth/password-rules.tsx';
 import { PASSWORD_RULES } from '@/features/auth/schemas.ts';
@@ -13,7 +13,6 @@ import {
   revokeSession,
   type AccountSession,
 } from './api.ts';
-import { SettingsDialog } from './settings-dialog.tsx';
 import { NotYet, RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
 
 /** "Chrome on macOS", from what the session recorded, and never an empty line. */
@@ -190,7 +189,7 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
 
   if (done) {
     return (
-      <SettingsDialog title="Password changed" onClose={onClose}>
+      <Dialog title="Password changed" onClose={onClose}>
         <p role="status" className="text-sm text-content-muted">
           Your password has been changed, and every other device has been signed out. This one stays
           signed in.
@@ -198,12 +197,12 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
         <Button type="button" onClick={onClose} className="mt-5 w-fit">
           Done
         </Button>
-      </SettingsDialog>
+      </Dialog>
     );
   }
 
   return (
-    <SettingsDialog
+    <Dialog
       title="Change password"
       description="Changing your password signs out every other device."
       onClose={onClose}
@@ -251,7 +250,7 @@ function PasswordDialog({ onClose }: { onClose: () => void }) {
           Update password
         </Button>
       </form>
-    </SettingsDialog>
+    </Dialog>
   );
 }
 
@@ -289,7 +288,7 @@ function DevicesDialog({
   const others = sessions === null ? [] : sessions.filter((session) => !session.current);
 
   return (
-    <SettingsDialog
+    <Dialog
       title="Connected devices"
       description="Every device holding a session for this account. Ending one signs that device out."
       onClose={onClose}
@@ -364,6 +363,6 @@ function DevicesDialog({
           Sign out everywhere else
         </Button>
       )}
-    </SettingsDialog>
+    </Dialog>
   );
 }

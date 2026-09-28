@@ -6,6 +6,7 @@ const { mockEnv } = vi.hoisted(() => ({
   mockEnv: {
     NEXT_PUBLIC_API_URL: 'https://api.example.com/',
     NEXT_PUBLIC_RECAPTCHA_SITE_KEY: undefined as string | undefined,
+    NEXT_PUBLIC_STORAGE_ORIGINS: undefined as string | undefined,
   },
 }));
 vi.mock('../env', () => ({ env: mockEnv }));
@@ -24,6 +25,7 @@ function directive(csp: string, name: string): string {
 
 afterEach(() => {
   mockEnv.NEXT_PUBLIC_RECAPTCHA_SITE_KEY = undefined;
+  mockEnv.NEXT_PUBLIC_STORAGE_ORIGINS = undefined;
   vi.unstubAllEnvs();
 });
 
@@ -51,7 +53,22 @@ describe('buildContentSecurityPolicy', () => {
 
     expect(csp).not.toContain('google.com');
     expect(csp).not.toContain('gstatic.com');
-    expect(csp).not.toContain('frame-src');
+    // `frame-src` is still there — it is what lets a profile show the documents
+    // attached to it — but with nothing of google's in it.
+    expect(directive(csp, 'frame-src')).toBe("frame-src 'self'");
+  });
+
+  it('lets stored documents be framed, from the same origins images come from', () => {
+    mockEnv.NEXT_PUBLIC_STORAGE_ORIGINS = 'http://localhost:9000,https://media.example.com';
+    const csp = buildContentSecurityPolicy('n');
+
+    // A certificate is shown in a frame on the page that carries it, so the
+    // bucket has to be nameable in both directives or the frame is blank with
+    // no error anyone sees.
+    expect(directive(csp, 'frame-src')).toBe(
+      "frame-src 'self' http://localhost:9000 https://media.example.com",
+    );
+    expect(directive(csp, 'img-src')).toContain('https://media.example.com');
   });
 
   it('opens exactly what reCAPTCHA needs when a site key is set', () => {
@@ -60,7 +77,7 @@ describe('buildContentSecurityPolicy', () => {
 
     // The widget's iframe and its own requests are not covered by
     // 'strict-dynamic', so they need explicit host entries.
-    expect(directive(csp, 'frame-src')).toBe('frame-src https://www.google.com');
+    expect(directive(csp, 'frame-src')).toBe("frame-src 'self' https://www.google.com");
     expect(directive(csp, 'connect-src')).toContain('https://www.google.com');
     // Fallback for engines that ignore 'strict-dynamic'.
     expect(directive(csp, 'script-src')).toContain('https://www.google.com');

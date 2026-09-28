@@ -73,9 +73,13 @@ export function buildContentSecurityPolicy(nonce: string): string {
     "font-src 'self' data:",
     `connect-src 'self' ${apiOrigin}${storage}${developmentOnly.connect}${recaptcha.connect}`,
     "manifest-src 'self'",
-    // Only present when reCAPTCHA is on; the checkbox and any challenge render
-    // in an iframe from google.com.
-    ...(recaptchaEnabled ? ['frame-src https://www.google.com'] : []),
+    // Object storage is here as well as in `img-src` because a certificate or a
+    // case study is shown in a frame on the profile that carries it: a document
+    // nobody can look at without leaving the page is barely attached at all.
+    // Only `application/pdf` is ever signed for a document and the bytes are
+    // checked against that type before the object is claimed, and the frame is
+    // a different origin from this app, so it cannot reach into the page.
+    `frame-src 'self'${storage}${recaptchaEnabled ? ' https://www.google.com' : ''}`,
     // Production only. Safari applies this to `http://localhost` too, rewriting
     // every asset to an `https` address the dev server does not answer, so the
     // page renders unstyled in Safari and nowhere else. Production is served

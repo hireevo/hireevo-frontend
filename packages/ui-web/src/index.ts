@@ -5,6 +5,7 @@ export { buttonVariants } from './button-variants.ts';
 export { Card, type CardProps } from './card.tsx';
 export { Checkbox, type CheckboxProps } from './checkbox.tsx';
 export { Chip, type ChipProps } from './chip.tsx';
+export { Dialog } from './dialog.tsx';
 export { Field, type FieldOwnProps } from './field.tsx';
 export { IconTile, type IconTileProps } from './icon-tile.tsx';
 export { OtpInput, type OtpInputProps } from './otp-input.tsx';
