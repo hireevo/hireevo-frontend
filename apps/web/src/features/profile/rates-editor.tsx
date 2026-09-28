@@ -158,8 +158,11 @@ export function RatesEditor({
       </div>
 
       {/* One column on a phone, two from `sm`, three where there is room: five
-          narrow cards in a row leaves none of them wide enough to read. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          narrow cards in a row leaves none of them wide enough to read.
+          `min-w-0` on the cards because a grid track is sized by its content's
+          minimum width unless it is told otherwise, and WebKit held these at
+          the width of a card rather than of the phone. */}
+      <div className="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-3">
         {RATE_PERIODS.map((period) => (
           <RateCard
             key={period}
@@ -231,7 +234,7 @@ function RateCard({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-lg border p-4 transition-colors',
+        'flex min-w-0 flex-col rounded-lg border p-4 transition-colors',
         on ? 'border-border-accent bg-surface' : 'border-border-subtle bg-surface-subtle',
       )}
     >
