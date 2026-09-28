@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_VALUES,
-  listSkills,
   loadOrCreateProfile,
   publishProfile,
   saveProfile,
@@ -188,23 +187,6 @@ describe('saveVisibility', () => {
   it('reports a version conflict as a conflict', async () => {
     client.PUT.mockResolvedValueOnce(failed(409, 'VERSION_CONFLICT'));
     expect(await saveVisibility(settings)).toMatchObject({ ok: false, kind: 'conflict' });
-  });
-});
-
-describe('listSkills', () => {
-  it('asks for what is being typed', async () => {
-    client.GET.mockResolvedValueOnce(
-      ok({ skills: [{ slug: 'figma', name: 'Figma', category: null }] }),
-    );
-    expect(await listSkills('fig')).toEqual([{ slug: 'figma', name: 'Figma', category: null }]);
-    expect(client.GET).toHaveBeenCalledWith('/api/v1/skills', {
-      params: { query: { query: 'fig' } },
-    });
-  });
-
-  it('answers with nothing rather than failing a screen that only suggests', async () => {
-    client.GET.mockRejectedValueOnce(new TypeError('fetch failed'));
-    expect(await listSkills('fig')).toEqual([]);
   });
 });
 

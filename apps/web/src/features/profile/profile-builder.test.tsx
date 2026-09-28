@@ -36,7 +36,6 @@ vi.mock('@/features/auth/session.tsx', () => ({
 const calls = vi.hoisted(() => ({
   load: vi.fn<typeof ProfileApi.loadOrCreateProfile>(),
   save: vi.fn<typeof ProfileApi.saveProfilePatch>(),
-  skills: vi.fn<typeof ProfileApi.listSkills>(),
   unpublish: vi.fn<typeof ProfileApi.unpublishProfile>(),
 }));
 vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
@@ -46,7 +45,6 @@ vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   // section sends its own parts, so the body is the thing worth asserting on.
   saveProfilePatch: (...args: Parameters<typeof ProfileApi.saveProfilePatch>) =>
     calls.save(...args),
-  listSkills: (...args: Parameters<typeof ProfileApi.listSkills>) => calls.skills(...args),
   unpublishProfile: () => calls.unpublish(),
 }));
 
@@ -197,10 +195,6 @@ beforeEach(() => {
   push.mockReset();
   window.localStorage.clear();
   calls.load.mockReset().mockResolvedValue({ ok: true, profile: stored() });
-  calls.skills.mockReset().mockResolvedValue([
-    { slug: 'accessibility', name: 'Accessibility', category: 'Design' },
-    { slug: 'service-design', name: 'Service design', category: 'Design' },
-  ]);
   // Answers the way the API answers a patch: the fields it was sent, at the
   // next version. A patch carries only what changed, so anything it leaves out
   // keeps what the profile already held.

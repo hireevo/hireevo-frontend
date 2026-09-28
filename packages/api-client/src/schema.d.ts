@@ -559,46 +559,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/skills": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The approved skills a profile may claim
-         * @description Public because the list is what a profile form offers and what a buyer filters by; nothing here belongs to anyone.
-         */
-        get: operations["TaxonomyController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/skills/suggestions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Ask for a skill the taxonomy does not have
-         * @description Answers 202: the skill is recorded for review, not added. Suggesting the same skill again is the same request and answers the same way.
-         */
-        post: operations["TaxonomyController_suggest_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -743,22 +703,6 @@ export interface components {
             issuedAt: string;
             expiresAt: string;
         }[];
-        SkillListResponse: {
-            skills: {
-                slug: string;
-                name: string;
-                category: string | null;
-            }[];
-        };
-        SuggestSkillRequest: {
-            name: string;
-        };
-        SkillSuggestionResponse: {
-            slug: string;
-            name: string;
-            /** @enum {string} */
-            status: "pending" | "accepted" | "declined";
-        };
         ProfileConflictDetails: {
             currentVersion: number;
             yourVersion: number;
@@ -2484,90 +2428,6 @@ export interface operations {
             };
             /** @description Not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    TaxonomyController_list_v1: {
-        parameters: {
-            query?: {
-                /** @description Up to 100, 50 by default */
-                limit?: unknown;
-                /** @description Matches anywhere in the name */
-                query?: unknown;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillListResponse"];
-                };
-            };
-            /** @description The request failed validation; `details.issues` names each field */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    TaxonomyController_suggest_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuggestSkillRequest"];
-            };
-        };
-        responses: {
-            /** @description Recorded */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillSuggestionResponse"];
-                };
-            };
-            /** @description The request failed validation; `details.issues` names each field */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not signed in */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Signed in without the permission this needs */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };
