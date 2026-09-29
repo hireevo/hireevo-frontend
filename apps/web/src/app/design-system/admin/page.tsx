@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { AdminShell } from '@/features/admin/admin-shell.tsx';
-import { SAMPLE_WORKERS } from '@/features/admin/sample-workers.ts';
-import { WorkersScreen } from '@/features/admin/workers-screen.tsx';
+import { WorkersPreview } from '@/features/admin/workers-preview.tsx';
 
 export const metadata: Metadata = {
   title: 'Admin workers preview',
@@ -27,7 +26,7 @@ export default function AdminPreviewPage() {
         current="/admin/workers"
         admin={{ name: 'Husnain Raza', role: 'Administrator' }}
       >
-        <WorkersScreen workers={SAMPLE_WORKERS} />
+        <WorkersPreview />
       </AdminShell>
     </>
   );

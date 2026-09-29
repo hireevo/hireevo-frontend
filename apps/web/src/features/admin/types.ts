@@ -23,8 +23,15 @@ export type AccountState = 'active' | 'banned';
  * each field came from.
  */
 export interface AdminWorker {
-  /** The number admins quote to each other, shown as given. */
-  id: number;
+  /**
+   * The account's own id.
+   *
+   * A uuid rather than the sequential number the screen this replaces showed:
+   * that number was the row's, and this platform's accounts do not have one.
+   * It is out of the table — twelve columns of hexadecimal help nobody scan a
+   * list — and in the detail box, where somebody quoting it can read it whole.
+   */
+  id: string;
   name: string;
   email: string;
   country: string;

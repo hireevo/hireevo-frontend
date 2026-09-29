@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   LuChevronLeft,
   LuChevronRight,
@@ -10,16 +10,7 @@ import {
   LuX,
 } from 'react-icons/lu';
 import { Badge, Button, Dialog, cn } from '@hireevo/ui-web';
-import {
-  NO_FILTERS,
-  PAGE_SIZE,
-  countriesOf,
-  filterWorkers,
-  pageOf,
-  statesOf,
-  withCountry,
-  type WorkerFilters,
-} from './filter-workers.ts';
+import { NO_FILTERS, withCountry, type WorkerFilters } from './filter-workers.ts';
 import { RowMenu } from './row-menu.tsx';
 import type { AdminWorker } from './types.ts';
 
@@ -35,62 +26,115 @@ const CONTROL =
  * sake. Search stays, because a form with a text field has to do something on
  * Enter, and Reset is the way back to everything.
  */
-export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) {
-  // Held here rather than read straight from the prop: banning changes a row,
-  // and the list has to show the change the moment it is made.
-  const [rows, setRows] = useState<readonly AdminWorker[]>(workers);
+export interface WorkersScreenProps {
+  workers: readonly AdminWorker[];
+  /** How many match the current filters, across every page. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** The countries and regions there are to filter by. */
+  places: readonly { country: string; regions: readonly string[] }[];
+  /** True while a ban or an unban is in flight, so the menus stop taking presses. */
+  busy: boolean;
+  /** Something the last request said, shown above the list. */
+  problem: string | null;
+  /** The reader asked for a different search, place or page. */
+  onQuery: (filters: WorkerFilters, page: number) => void;
+  onBan: (worker: AdminWorker) => void;
+  onUnban: (worker: AdminWorker) => void;
+  /** Said out loud after an act — what happened, for anyone not watching a chip. */
+  said?: string;
+  /** Shown where the API cannot keep what this screen does, as the preview cannot. */
+  notice?: string;
+}
+
+/**
+ * The workers list an administrator works in.
+ *
+ * It draws and it asks; it decides nothing. Which rows exist, what a search
+ * matches and what a ban does are all somewhere else — the API behind
+ * `workers-page.tsx`, or the fixture behind `workers-preview.tsx` — which is
+ * what let this screen be built, swept and reviewed before the endpoints
+ * existed, and what keeps `/design-system/admin` renderable with no server.
+ *
+ * The search narrows as it is typed, after a pause: a request per keystroke is
+ * five requests for a five-letter name, and the last one is the only answer
+ * anybody waits for. The magnifier asks at once, for somebody who would rather
+ * press than wait.
+ */
+export function WorkersScreen({
+  workers,
+  total,
+  page,
+  pageSize,
+  places,
+  busy,
+  problem,
+  onQuery,
+  onBan,
+  onUnban,
+  said = '',
+  notice,
+}: WorkersScreenProps) {
   const [filters, setFilters] = useState<WorkerFilters>(NO_FILTERS);
-  const [page, setPage] = useState(1);
   const [shown, setShown] = useState<AdminWorker | null>(null);
   const [asking, setAsking] = useState<AdminWorker | null>(null);
-  const [said, setSaid] = useState('');
   const search = useRef<HTMLInputElement>(null);
+  const waiting = useRef<ReturnType<typeof setTimeout> | null>(null);
   // An explicit label rather than one wrapped around the field: the search and
   // clear buttons live in the same box, and a `label` that wraps several
   // controls names the first one it finds — which would be the button, leaving
   // the field somebody types into with no name at all.
   const nameId = useId();
 
-  const setAccount = (worker: AdminWorker, account: AdminWorker['account']) => {
-    setRows((current) => current.map((row) => (row.id === worker.id ? { ...row, account } : row)));
-    setShown((current) => (current?.id === worker.id ? { ...current, account } : current));
-    setSaid(
-      account === 'banned'
-        ? `${worker.name} is banned and can no longer sign in.`
-        : `${worker.name} can sign in again.`,
-    );
-  };
-
-  const countries = useMemo(() => countriesOf(rows), [rows]);
-  const states = useMemo(() => statesOf(rows, filters.country), [rows, filters.country]);
-  const found = useMemo(() => filterWorkers(rows, filters), [rows, filters]);
-  // Clamped rather than reset: narrowing a search while on page 3 should land
-  // on the last page of what is left, not throw the reader back to the top.
-  const current = pageOf(found, page);
-
-  const change = (next: WorkerFilters) => {
+  /** A place or a page is asked for at once; a name waits for the typing to stop. */
+  const ask = (next: WorkerFilters, nextPage: number, delay = 0) => {
     setFilters(next);
-    setPage(1);
+    if (waiting.current !== null) clearTimeout(waiting.current);
+    if (delay === 0) {
+      onQuery(next, nextPage);
+      return;
+    }
+    waiting.current = setTimeout(() => onQuery(next, nextPage), delay);
   };
+
+  useEffect(
+    () => () => {
+      if (waiting.current !== null) clearTimeout(waiting.current);
+    },
+    [],
+  );
+
+  const countries = places.map((place) => place.country);
+  const regions = places.find((place) => place.country === filters.country)?.regions ?? [];
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const last = Math.min(page * pageSize, total);
+  const filtered = filters.name !== '' || filters.country !== '' || filters.state !== '';
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Said once, plainly. Banning somebody is the sort of thing an
-          administrator has to be able to trust, and until the endpoint behind
-          it exists a row that changes on screen would be a claim this product
-          cannot keep. */}
-      <p
-        role="status"
-        className="flex items-start gap-2.5 rounded-xl bg-surface-warning-subtle px-4 py-3 text-sm text-content-warning"
-      >
-        <LuTriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <span>
-          Bans are not saved yet — the admin API is still being built, so anything changed here
-          lasts until the page is reloaded.
-        </span>
-      </p>
+      {notice === undefined ? null : (
+        <p
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl bg-surface-warning-subtle px-4 py-3 text-sm text-content-warning"
+        >
+          <LuTriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>{notice}</span>
+        </p>
+      )}
 
-      {/* What just happened, for a screen reader: the chip changing colour in a
+      {problem === null ? null : (
+        <p
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl bg-surface-danger-subtle px-4 py-3 text-sm text-content-danger"
+        >
+          <LuTriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>{problem}</span>
+        </p>
+      )}
+
+      {/* What just happened, for a screen reader: a chip changing colour in a
           row somebody cannot see is not an answer. */}
       <p aria-live="polite" className="sr-only">
         {said}
@@ -101,9 +145,10 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
         className="rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5"
       >
         <form
-          // Nothing is fetched, so the submit exists to catch Enter and to stop
-          // the browser navigating away with the fields in the query string.
-          onSubmit={(event) => event.preventDefault()}
+          onSubmit={(event) => {
+            event.preventDefault();
+            ask(filters, 1);
+          }}
           className="grid gap-4 *:min-w-0 md:grid-cols-3"
         >
           <div className="flex flex-col gap-1.5">
@@ -135,8 +180,8 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
                 id={nameId}
                 type="text"
                 value={filters.name}
-                placeholder="Search by name"
-                onChange={(event) => change({ ...filters, name: event.target.value })}
+                placeholder="Search by name or email"
+                onChange={(event) => ask({ ...filters, name: event.target.value }, 1, 300)}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm text-content outline-none"
               />
 
@@ -146,7 +191,7 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
                 <button
                   type="button"
                   onClick={() => {
-                    change({ ...filters, name: '' });
+                    ask({ ...filters, name: '' }, 1);
                     search.current?.focus();
                   }}
                   className="flex size-9 shrink-0 items-center justify-center rounded-md text-content-subtle transition-colors hover:bg-surface-subtle hover:text-content focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
@@ -162,7 +207,7 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
             <span className="text-sm font-medium text-content-muted">Country</span>
             <select
               value={filters.country}
-              onChange={(event) => change(withCountry(filters, event.target.value))}
+              onChange={(event) => ask(withCountry(filters, event.target.value), 1)}
               className={CONTROL}
             >
               <option value="">Every country</option>
@@ -179,15 +224,15 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
             <select
               value={filters.state}
               disabled={filters.country === ''}
-              onChange={(event) => change({ ...filters, state: event.target.value })}
+              onChange={(event) => ask({ ...filters, state: event.target.value }, 1)}
               className={CONTROL}
             >
               <option value="">
                 {filters.country === '' ? 'Choose a country first' : 'Every state'}
               </option>
-              {states.map((state) => (
-                <option key={state} value={state}>
-                  {state}
+              {regions.map((region) => (
+                <option key={region} value={region}>
+                  {region}
                 </option>
               ))}
             </select>
@@ -195,24 +240,24 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
 
           <div className="flex flex-wrap items-center gap-3 md:col-span-3">
             <p aria-live="polite" className="text-sm text-content-muted">
-              {current.total === 0
+              {total === 0
                 ? 'No workers match this search'
-                : `Showing ${current.first}–${current.last} of ${current.total}`}
+                : `Showing ${first}–${last} of ${total}`}
             </p>
             {/* Only while something is set: the cross in the field clears the
                 name, and this is the way back from a country and a state as
                 well. A permanent Reset beside an untouched panel is a button
                 that does nothing. */}
-            {filters.name === '' && filters.country === '' && filters.state === '' ? null : (
+            {filtered ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => change(NO_FILTERS)}
+                onClick={() => ask(NO_FILTERS, 1)}
               >
                 Clear filters
               </Button>
-            )}
+            ) : null}
           </div>
         </form>
       </section>
@@ -221,38 +266,40 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
         aria-label="Workers"
         className="overflow-hidden rounded-2xl border border-border-subtle bg-surface"
       >
-        {current.total === 0 ? (
-          <EmptyState onReset={() => change(NO_FILTERS)} />
+        {workers.length === 0 ? (
+          <EmptyState onReset={() => ask(NO_FILTERS, 1)} />
         ) : (
           <>
             <WorkerTable
-              rows={current.rows}
+              rows={workers}
+              busy={busy}
               onOpen={setShown}
               onAsk={setAsking}
-              onUnban={(worker) => setAccount(worker, 'active')}
+              onUnban={onUnban}
             />
             <WorkerCards
-              rows={current.rows}
+              rows={workers}
+              busy={busy}
               onOpen={setShown}
               onAsk={setAsking}
-              onUnban={(worker) => setAccount(worker, 'active')}
+              onUnban={onUnban}
             />
           </>
         )}
       </section>
 
-      {current.pages > 1 ? (
+      {pages > 1 ? (
         <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-content-muted">
-            Page {current.page} of {current.pages}
+            Page {page} of {pages}
           </p>
           <span className="flex items-center gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              disabled={current.page === 1}
-              onClick={() => setPage(current.page - 1)}
+              disabled={page === 1}
+              onClick={() => ask(filters, page - 1)}
             >
               <LuChevronLeft aria-hidden="true" className="size-4" />
               Previous
@@ -261,8 +308,8 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
               type="button"
               variant="secondary"
               size="sm"
-              disabled={current.page === current.pages}
-              onClick={() => setPage(current.page + 1)}
+              disabled={page === pages}
+              onClick={() => ask(filters, page + 1)}
             >
               Next
               <LuChevronRight aria-hidden="true" className="size-4" />
@@ -276,7 +323,7 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
           worker={shown}
           onClose={() => setShown(null)}
           onAsk={setAsking}
-          onUnban={(worker) => setAccount(worker, 'active')}
+          onUnban={onUnban}
         />
       )}
 
@@ -285,7 +332,7 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
           worker={asking}
           onClose={() => setAsking(null)}
           onConfirm={() => {
-            setAccount(asking, 'banned');
+            onBan(asking);
             setAsking(null);
           }}
         />
@@ -328,11 +375,14 @@ function AccountBadge({ worker }: { worker: AdminWorker }) {
  */
 function WorkerActions({
   worker,
+  busy,
   onOpen,
   onAsk,
   onUnban,
 }: {
   worker: AdminWorker;
+  /** True while another act is in flight — pressing again would race it. */
+  busy: boolean;
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
@@ -340,6 +390,7 @@ function WorkerActions({
   return (
     <RowMenu
       label={worker.name}
+      busy={busy}
       items={[
         { label: 'View details', onChoose: () => onOpen(worker) },
         worker.account === 'banned'
@@ -361,11 +412,13 @@ function WorkerActions({
  */
 function WorkerTable({
   rows,
+  busy,
   onOpen,
   onAsk,
   onUnban,
 }: {
   rows: readonly AdminWorker[];
+  busy: boolean;
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
@@ -381,9 +434,6 @@ function WorkerTable({
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr className="border-b border-border-subtle bg-surface-subtle">
-            <th scope="col" className="px-4 py-3 font-semibold text-content-muted">
-              ID
-            </th>
             <th scope="col" className="px-4 py-3 font-semibold text-content-muted">
               Worker
             </th>
@@ -407,7 +457,6 @@ function WorkerTable({
               key={worker.id}
               className="border-b border-border-subtle last:border-0 hover:bg-surface-subtle"
             >
-              <td className="px-4 py-3 align-top text-content-subtle tabular-nums">{worker.id}</td>
               <td className="max-w-[20rem] px-4 py-3 align-top">
                 <span className="block truncate font-medium text-content-accent">
                   {worker.name}
@@ -425,7 +474,13 @@ function WorkerTable({
                 <AccountBadge worker={worker} />
               </td>
               <td className="px-4 py-3 text-right align-top">
-                <WorkerActions worker={worker} onOpen={onOpen} onAsk={onAsk} onUnban={onUnban} />
+                <WorkerActions
+                  worker={worker}
+                  busy={busy}
+                  onOpen={onOpen}
+                  onAsk={onAsk}
+                  onUnban={onUnban}
+                />
               </td>
             </tr>
           ))}
@@ -438,11 +493,13 @@ function WorkerTable({
 /** The same rows as cards, which is what a phone gets instead of a wide table. */
 function WorkerCards({
   rows,
+  busy,
   onOpen,
   onAsk,
   onUnban,
 }: {
   rows: readonly AdminWorker[];
+  busy: boolean;
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
@@ -458,10 +515,13 @@ function WorkerCards({
               </span>
               <span className="block truncate text-xs text-content-subtle">{worker.email}</span>
             </span>
-            <span className="flex shrink-0 items-center gap-2">
-              <span className="text-xs text-content-subtle tabular-nums">#{worker.id}</span>
-              <WorkerActions worker={worker} onOpen={onOpen} onAsk={onAsk} onUnban={onUnban} />
-            </span>
+            <WorkerActions
+              worker={worker}
+              busy={busy}
+              onOpen={onOpen}
+              onAsk={onAsk}
+              onUnban={onUnban}
+            />
           </div>
           <p className="text-sm text-content-muted">
             {worker.state === null ? worker.country : `${worker.state}, ${worker.country}`}
@@ -512,7 +572,7 @@ function WorkerDetails({
   onUnban: (worker: AdminWorker) => void;
 }) {
   const rows: [string, string][] = [
-    ['Worker ID', String(worker.id)],
+    ['Worker ID', worker.id],
     ['Email', worker.email],
     ['Country', worker.country],
     ['State', worker.state ?? 'None recorded'],
@@ -599,5 +659,3 @@ function ConfirmBan({
     </Dialog>
   );
 }
-
-export { PAGE_SIZE };

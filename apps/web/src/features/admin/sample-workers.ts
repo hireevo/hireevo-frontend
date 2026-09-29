@@ -16,7 +16,7 @@ import type { AdminWorker } from './types.ts';
  */
 export const SAMPLE_WORKERS: AdminWorker[] = [
   {
-    id: 3,
+    id: '01a0f000-0000-7000-8000-000000000003',
     name: 'Marcus Delgado',
     email: 'marcus.delgado@example.com',
     country: 'United States',
@@ -26,7 +26,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-01-14',
   },
   {
-    id: 6,
+    id: '01a0f000-0000-7000-8000-000000000006',
     name: 'Priya Raghunathan-Whitfield',
     email: 'priya.raghunathan.whitfield@example.com',
     country: 'United States',
@@ -36,7 +36,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-02-02',
   },
   {
-    id: 8,
+    id: '01a0f000-0000-7000-8000-000000000008',
     name: 'Danielle Okafor',
     email: 'danielle.okafor@example.com',
     country: 'United States',
@@ -46,7 +46,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-02-19',
   },
   {
-    id: 10,
+    id: '01a0f000-0000-7000-8000-000000000010',
     name: 'Ethan Brooks',
     email: 'ethan.brooks@example.com',
     country: 'United States',
@@ -56,7 +56,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-03-03',
   },
   {
-    id: 12,
+    id: '01a0f000-0000-7000-8000-000000000012',
     name: 'Amara Nwosu',
     email: 'amara.nwosu@example.com',
     country: 'Canada',
@@ -66,7 +66,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-03-11',
   },
   {
-    id: 13,
+    id: '01a0f000-0000-7000-8000-000000000013',
     name: 'Julian Reyes',
     email: 'julian.reyes@example.com',
     country: 'United States',
@@ -76,7 +76,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-03-27',
   },
   {
-    id: 14,
+    id: '01a0f000-0000-7000-8000-000000000014',
     name: 'Hannah Lindqvist',
     email: 'hannah.lindqvist@example.com',
     country: 'Canada',
@@ -86,7 +86,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-04-08',
   },
   {
-    id: 16,
+    id: '01a0f000-0000-7000-8000-000000000016',
     name: 'Tomás Villanueva',
     email: 'tomas.villanueva@example.com',
     country: 'United States',
@@ -96,7 +96,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-04-22',
   },
   {
-    id: 17,
+    id: '01a0f000-0000-7000-8000-000000000017',
     name: 'Grace Ferreira',
     email: 'grace.ferreira@example.com',
     country: 'Singapore',
@@ -106,7 +106,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-05-06',
   },
   {
-    id: 18,
+    id: '01a0f000-0000-7000-8000-000000000018',
     name: 'Noah Whitfield',
     email: 'noah.whitfield@example.com',
     country: 'United States',
@@ -116,7 +116,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-05-18',
   },
   {
-    id: 21,
+    id: '01a0f000-0000-7000-8000-000000000021',
     name: 'Leila Haddad',
     email: 'leila.haddad@example.com',
     country: 'Canada',
@@ -126,7 +126,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-06-01',
   },
   {
-    id: 24,
+    id: '01a0f000-0000-7000-8000-000000000024',
     name: 'Samuel Adeyemi',
     email: 'samuel.adeyemi@example.com',
     country: 'United States',
@@ -136,7 +136,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-06-15',
   },
   {
-    id: 27,
+    id: '01a0f000-0000-7000-8000-000000000027',
     name: 'Chloe Bernard',
     email: 'chloe.bernard@example.com',
     country: 'United States',
@@ -146,7 +146,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-07-04',
   },
   {
-    id: 31,
+    id: '01a0f000-0000-7000-8000-000000000031',
     name: 'Ravi Chandrasekaran',
     email: 'ravi.chandrasekaran@example.com',
     country: 'Canada',
@@ -156,7 +156,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-07-29',
   },
   {
-    id: 34,
+    id: '01a0f000-0000-7000-8000-000000000034',
     name: 'Isabelle Moreau',
     email: 'isabelle.moreau@example.com',
     country: 'United States',
@@ -166,7 +166,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     joinedOn: '2026-08-12',
   },
   {
-    id: 37,
+    id: '01a0f000-0000-7000-8000-000000000037',
     name: 'Owen Kirk',
     email: 'owen.kirk@example.com',
     country: 'Singapore',

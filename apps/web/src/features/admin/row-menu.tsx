@@ -25,7 +25,16 @@ export interface RowMenuItem {
  * dots either way. A menu that covers the page and cannot be dismissed from the
  * keyboard is a trap (§6.8).
  */
-export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
+export function RowMenu({
+  label,
+  items,
+  busy = false,
+}: {
+  label: string;
+  items: RowMenuItem[];
+  /** While something else is being written, the dots stop taking presses. */
+  busy?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -63,8 +72,9 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={busy}
         onClick={() => setOpen((shown) => !shown)}
-        className="flex size-9 items-center justify-center rounded-lg border border-border-subtle bg-surface text-content-subtle transition-colors hover:bg-surface-subtle hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="flex size-9 items-center justify-center rounded-lg border border-border-subtle bg-surface text-content-subtle transition-colors hover:bg-surface-subtle hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LuEllipsisVertical aria-hidden="true" className="size-4" />
         <span className="sr-only">Actions for {label}</span>

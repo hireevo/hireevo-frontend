@@ -1,15 +1,22 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AdminShell } from './admin-shell.tsx';
-import { SAMPLE_WORKERS } from './sample-workers.ts';
-import { WorkersScreen } from './workers-screen.tsx';
+import { WorkersPreview } from './workers-preview.tsx';
 
 afterEach(cleanup);
 
+/**
+ * The screen over the fixture, which is what `/design-system/admin` renders.
+ *
+ * The screen itself only draws and asks; what a search matches and what a ban
+ * does live in a container. This is the container with the sample data in it,
+ * so these tests are about the two of them together — which is the pair the
+ * sweep measures and the pair a reviewer looks at.
+ */
 const open = () => {
   const user = userEvent.setup();
-  render(<WorkersScreen workers={SAMPLE_WORKERS} />);
+  render(<WorkersPreview />);
   return user;
 };
 
@@ -28,7 +35,10 @@ describe('the workers list', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Worker name' }), 'nwosu');
 
-    expect(rows()).toHaveLength(1);
+    // Waited for, because the search does not fire on every keystroke: a
+    // request per letter is five requests for a five-letter name, and only the
+    // last one is an answer anybody is waiting for.
+    await waitFor(() => expect(rows()).toHaveLength(1));
     // The email rather than the name: the name is also in the accessible names
     // of that row's buttons ("Details for Amara Nwosu"), and an assertion that
     // matches three things is one that fails for a reason nobody intended.
@@ -66,13 +76,13 @@ describe('the workers list', () => {
     const user = open();
 
     await user.type(screen.getByRole('textbox', { name: 'Worker name' }), 'nobody at all');
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('table')).not.toBeInTheDocument());
     // Twice on purpose: the panel's live region announces it, and the empty
     // table says it where the rows were.
     expect(screen.getAllByText('No workers match this search')).toHaveLength(2);
 
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0] as HTMLElement);
-    expect(rows()).toHaveLength(10);
+    await waitFor(() => expect(rows()).toHaveLength(10));
   });
 
   it('moves between pages and back', async () => {
@@ -228,10 +238,16 @@ describe('the admin sections', () => {
     expect(screen.getByText('Marcus Delgado can sign in again.')).toBeInTheDocument();
   });
 
-  /** Bans do not survive a reload yet, and the screen says so rather than implying otherwise. */
-  it('admits that nothing is saved yet', () => {
+  /**
+   * The preview says what it is.
+   *
+   * Everything on it works — the search, the paging, the ban — over sample
+   * data, and a row that changes on screen and nowhere else would otherwise
+   * read as a change that reached an account.
+   */
+  it('says that the preview reaches no account', () => {
     open();
 
-    expect(screen.getByText(/Bans are not saved yet/)).toBeInTheDocument();
+    expect(screen.getByText(/nothing here reaches an account/)).toBeInTheDocument();
   });
 });

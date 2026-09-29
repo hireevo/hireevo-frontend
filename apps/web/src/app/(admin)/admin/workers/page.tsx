@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { AdminShell } from '@/features/admin/admin-shell.tsx';
-import { SAMPLE_WORKERS } from '@/features/admin/sample-workers.ts';
-import { WorkersScreen } from '@/features/admin/workers-screen.tsx';
+import { WorkersPage } from '@/features/admin/workers-page.tsx';
 
 export const metadata: Metadata = {
   title: 'Workers · HireEvo admin',
@@ -13,9 +12,9 @@ export const metadata: Metadata = {
 /**
  * Every worker account, for the people who moderate them.
  *
- * The rows come from a fixture while the admin API is being built: the list,
- * the filters and the paging are the real thing running over it, and
- * `sample-workers.ts` is the only module that changes when the endpoint lands.
+ * The rows, the filters, the paging and the bans are all the API's; this page
+ * is the shell around them. Who may open it is the group's layout's business,
+ * and the API checks the same permission for itself on every request.
  */
 export default function AdminWorkersPage() {
   return (
@@ -25,7 +24,7 @@ export default function AdminWorkersPage() {
       current="/admin/workers"
       admin={{ name: 'Husnain Raza', role: 'Administrator' }}
     >
-      <WorkersScreen workers={SAMPLE_WORKERS} />
+      <WorkersPage />
     </AdminShell>
   );
 }

@@ -11,7 +11,7 @@ import { SAMPLE_WORKERS } from './sample-workers.ts';
 import type { AdminWorker } from './types.ts';
 
 const worker = (over: Partial<AdminWorker>): AdminWorker => ({
-  id: 1,
+  id: 'a1',
   name: 'Marcus Delgado',
   email: 'marcus@example.com',
   country: 'United States',
@@ -24,29 +24,31 @@ const worker = (over: Partial<AdminWorker>): AdminWorker => ({
 
 describe('searching the workers list', () => {
   it('matches any part of a name, whatever the case and the spacing', () => {
-    const rows = [worker({ id: 1 }), worker({ id: 2, name: 'Amara Nwosu' })];
+    const rows = [worker({ id: '1' }), worker({ id: '2', name: 'Amara Nwosu' })];
 
     // What somebody types is the half of the name they remember.
-    expect(filterWorkers(rows, { ...NO_FILTERS, name: 'delgado' }).map((r) => r.id)).toEqual([1]);
-    expect(filterWorkers(rows, { ...NO_FILTERS, name: '  NWOSU ' }).map((r) => r.id)).toEqual([2]);
-    expect(filterWorkers(rows, { ...NO_FILTERS, name: 'a' }).map((r) => r.id)).toEqual([1, 2]);
+    expect(filterWorkers(rows, { ...NO_FILTERS, name: 'delgado' }).map((r) => r.id)).toEqual(['1']);
+    expect(filterWorkers(rows, { ...NO_FILTERS, name: '  NWOSU ' }).map((r) => r.id)).toEqual([
+      '2',
+    ]);
+    expect(filterWorkers(rows, { ...NO_FILTERS, name: 'a' }).map((r) => r.id)).toEqual(['1', '2']);
   });
 
   it('narrows by country and by state together', () => {
     const rows = [
-      worker({ id: 1, country: 'United States', state: 'California' }),
-      worker({ id: 2, country: 'United States', state: 'Texas' }),
-      worker({ id: 3, country: 'Canada', state: 'Ontario' }),
+      worker({ id: '1', country: 'United States', state: 'California' }),
+      worker({ id: '2', country: 'United States', state: 'Texas' }),
+      worker({ id: '3', country: 'Canada', state: 'Ontario' }),
     ];
 
     expect(
       filterWorkers(rows, { ...NO_FILTERS, country: 'United States' }).map((r) => r.id),
-    ).toEqual([1, 2]);
+    ).toEqual(['1', '2']);
     expect(
       filterWorkers(rows, { ...NO_FILTERS, country: 'United States', state: 'Texas' }).map(
         (r) => r.id,
       ),
-    ).toEqual([2]);
+    ).toEqual(['2']);
   });
 
   it('offers the states of the chosen country and nothing else', () => {
@@ -87,7 +89,7 @@ describe('searching the workers list', () => {
 });
 
 describe('paging the results', () => {
-  const rows = Array.from({ length: 16 }, (_, index) => worker({ id: index + 1 }));
+  const rows = Array.from({ length: 16 }, (_, index) => worker({ id: String(index + 1) }));
 
   it('counts from one and says what is on screen', () => {
     const first = pageOf(rows, 1);

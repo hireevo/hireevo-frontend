@@ -16,11 +16,16 @@ import { useSession } from './session.tsx';
  */
 export function RedirectIfSignedIn() {
   const router = useRouter();
-  const { status } = useSession();
+  const { status, user } = useSession();
+  // An administrator's work is the console, not a profile they do not have.
+  // Asked of the permission rather than of a role name, for the same reason the
+  // console's own gate is: the API may grant this to another role tomorrow.
+  const console_ = user?.permissions.includes('admin.user.read') === true;
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/client-profile');
-  }, [router, status]);
+    if (status !== 'authenticated') return;
+    router.replace(console_ ? '/admin/workers' : '/client-profile');
+  }, [console_, router, status]);
 
   return null;
 }
