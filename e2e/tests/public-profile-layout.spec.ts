@@ -54,6 +54,7 @@ test('shows every section a freelancer can share', async ({ page }) => {
     'Education',
     'Certifications',
     'Portfolio',
+    'Working preferences',
   ]) {
     await expect(page.getByRole('region', { name })).toBeVisible();
   }
@@ -70,6 +71,29 @@ test('shows every section a freelancer can share', async ({ page }) => {
   // the period are separate nodes there, so the row is matched rather than a
   // text node that does not exist on its own.
   await expect(sidebar.getByRole('listitem').filter({ hasText: '/ month' })).toBeVisible();
+});
+
+/**
+ * The four answers about working together reach the reader.
+ *
+ * They were collected by the profile form, stored, returned by the API — and
+ * then dropped by this screen, which rendered nothing for any of them. Nothing
+ * failed: the form saved, the payload carried them, and the page looked
+ * finished. Four questions answered for nobody is the shape of defect §6.7 is
+ * about, so each line is asserted rather than the card merely existing.
+ */
+test('says how this person works, in their own words', async ({ page }) => {
+  await open(page);
+
+  const preferences = page.getByRole('region', { name: 'Working preferences' });
+  for (const line of [
+    'Remote and on-site',
+    '3–6 month projects',
+    'Available from October 2026',
+    'Usually replies within a day',
+  ]) {
+    await expect(preferences.getByText(line)).toBeVisible();
+  }
 });
 
 /**

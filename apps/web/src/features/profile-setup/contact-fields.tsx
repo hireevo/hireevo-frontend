@@ -15,6 +15,16 @@ const LIMITS: Record<ContactField, number> = {
 };
 
 /**
+ * The example number both phone fields show.
+ *
+ * A US number, because the people paying to hire through HireEvo are in the
+ * United States and Canada, and an example from somewhere else reads as a form
+ * built for somebody other than the person filling it in. The 555-01xx range is
+ * reserved for fiction, so this can never be a real person's phone.
+ */
+const SAMPLE_PHONE = '+1 415 555 0132';
+
+/**
  * How a client is meant to reach this person.
  *
  * None of it is published. These go to the profile's private companion row,
@@ -60,7 +70,7 @@ export function ContactFields({
             type="tel"
             autoComplete="tel"
             inputMode="tel"
-            placeholder="+91 9876543210"
+            placeholder={SAMPLE_PHONE}
             {...field('phoneE164')}
           />
         )}
@@ -87,7 +97,7 @@ export function ContactFields({
             name="whatsappE164"
             type="tel"
             inputMode="tel"
-            placeholder="+91 9876543210"
+            placeholder={SAMPLE_PHONE}
             {...field('whatsappE164')}
           />
         )}

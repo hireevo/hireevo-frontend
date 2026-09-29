@@ -1,14 +1,23 @@
 import Link from 'next/link';
 import {
+  LuCalendarDays,
   LuClock,
   LuExternalLink,
   LuGlobe,
   LuMapPin,
   LuMessageSquare,
+  LuMonitor,
+  LuPlay,
   LuUser,
   LuVideo,
 } from 'react-icons/lu';
 import { RATE_PERIOD_LABEL, formatRate } from '@/features/profile-setup/location-options.ts';
+import {
+  labelOfRemoteMode,
+  labelOfResponseTime,
+  phraseOfProjectLength,
+} from '@/features/profile-setup/preference-options.ts';
+import { videoThumbnail } from '@/features/profile/video-url.ts';
 import { FileDocuments, FileThumbGrid } from '@/features/media/file-gallery.tsx';
 import { FileCover } from '@/features/media/file-preview.tsx';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
@@ -234,6 +243,7 @@ export function PublicProfileScreen({
             placed into the right-hand column on a wide screen. */}
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <RateCard profile={profile} rate={rate} others={otherRates} stats={stats} />
+          <WorkingPreferences profile={profile} />
           <RecordCard stats={stats} />
         </aside>
 
@@ -294,48 +304,53 @@ export function PublicProfileScreen({
             </Card>
           )}
 
-          {profile.education.length === 0 ? null : (
-            <Card title="Education">
-              <ol className="mt-4 flex flex-col gap-4">
-                {profile.education.map((entry, index) => (
-                  <li key={`education-${index}`}>
-                    <h3 className="text-base font-bold text-content-accent">
-                      {entry.qualification ?? entry.institution}
-                    </h3>
-                    {entry.qualification === null ? null : (
-                      <p className="mt-1 text-sm font-medium text-content-link">
-                        {entry.institution}
-                      </p>
-                    )}
-                    {yearOf(entry.endDate) === null ? null : (
-                      <p className="mt-1 text-sm text-content-subtle">
-                        Graduated {yearOf(entry.endDate)}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </Card>
-          )}
+          {/* Two short sections side by side on a wide screen, as the design
+              has them: each is a handful of lines, and a full-width card for
+              three of them leaves a column of white space beside the page. */}
+          <div className="grid items-start gap-5 *:min-w-0 lg:grid-cols-2">
+            {profile.education.length === 0 ? null : (
+              <Card title="Education">
+                <ol className="mt-4 flex flex-col gap-4">
+                  {profile.education.map((entry, index) => (
+                    <li key={`education-${index}`}>
+                      <h3 className="text-base font-bold text-content-accent">
+                        {entry.qualification ?? entry.institution}
+                      </h3>
+                      {entry.qualification === null ? null : (
+                        <p className="mt-1 text-sm font-medium text-content-link">
+                          {entry.institution}
+                        </p>
+                      )}
+                      {yearOf(entry.endDate) === null ? null : (
+                        <p className="mt-1 text-sm text-content-subtle">
+                          Graduated {yearOf(entry.endDate)}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+            )}
 
-          {profile.licenses.length === 0 ? null : (
-            <Card title="Certifications">
-              <ol className="mt-4 flex flex-col">
-                {profile.licenses.map((entry, index) => (
-                  <li
-                    key={`license-${index}`}
-                    className={index === 0 ? '' : 'mt-4 border-t border-border-subtle pt-4'}
-                  >
-                    <h3 className="text-base font-bold text-content-accent">{entry.name}</h3>
-                    <p className="mt-1 text-sm text-content-subtle">
-                      {[entry.issuer, yearOf(entry.issuedOn)].filter(Boolean).join(' • ')}
-                    </p>
-                    <CertificateFiles files={entry.files} name={entry.name} />
-                  </li>
-                ))}
-              </ol>
-            </Card>
-          )}
+            {profile.licenses.length === 0 ? null : (
+              <Card title="Certifications">
+                <ol className="mt-4 flex flex-col">
+                  {profile.licenses.map((entry, index) => (
+                    <li
+                      key={`license-${index}`}
+                      className={index === 0 ? '' : 'mt-4 border-t border-border-subtle pt-4'}
+                    >
+                      <h3 className="text-base font-bold text-content-accent">{entry.name}</h3>
+                      <p className="mt-1 text-sm text-content-subtle">
+                        {[entry.issuer, yearOf(entry.issuedOn)].filter(Boolean).join(' • ')}
+                      </p>
+                      <CertificateFiles files={entry.files} name={entry.name} />
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+            )}
+          </div>
 
           {profile.languages.length === 0 ? null : (
             <Card title="Languages">
@@ -359,29 +374,13 @@ export function PublicProfileScreen({
 
           {profile.videoIntroUrl === null ? null : (
             <Card title="Video intro">
-              {/* A link rather than an embed: the address is the freelancer's,
-                  and framing someone else's page is their decision, not ours. */}
-              <a
-                href={profile.videoIntroUrl}
-                rel="nofollow noopener noreferrer"
-                target="_blank"
-                className="mt-3 inline-flex min-h-6 items-center gap-2 rounded-sm text-sm font-medium text-content-link underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                <LuVideo aria-hidden="true" className="size-4 shrink-0" />
-                Watch the introduction
-              </a>
+              <VideoIntro url={profile.videoIntroUrl} />
             </Card>
           )}
 
           {profile.portfolio.length === 0 ? null : (
             <Card title="Portfolio">
-              <ul className="mt-4 grid gap-5 *:min-w-0 sm:grid-cols-2">
-                {profile.portfolio.map((piece, index) => (
-                  <li key={`portfolio-${index}`}>
-                    <PortfolioPiece piece={piece} />
-                  </li>
-                ))}
-              </ul>
+              <PortfolioTiles pieces={profile.portfolio} />
             </Card>
           )}
         </div>
@@ -431,9 +430,10 @@ function RateCard({
     <Card>
       {rate === null ? null : (
         <>
-          <h2 className="text-xs font-medium tracking-wide text-content-subtle uppercase">
-            Starting rate
-          </h2>
+          {/* The shortest period this person quotes, named the way the design
+              names it. "Typical" rather than "from": the list under it carries
+              every other period, so the figure is not a teaser. */}
+          <h2 className="text-sm text-content-muted">Typical rate</h2>
           <p className="mt-1 flex flex-wrap items-baseline gap-1.5">
             <span className="text-3xl font-bold break-all text-content-accent">{rate.amount}</span>
             <span className="text-sm text-content-subtle">/ {rate.per}</span>
@@ -560,42 +560,193 @@ function CertificateFiles({
   );
 }
 
-function PortfolioPiece({ piece }: { piece: PublicProfile['portfolio'][number] }) {
-  const images = piece.files.filter((file) => file.kind === 'image');
-  const cover = images[0];
+/**
+ * The work, as a wall of it.
+ *
+ * Every picture gets a tile and a piece is named once, across the first of its
+ * own — the same shape the owner sees on their profile, so the two views of one
+ * portfolio are not two different components. A cover with "+5 more" on it is a
+ * count of the work rather than the work, and somebody reading a portfolio came
+ * to see all of it.
+ *
+ * The links and the documents follow the grid instead of sitting on a tile: a
+ * case study is a thing to open, a tile is too small to say which file it is,
+ * and a link inside a tile would cover the picture it sits on.
+ */
+function PortfolioTiles({ pieces }: { pieces: PublicProfile['portfolio'] }) {
+  const documents = pieces.flatMap((piece) =>
+    piece.files.filter((file) => file.kind === 'document'),
+  );
+  const linked = pieces.filter((piece) => (piece.url ?? '') !== '');
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border-subtle">
-      {cover === undefined ? null : <FileCover file={cover} alt={piece.title} />}
+    <div className="mt-4 flex flex-col gap-3">
+      <ul className="grid grid-cols-2 gap-3 *:min-w-0 sm:grid-cols-3 lg:grid-cols-4">
+        {pieces.flatMap((piece, pieceIndex) => {
+          const images = piece.files.filter((file) => file.kind === 'image');
+          const summary = piece.summary ?? '';
+          // A piece with nothing attached still has a name, so it keeps a tile
+          // rather than disappearing from the page.
+          const tiles: (PublicProfile['portfolio'][number]['files'][number] | undefined)[] =
+            images.length === 0 ? [undefined] : images;
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
-        <h3 className="text-base font-bold text-content-accent">{piece.title}</h3>
-        {piece.summary === null || piece.summary === '' ? null : (
-          <p className="text-sm text-content-muted">{piece.summary}</p>
-        )}
+          return tiles.map((image, index) => (
+            <li
+              key={`piece-${pieceIndex}-${image?.objectKey ?? 'empty'}`}
+              className="relative overflow-hidden rounded-lg border border-border-subtle bg-surface-muted"
+            >
+              {image === undefined ? (
+                <span className="flex aspect-[4/3] w-full" />
+              ) : (
+                <FileCover file={image} alt={piece.title} />
+              )}
 
-        {piece.url === null || piece.url === '' ? null : (
-          <a
-            href={piece.url}
-            // A link on a public page to an address its owner typed: `noopener`
-            // keeps the opened tab from reaching back through `window.opener`,
-            // and `ugc` says this is not an endorsement.
-            rel="noopener noreferrer ugc"
-            target="_blank"
-            className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-sm text-sm text-content-link underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            <LuExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
-            Visit the work
-          </a>
-        )}
+              {/* `pointer-events-none` because the picture under it opens the
+                  full-size copy, and a caption that swallows that press is a
+                  tile that does nothing. */}
+              {index > 0 || (piece.title === '' && summary === '') ? null : (
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-surface-inverse/85 to-transparent px-3 pt-8 pb-2.5">
+                  <span className="block truncate text-sm font-semibold text-content-inverse">
+                    {piece.title}
+                  </span>
+                  {summary === '' ? null : (
+                    <span className="block truncate text-xs text-content-inverse/85">
+                      {summary}
+                    </span>
+                  )}
+                </span>
+              )}
+            </li>
+          ));
+        })}
+      </ul>
 
-        {/* Every other picture of the piece, under its description. A cover
-            with "+5 more" written on it is a count of the work rather than the
-            work: somebody looking at a portfolio came to see all of it. */}
-        <FileThumbGrid files={images.slice(1)} alt={piece.title} className="mt-2" />
+      {linked.length === 0 ? null : (
+        <ul className="flex flex-wrap gap-x-5 gap-y-2">
+          {linked.map((piece, index) => (
+            <li key={`link-${index}`}>
+              <a
+                href={piece.url ?? ''}
+                // A link on a public page to an address its owner typed:
+                // `noopener` keeps the opened tab from reaching back through
+                // `window.opener`, and `ugc` says this is not an endorsement.
+                rel="noopener noreferrer ugc"
+                target="_blank"
+                className="inline-flex min-h-6 items-center gap-1.5 rounded-sm text-sm text-content-link underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                <LuExternalLink aria-hidden="true" className="size-3.5 shrink-0" />
+                {piece.title === '' ? 'Visit the work' : piece.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
 
-        <FileDocuments files={piece.files} className="mt-2" />
-      </div>
-    </article>
+      <FileDocuments files={documents} fallbackName="Document" />
+    </div>
+  );
+}
+
+/**
+ * What working together would look like, in the freelancer’s own words.
+ *
+ * Every line here was typed by the person whose profile this is — unlike the
+ * card above it, which is the platform’s record of them — so it is phrased as
+ * a preference rather than as a measurement. It used to be collected by the
+ * profile form, stored, returned by the API and then dropped on the floor by
+ * this screen: four questions answered for nobody.
+ */
+function WorkingPreferences({ profile }: { profile: PublicProfile }) {
+  const rows = [
+    profile.remoteMode === null
+      ? null
+      : { icon: LuMonitor, text: labelOfRemoteMode(profile.remoteMode) },
+    profile.projectLength === null
+      ? null
+      : { icon: LuClock, text: phraseOfProjectLength(profile.projectLength) },
+    profile.availableFrom === null
+      ? null
+      : { icon: LuCalendarDays, text: `Available from ${monthAndYear(profile.availableFrom)}` },
+    profile.responseTime === null
+      ? null
+      : {
+          icon: LuMessageSquare,
+          text: `Usually replies ${labelOfResponseTime(profile.responseTime).toLowerCase()}`,
+        },
+  ].filter((row) => row !== null);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Card title="Working preferences">
+      <ul className="mt-4 flex flex-col gap-3 text-sm text-content-muted">
+        {rows.map((row) => (
+          <li key={row.text} className="flex items-start gap-2.5">
+            <row.icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-content-subtle" />
+            <span className="min-w-0">{row.text}</span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/** "2026-10-01" as "October 2026", without a timezone turning it into September. */
+function monthAndYear(date: string): string {
+  const [year, month] = date.split('-');
+  const names = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  const name = names[Number(month) - 1];
+  return name === undefined || year === undefined ? date : `${name} ${year}`;
+}
+
+/**
+ * The introduction, as something to press rather than a sentence about a video.
+ *
+ * Still a link out and not an embed — the address is the freelancer’s, and
+ * framing someone else’s page is their decision, not ours — but a still from
+ * the video is the thing the design puts here, and it is the difference between
+ * a page that shows someone and a page that mentions them. The still comes from
+ * the video host, so a link the host has no picture for falls back to the line
+ * of text rather than to an empty frame.
+ */
+function VideoIntro({ url }: { url: string }) {
+  const thumbnail = videoThumbnail(url);
+
+  return (
+    <a
+      href={url}
+      rel="nofollow noopener noreferrer"
+      target="_blank"
+      className="mt-4 flex flex-col gap-4 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:flex-row sm:items-center"
+    >
+      {thumbnail === null ? null : (
+        <span className="relative flex aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-surface-muted sm:w-64">
+          <MediaThumb src={thumbnail} alt="" />
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-surface/90 shadow-sm">
+              <LuPlay aria-hidden="true" className="size-5 translate-x-0.5 text-content-accent" />
+            </span>
+          </span>
+        </span>
+      )}
+
+      <span className="inline-flex min-h-6 items-center gap-2 text-sm font-medium text-content-link underline underline-offset-4">
+        <LuVideo aria-hidden="true" className="size-4 shrink-0" />
+        Watch the introduction
+      </span>
+    </a>
   );
 }
