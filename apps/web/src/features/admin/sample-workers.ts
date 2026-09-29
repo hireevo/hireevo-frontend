@@ -22,7 +22,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'California',
     status: 'completed',
-    flag: 'flagged',
+    account: 'banned',
     joinedOn: '2026-01-14',
   },
   {
@@ -32,7 +32,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'New York',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-02-02',
   },
   {
@@ -42,7 +42,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Georgia',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-02-19',
   },
   {
@@ -52,7 +52,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Texas',
     status: 'not_completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-03-03',
   },
   {
@@ -62,7 +62,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Canada',
     state: 'Ontario',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-03-11',
   },
   {
@@ -72,7 +72,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Arizona',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-03-27',
   },
   {
@@ -82,7 +82,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Canada',
     state: 'British Columbia',
     status: 'not_completed',
-    flag: 'flagged',
+    account: 'banned',
     joinedOn: '2026-04-08',
   },
   {
@@ -92,7 +92,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Illinois',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-04-22',
   },
   {
@@ -102,7 +102,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Singapore',
     state: null,
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-05-06',
   },
   {
@@ -112,7 +112,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Maine',
     status: 'not_completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-05-18',
   },
   {
@@ -122,7 +122,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Canada',
     state: 'Quebec',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-06-01',
   },
   {
@@ -132,7 +132,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Washington',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-06-15',
   },
   {
@@ -142,7 +142,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Florida',
     status: 'not_completed',
-    flag: 'flagged',
+    account: 'banned',
     joinedOn: '2026-07-04',
   },
   {
@@ -152,7 +152,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Canada',
     state: 'Alberta',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-07-29',
   },
   {
@@ -162,7 +162,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'United States',
     state: 'Colorado',
     status: 'completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-08-12',
   },
   {
@@ -172,7 +172,7 @@ export const SAMPLE_WORKERS: AdminWorker[] = [
     country: 'Singapore',
     state: null,
     status: 'not_completed',
-    flag: 'not_flagged',
+    account: 'active',
     joinedOn: '2026-08-30',
   },
 ];

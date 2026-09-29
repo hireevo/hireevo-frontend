@@ -29,9 +29,12 @@ describe('the workers list', () => {
     await user.type(screen.getByRole('searchbox'), 'nwosu');
 
     expect(rows()).toHaveLength(1);
-    // Scoped to the table: the same rows are also rendered as cards for narrow
-    // windows, and jsdom applies no media query, so both are in the document.
-    expect(within(screen.getByRole('table')).getByText('Amara Nwosu')).toBeInTheDocument();
+    // The email rather than the name: the name is also in the accessible names
+    // of that row's buttons ("Details for Amara Nwosu"), and an assertion that
+    // matches three things is one that fails for a reason nobody intended.
+    expect(
+      within(screen.getByRole('table')).getByText('amara.nwosu@example.com'),
+    ).toBeInTheDocument();
   });
 
   /**
@@ -86,7 +89,7 @@ describe('the workers list', () => {
   it('opens one worker in full, and closes back onto the button that opened it', async () => {
     const user = open();
 
-    const details = within(rows()[0] as HTMLElement).getByRole('button', { name: 'Details' });
+    const details = within(rows()[0] as HTMLElement).getByRole('button', { name: /^Details/ });
     await user.click(details);
 
     const dialog = within(screen.getByRole('dialog'));
@@ -165,5 +168,59 @@ describe('the admin sections', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: 'Open sections' })).toHaveFocus();
+  });
+
+  /**
+   * Banning is the one thing on this screen that changes somebody's account.
+   *
+   * It asks first, names the person in the question, and says what happens to
+   * them: the row an administrator meant to press and the row they did press
+   * are one line apart, and "Are you sure?" answers neither question. Letting
+   * them back in does not ask, because that is the undo.
+   */
+  it('asks before banning, and says who it is about', async () => {
+    const user = open();
+
+    const first = rows()[0] as HTMLElement;
+    await user.click(within(first).getByRole('button', { name: /^Unban/ }));
+    // Marcus starts banned, so the first press is the undo and takes no asking.
+    expect(within(rows()[0] as HTMLElement).getByText('Active')).toBeInTheDocument();
+
+    await user.click(within(rows()[0] as HTMLElement).getByRole('button', { name: /^Ban/ }));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('heading', { name: 'Ban Marcus Delgado?' })).toBeInTheDocument();
+    expect(dialog.getByText(/will not be able to sign in/)).toBeInTheDocument();
+
+    await user.click(dialog.getByRole('button', { name: 'Ban Marcus' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(rows()[0] as HTMLElement).getByText('Banned')).toBeInTheDocument();
+  });
+
+  it('changes nothing when the question is answered with Cancel', async () => {
+    const user = open();
+
+    const second = rows()[1] as HTMLElement;
+    expect(within(second).getByText('Active')).toBeInTheDocument();
+
+    await user.click(within(second).getByRole('button', { name: /^Ban/ }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(rows()[1] as HTMLElement).getByText('Active')).toBeInTheDocument();
+  });
+
+  it('says out loud what happened, for anyone not watching the chip', async () => {
+    const user = open();
+
+    await user.click(within(rows()[0] as HTMLElement).getByRole('button', { name: /^Unban/ }));
+
+    expect(screen.getByText('Marcus Delgado can sign in again.')).toBeInTheDocument();
+  });
+
+  /** Bans do not survive a reload yet, and the screen says so rather than implying otherwise. */
+  it('admits that nothing is saved yet', () => {
+    open();
+
+    expect(screen.getByText(/Bans are not saved yet/)).toBeInTheDocument();
   });
 });

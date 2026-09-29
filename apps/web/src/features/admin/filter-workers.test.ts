@@ -17,7 +17,7 @@ const worker = (over: Partial<AdminWorker>): AdminWorker => ({
   country: 'United States',
   state: 'California',
   status: 'completed',
-  flag: 'not_flagged',
+  account: 'active',
   joinedOn: '2026-01-01',
   ...over,
 });

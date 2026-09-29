@@ -1,7 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { LuChevronLeft, LuChevronRight, LuSearch, LuUserSearch } from 'react-icons/lu';
+import {
+  LuChevronLeft,
+  LuChevronRight,
+  LuSearch,
+  LuTriangleAlert,
+  LuUserSearch,
+} from 'react-icons/lu';
 import { Badge, Button, Dialog, cn } from '@hireevo/ui-web';
 import {
   NO_FILTERS,
@@ -28,13 +34,28 @@ const CONTROL =
  * Enter, and Reset is the way back to everything.
  */
 export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) {
+  // Held here rather than read straight from the prop: banning changes a row,
+  // and the list has to show the change the moment it is made.
+  const [rows, setRows] = useState<readonly AdminWorker[]>(workers);
   const [filters, setFilters] = useState<WorkerFilters>(NO_FILTERS);
   const [page, setPage] = useState(1);
   const [shown, setShown] = useState<AdminWorker | null>(null);
+  const [asking, setAsking] = useState<AdminWorker | null>(null);
+  const [said, setSaid] = useState('');
 
-  const countries = useMemo(() => countriesOf(workers), [workers]);
-  const states = useMemo(() => statesOf(workers, filters.country), [workers, filters.country]);
-  const found = useMemo(() => filterWorkers(workers, filters), [workers, filters]);
+  const setAccount = (worker: AdminWorker, account: AdminWorker['account']) => {
+    setRows((current) => current.map((row) => (row.id === worker.id ? { ...row, account } : row)));
+    setShown((current) => (current?.id === worker.id ? { ...current, account } : current));
+    setSaid(
+      account === 'banned'
+        ? `${worker.name} is banned and can no longer sign in.`
+        : `${worker.name} can sign in again.`,
+    );
+  };
+
+  const countries = useMemo(() => countriesOf(rows), [rows]);
+  const states = useMemo(() => statesOf(rows, filters.country), [rows, filters.country]);
+  const found = useMemo(() => filterWorkers(rows, filters), [rows, filters]);
   // Clamped rather than reset: narrowing a search while on page 3 should land
   // on the last page of what is left, not throw the reader back to the top.
   const current = pageOf(found, page);
@@ -46,6 +67,27 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Said once, plainly. Banning somebody is the sort of thing an
+          administrator has to be able to trust, and until the endpoint behind
+          it exists a row that changes on screen would be a claim this product
+          cannot keep. */}
+      <p
+        role="status"
+        className="flex items-start gap-2.5 rounded-xl bg-surface-warning-subtle px-4 py-3 text-sm text-content-warning"
+      >
+        <LuTriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <span>
+          Bans are not saved yet — the admin API is still being built, so anything changed here
+          lasts until the page is reloaded.
+        </span>
+      </p>
+
+      {/* What just happened, for a screen reader: the chip changing colour in a
+          row somebody cannot see is not an answer. */}
+      <p aria-live="polite" className="sr-only">
+        {said}
+      </p>
+
       <section
         aria-label="Search workers"
         className="rounded-2xl border border-border-subtle bg-surface p-4 sm:p-5"
@@ -132,8 +174,18 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
           <EmptyState onReset={() => change(NO_FILTERS)} />
         ) : (
           <>
-            <WorkerTable rows={current.rows} onOpen={setShown} />
-            <WorkerCards rows={current.rows} onOpen={setShown} />
+            <WorkerTable
+              rows={current.rows}
+              onOpen={setShown}
+              onAsk={setAsking}
+              onUnban={(worker) => setAccount(worker, 'active')}
+            />
+            <WorkerCards
+              rows={current.rows}
+              onOpen={setShown}
+              onAsk={setAsking}
+              onUnban={(worker) => setAccount(worker, 'active')}
+            />
           </>
         )}
       </section>
@@ -168,7 +220,25 @@ export function WorkersScreen({ workers }: { workers: readonly AdminWorker[] }) 
         </nav>
       ) : null}
 
-      {shown === null ? null : <WorkerDetails worker={shown} onClose={() => setShown(null)} />}
+      {shown === null ? null : (
+        <WorkerDetails
+          worker={shown}
+          onClose={() => setShown(null)}
+          onAsk={setAsking}
+          onUnban={(worker) => setAccount(worker, 'active')}
+        />
+      )}
+
+      {asking === null ? null : (
+        <ConfirmBan
+          worker={asking}
+          onClose={() => setAsking(null)}
+          onConfirm={() => {
+            setAccount(asking, 'banned');
+            setAsking(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -182,13 +252,51 @@ function StatusBadge({ worker }: { worker: AdminWorker }) {
   );
 }
 
-function FlagBadge({ worker }: { worker: AdminWorker }) {
-  return worker.flag === 'flagged' ? (
+function AccountBadge({ worker }: { worker: AdminWorker }) {
+  return worker.account === 'banned' ? (
     <Badge tone="warning" variant="solid">
-      Flagged
+      Banned
     </Badge>
   ) : (
-    <Badge tone="neutral">Not flagged</Badge>
+    <Badge tone="success">Active</Badge>
+  );
+}
+
+/**
+ * Ban and unban, as the one control that changes with the row.
+ *
+ * Banning asks first and unbanning does not: closing somebody's account is the
+ * half that cannot be undone by the person it happened to, and the half an
+ * administrator does by accident on the wrong row. Letting them back in is the
+ * undo, so making it a two-step is friction with nothing behind it.
+ */
+function AccountAction({
+  worker,
+  onAsk,
+  onUnban,
+}: {
+  worker: AdminWorker;
+  onAsk: (worker: AdminWorker) => void;
+  onUnban: (worker: AdminWorker) => void;
+}) {
+  return worker.account === 'banned' ? (
+    <Button type="button" variant="secondary" size="sm" onClick={() => onUnban(worker)}>
+      Unban<span className="sr-only"> {worker.name}</span>
+    </Button>
+  ) : (
+    // Outlined here and filled in the question. A column of solid red buttons
+    // beside every active account reads as a page about banning people, and
+    // the loudest thing on a list should be the list. The weight goes where
+    // the decision is made.
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      className="text-content-danger hover:bg-surface-danger-subtle"
+      onClick={() => onAsk(worker)}
+    >
+      Ban<span className="sr-only"> {worker.name}</span>
+    </Button>
   );
 }
 
@@ -204,9 +312,13 @@ function FlagBadge({ worker }: { worker: AdminWorker }) {
 function WorkerTable({
   rows,
   onOpen,
+  onAsk,
+  onUnban,
 }: {
   rows: readonly AdminWorker[];
   onOpen: (worker: AdminWorker) => void;
+  onAsk: (worker: AdminWorker) => void;
+  onUnban: (worker: AdminWorker) => void;
 }) {
   return (
     // `xl`, not `md`: six columns with two lines of text in several of them
@@ -232,10 +344,10 @@ function WorkerTable({
               Profile
             </th>
             <th scope="col" className="px-4 py-3 font-semibold text-content-muted">
-              Moderation
+              Account
             </th>
             <th scope="col" className="px-4 py-3 text-right font-semibold text-content-muted">
-              <span className="sr-only">Details</span>
+              <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
@@ -260,12 +372,15 @@ function WorkerTable({
                 <StatusBadge worker={worker} />
               </td>
               <td className="px-4 py-3 align-top">
-                <FlagBadge worker={worker} />
+                <AccountBadge worker={worker} />
               </td>
-              <td className="px-4 py-3 text-right align-top">
-                <Button type="button" variant="outline" size="sm" onClick={() => onOpen(worker)}>
-                  Details
-                </Button>
+              <td className="px-4 py-3 align-top">
+                <span className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => onOpen(worker)}>
+                    Details<span className="sr-only"> for {worker.name}</span>
+                  </Button>
+                  <AccountAction worker={worker} onAsk={onAsk} onUnban={onUnban} />
+                </span>
               </td>
             </tr>
           ))}
@@ -279,9 +394,13 @@ function WorkerTable({
 function WorkerCards({
   rows,
   onOpen,
+  onAsk,
+  onUnban,
 }: {
   rows: readonly AdminWorker[];
   onOpen: (worker: AdminWorker) => void;
+  onAsk: (worker: AdminWorker) => void;
+  onUnban: (worker: AdminWorker) => void;
 }) {
   return (
     <ul className="flex flex-col divide-y divide-border-subtle xl:hidden">
@@ -301,11 +420,14 @@ function WorkerCards({
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge worker={worker} />
-            <FlagBadge worker={worker} />
+            <AccountBadge worker={worker} />
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => onOpen(worker)}>
-            Details
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 *:flex-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpen(worker)}>
+              Details<span className="sr-only"> for {worker.name}</span>
+            </Button>
+            <AccountAction worker={worker} onAsk={onAsk} onUnban={onUnban} />
+          </div>
         </li>
       ))}
     </ul>
@@ -336,7 +458,17 @@ function EmptyState({ onReset }: { onReset: () => void }) {
 }
 
 /** One worker in full, in the box the Details button opens. */
-function WorkerDetails({ worker, onClose }: { worker: AdminWorker; onClose: () => void }) {
+function WorkerDetails({
+  worker,
+  onClose,
+  onAsk,
+  onUnban,
+}: {
+  worker: AdminWorker;
+  onClose: () => void;
+  onAsk: (worker: AdminWorker) => void;
+  onUnban: (worker: AdminWorker) => void;
+}) {
   const rows: [string, string][] = [
     ['Worker ID', String(worker.id)],
     ['Email', worker.email],
@@ -364,7 +496,49 @@ function WorkerDetails({ worker, onClose }: { worker: AdminWorker; onClose: () =
       </dl>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <StatusBadge worker={worker} />
-        <FlagBadge worker={worker} />
+        <AccountBadge worker={worker} />
+      </div>
+
+      {/* The same action as the row's, so somebody who opened the record to
+          decide does not have to close it again to act. */}
+      <div className="mt-5 flex justify-end">
+        <AccountAction worker={worker} onAsk={onAsk} onUnban={onUnban} />
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * The question asked before an account is closed.
+ *
+ * It names the person and says what happens to them, because the row an
+ * administrator meant to press and the row they did press are one line apart,
+ * and "Are you sure?" answers neither question.
+ */
+function ConfirmBan({
+  worker,
+  onClose,
+  onConfirm,
+}: {
+  worker: AdminWorker;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog title={`Ban ${worker.name}?`} onClose={onClose}>
+      <p className="text-sm leading-[1.7] text-content-muted">
+        They will not be able to sign in, and their profile stops being visible to employers.
+        Nothing is deleted, and you can let them back in at any time.
+      </p>
+      <p className="mt-2 text-sm text-content-subtle">{worker.email}</p>
+
+      <div className="mt-6 flex flex-wrap justify-end gap-3">
+        <Button type="button" variant="secondary" size="md" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="button" variant="danger" size="md" onClick={onConfirm}>
+          Ban {worker.name.split(' ')[0]}
+        </Button>
       </div>
     </Dialog>
   );

@@ -92,6 +92,37 @@ test('the search narrows the table, and the state control follows the country', 
   await expect(state).toBeDisabled();
 });
 
+/**
+ * Banning is the one thing here that changes somebody's account.
+ *
+ * Driven in a real browser because the whole point is the two-step: the row an
+ * administrator meant to press and the row they did press are one line apart,
+ * so the question has to name the person before anything happens.
+ */
+test('banning asks first, names the person, and changes the row', async ({ page }) => {
+  await open(page);
+
+  const row = page.locator('tbody tr').filter({ hasText: 'danielle.okafor@example.com' });
+  await expect(row.getByText('Active')).toBeVisible();
+
+  await row.getByRole('button', { name: /^Ban/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Ban Danielle Okafor?' })).toBeVisible();
+
+  // Cancel leaves the account exactly as it was.
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row.getByText('Active')).toBeVisible();
+
+  await row.getByRole('button', { name: /^Ban/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Ban Danielle' }).click();
+  await expect(row.getByText('Banned')).toBeVisible();
+
+  // And letting them back in does not ask, because that is the undo.
+  await row.getByRole('button', { name: /^Unban/ }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(row.getByText('Active')).toBeVisible();
+});
+
 test('the admin workers screen has no automatically detectable accessibility violations', async ({
   page,
 }) => {

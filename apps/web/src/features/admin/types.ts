@@ -4,8 +4,15 @@ import type { IconType } from 'react-icons';
 /** Whether a worker has finished filling their profile in. */
 export type ProfileStatus = 'completed' | 'not_completed';
 
-/** Whether moderation has raised this account. */
-export type FlagState = 'flagged' | 'not_flagged';
+/**
+ * Whether moderation has closed this account.
+ *
+ * The screen this replaces called it "flagged", and its menu called the way
+ * back "Unban User" — two words for one thing, and the milder of them on the
+ * column an administrator reads. Banned is what it does: the person cannot sign
+ * in. It is named that here so nobody has to learn which is which.
+ */
+export type AccountState = 'active' | 'banned';
 
 /**
  * One row of the workers list.
@@ -24,7 +31,7 @@ export interface AdminWorker {
   /** The state, province or region; some countries have none. */
   state: string | null;
   status: ProfileStatus;
-  flag: FlagState;
+  account: AccountState;
   /** ISO date the account was created, for the detail panel. */
   joinedOn: string;
 }
