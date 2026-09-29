@@ -29,6 +29,7 @@ export function SetupField({
   length,
   max,
   alwaysCount = false,
+  hideLabel = false,
   className,
   children,
 }: {
@@ -53,6 +54,12 @@ export function SetupField({
    * the number is there to watch from the first keystroke.
    */
   alwaysCount?: boolean;
+  /**
+   * Keeps the label for assistive technology but takes it off the screen, for a
+   * field whose card already names it — the About card's biography, where a
+   * "Biography" heading under an "About" heading is the same word twice.
+   */
+  hideLabel?: boolean;
   className?: string;
   children: (control: FieldControlProps) => ReactNode;
 }) {
@@ -69,26 +76,32 @@ export function SetupField({
 
   return (
     <div className={cn('flex min-w-0 flex-col', className)}>
-      <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-[0.8125rem] font-medium text-content">
+      {hideLabel ? (
+        <label htmlFor={id} className="sr-only">
           {label}
-          {required ? (
-            <>
-              {' '}
-              {/* Announced, not only coloured: "required" is the part a screen
-                  reader has to hear, and the asterisk alone says nothing. */}
-              <span aria-hidden="true" className="text-content-warning">
-                *
-              </span>
-              <span className="sr-only">(required)</span>
-            </>
-          ) : null}
-          {note === undefined ? null : (
-            <span className="ml-1 font-normal text-content-subtle">{note}</span>
-          )}
         </label>
-        {optional ? <span className="text-xs text-content-subtle">Optional</span> : null}
-      </div>
+      ) : (
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor={id} className="text-[0.8125rem] font-medium text-content">
+            {label}
+            {required ? (
+              <>
+                {' '}
+                {/* Announced, not only coloured: "required" is the part a screen
+                  reader has to hear, and the asterisk alone says nothing. */}
+                <span aria-hidden="true" className="text-content-warning">
+                  *
+                </span>
+                <span className="sr-only">(required)</span>
+              </>
+            ) : null}
+            {note === undefined ? null : (
+              <span className="ml-1 font-normal text-content-subtle">{note}</span>
+            )}
+          </label>
+          {optional ? <span className="text-xs text-content-subtle">Optional</span> : null}
+        </div>
+      )}
       <div className="mt-1.5">
         {children({
           id,

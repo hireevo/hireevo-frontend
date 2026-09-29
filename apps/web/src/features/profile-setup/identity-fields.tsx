@@ -82,6 +82,10 @@ export function IdentityFields({
       {shows('overview') && (
         <SetupField
           label="Biography"
+          // Under the About card, which already says "Biography" in everything
+          // but the word, the label is the same thing twice; the wizard, where
+          // this sits among other fields, keeps it.
+          hideLabel={only !== undefined}
           hint="Do not include email, phone, links, or social handles in public text."
           error={fieldErrors.overview}
           length={values.overview.length}
