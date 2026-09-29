@@ -118,9 +118,17 @@ function Chip({ children }: { children: React.ReactNode }) {
 export function PublicProfileScreen({
   profile,
   stats = {},
+  preview = false,
 }: {
   profile: PublicProfile;
   stats?: MakerStats;
+  /**
+   * The owner previewing their own profile rather than a buyer reading a
+   * published one. The page is identical; only the breadcrumb changes, because
+   * "Makers" is a browse the owner did not make — they came from their own
+   * workspace to see how the profile reads.
+   */
+  preview?: boolean;
 }) {
   // The first is the headline figure — the list arrives shortest period first
   // — and the rest sit under it, so a profile quoting an hour and a month says
@@ -157,23 +165,31 @@ export function PublicProfileScreen({
 
   return (
     <main id="main-content" className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
-      {/* "Makers" is not a link: there is no index of makers to send anyone to
-          yet, and a breadcrumb into a 404 is worse than one that does not move
-          (§6.7). It becomes a link when that page exists. */}
+      {/* Two trails for one page. A buyer arrived from the (future) makers
+          index — "Makers" is not a link yet, because a breadcrumb into a 404 is
+          worse than one that does not move (§6.7). The owner arrived from their
+          own workspace to preview it, so theirs leads back to the dashboard and
+          says what this is, rather than pretending they browsed to themselves. */}
       <nav aria-label="Breadcrumb" className="mb-5 text-sm text-content-subtle">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <li>
             <Link
-              href="/"
+              href={preview ? '/dashboard' : '/'}
               className="rounded-sm hover:text-content-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
-              Home
+              {preview ? 'Dashboard' : 'Home'}
             </Link>
           </li>
           <li aria-hidden="true">/</li>
-          <li>Makers</li>
-          <li aria-hidden="true">/</li>
-          <li className="min-w-0 truncate font-medium text-content">{name}</li>
+          {preview ? (
+            <li className="font-medium text-content">Profile preview</li>
+          ) : (
+            <>
+              <li>Makers</li>
+              <li aria-hidden="true">/</li>
+              <li className="min-w-0 truncate font-medium text-content">{name}</li>
+            </>
+          )}
         </ol>
       </nav>
 
