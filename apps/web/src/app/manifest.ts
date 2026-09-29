@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     // Matches the light `surface` and `accent` tokens. These are literals
     // because a manifest is JSON: it cannot read a custom property.
     background_color: '#ffffff',
-    theme_color: '#15423c',
+    theme_color: '#054a91',
     icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
   };
 }
