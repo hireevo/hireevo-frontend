@@ -8,10 +8,16 @@
 # variables, not a choice — a "configure at runtime" image would need those
 # values read on the server and passed down instead.
 
-FROM node:24.20.0-alpine AS base
+FROM node:26.10.0-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable pnpm
+# Installed rather than `corepack enable pnpm`: Node stopped shipping Corepack,
+# so on 26 that line is `corepack: not found` and the image never builds. The
+# version is the one `packageManager` in package.json names, written out here
+# because a Dockerfile cannot read it — §7.7 wants every tool pinned, and an
+# unpinned `npm i -g pnpm` would install whatever is newest on the day of the
+# build and resolve the lockfile with it.
+RUN npm install -g pnpm@11.25.0
 WORKDIR /app
 
 # Dependencies are their own layer, keyed on the manifests alone, so editing a
