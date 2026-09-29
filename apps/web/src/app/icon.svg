@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="HireEvo">
-  <rect width="32" height="32" rx="7" fill="#15423C"/>
-  <path d="M10 9v14M22 9v14M10 16h12" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+  <rect width="32" height="32" rx="7" fill="#054a91"/>
+  <path
+    transform="translate(10.7 6.27) scale(0.641)"
+    d="M16.5296 0.356831V29.9948H10.6052V20.7539H5.92444V29.9948H0V0.356831H5.92444V15.1863H10.6052V0.356831H16.5296Z"
+    fill="#ffffff"
+  />
 </svg>
