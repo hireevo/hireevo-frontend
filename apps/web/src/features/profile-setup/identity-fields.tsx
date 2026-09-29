@@ -96,14 +96,11 @@ export function IdentityFields({
           {(control) => (
             <MarkdownEditor
               {...control}
+              aria-label="Biography"
               value={values.overview}
               maxLength={IDENTITY_LIMITS.overview}
               onChange={(next) => onChange('overview', next)}
-              className={cn(
-                CONTROL,
-                'min-h-24 resize-none py-2 leading-relaxed',
-                border(fieldErrors.overview),
-              )}
+              className={cn(CONTROL, 'py-2 leading-relaxed', border(fieldErrors.overview))}
             />
           )}
         </SetupField>
