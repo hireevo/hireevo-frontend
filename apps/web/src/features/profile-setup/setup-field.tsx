@@ -28,6 +28,7 @@ export function SetupField({
   error,
   length,
   max,
+  alwaysCount = false,
   className,
   children,
 }: {
@@ -46,16 +47,23 @@ export function SetupField({
   /** With `max`, turns on the countdown near the limit. */
   length?: number;
   max?: number;
+  /**
+   * Shows the count the whole time as `used / max`, not only near the limit.
+   * For a field whose limit is part of the ask — the biography's thousand — so
+   * the number is there to watch from the first keystroke.
+   */
+  alwaysCount?: boolean;
   className?: string;
   children: (control: FieldControlProps) => ReactNode;
 }) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
-  const remaining = max === undefined || length === undefined ? Infinity : max - length;
-  const counting = remaining <= COUNT_FROM;
+  const counted = max !== undefined && length !== undefined;
+  const remaining = counted ? max - length : Infinity;
+  const showCount = counted && (alwaysCount || remaining <= COUNT_FROM);
   const describedBy =
-    [error === undefined ? null : errorId, hint === undefined && !counting ? null : hintId]
+    [error === undefined ? null : errorId, hint === undefined && !showCount ? null : hintId]
       .filter(Boolean)
       .join(' ') || undefined;
 
@@ -93,12 +101,16 @@ export function SetupField({
           {error}
         </p>
       )}
-      {hint === undefined && !counting ? null : (
+      {hint === undefined && !showCount ? null : (
         <p id={hintId} className="mt-1.5 flex justify-between gap-3 text-xs text-content-subtle">
           <span>{hint}</span>
-          {counting ? (
-            <span className={cn('shrink-0', remaining === 0 && 'text-content-warning')}>
-              {remaining} {remaining === 1 ? 'character' : 'characters'} left
+          {showCount ? (
+            <span
+              className={cn('shrink-0 tabular-nums', remaining === 0 && 'text-content-warning')}
+            >
+              {alwaysCount
+                ? `${length} / ${max}`
+                : `${remaining} ${remaining === 1 ? 'character' : 'characters'} left`}
             </span>
           ) : null}
         </p>

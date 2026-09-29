@@ -287,7 +287,10 @@ describe('ProfileBuilder', () => {
 
     const about = section(/About/);
     expect(await about.findByLabelText('Biography')).toBeInTheDocument();
-    expect(about.getByLabelText('Display name')).toHaveValue('Ayesha Khan');
+    // Biography alone: the name and headline are edited on the header above, so
+    // the About card no longer repeats them.
+    expect(about.queryByLabelText('Display name')).not.toBeInTheDocument();
+    expect(about.queryByLabelText('Professional headline')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save and close/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save and next/ })).not.toBeInTheDocument();
     expect(about.getByRole('button', { name: 'Close' })).toBeInTheDocument();
