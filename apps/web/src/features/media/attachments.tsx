@@ -7,10 +7,10 @@ import {
   ACCEPT,
   FILE_LIMITS,
   releasePreview,
-  uploadDocument,
-  uploadImage,
+  uploadAttachments,
   type DraftFile,
   type FileGroup,
+  type FileKind,
 } from './upload.ts';
 import { MediaThumb } from './media-thumb.tsx';
 
@@ -278,12 +278,14 @@ function Documents({
 }
 
 /**
- * Choosing files, and uploading them one after another.
+ * Choosing files, and uploading a whole selection in one round trip.
  *
- * Sequential rather than all at once: twenty images is forty signed uploads,
- * and firing them together is how a phone on a slow connection times several of
- * them out and reports a failure that was really congestion. Going one at a time
- * also means the count on screen is the truth about what has been stored.
+ * The signing is batched: attaching ten files is one request to the API rather
+ * than ten, which is what `uploadAttachments` collapses. The bytes still go up
+ * one object at a time straight to storage — firing forty PUTs together is how a
+ * phone on a slow connection times several out and reports congestion as a
+ * failure — and each file is added to the list the moment its objects land, so
+ * the count on screen stays the truth about what has been stored.
  *
  * One zone for both kinds. Each file is routed by its own type rather than by
  * which box it was dropped on, and the two ceilings are still counted apart
@@ -351,29 +353,26 @@ function Attach({
     }
     if (taking.length === 0) return;
 
-    for (const [index, { file, kind }] of taking.entries()) {
-      setBusy({ name: file.name, size: file.size, done: index, total: taking.length, fraction: 0 });
+    // One request signs the whole selection; the bytes then go up one object at
+    // a time, and each file is handed to the list the moment its objects land —
+    // so a save pressed mid-batch includes whatever is stored rather than
+    // clearing it, because a list is saved whole.
+    const result = await uploadAttachments(
+      taking,
+      group,
+      (progress) =>
+        setBusy({
+          name: progress.name,
+          size: progress.size,
+          done: progress.index,
+          total: progress.total,
+          fraction: progress.fraction,
+          preparing: progress.phase === 'preparing',
+        }),
+      (landed) => onAdd([landed]),
+    );
 
-      const progress = (fraction: number) =>
-        setBusy((current) => (current === null ? null : { ...current, fraction }));
-
-      const result =
-        kind === 'image'
-          ? await uploadImage(file, group, progress)
-          : await uploadDocument(file, group, progress);
-
-      if (!result.ok) {
-        setError(result.message);
-        break;
-      }
-      // Handed up as each one lands, not once the batch is done. Ten images
-      // take ten uploads, and a save pressed during them used to send a piece
-      // with none of them on it — which does not merely lose the ones still
-      // going, it clears the ones already stored, because a list is saved
-      // whole. Whatever has landed is now always in the list.
-      onAdd([result.value]);
-    }
-
+    if (!result.ok) setError(result.message);
     setBusy(null);
   }
 
@@ -479,12 +478,18 @@ function Attach({
   );
 }
 
-type Busy = { name: string; size: number; done: number; total: number; fraction: number };
+type Busy = {
+  name: string;
+  size: number;
+  done: number;
+  total: number;
+  fraction: number;
+  /** The compression pass before signing, not the bytes going up. */
+  preparing: boolean;
+};
 
 /** What the zone takes, written the way the person choosing a file reads it. */
 const SUPPORTED_FORMATS = 'Supported formats: JPG, PNG, WebP, PDF';
-
-type FileKind = 'image' | 'document';
 
 /**
  * Which uploader a chosen file belongs to, or nothing when it belongs to
@@ -507,6 +512,11 @@ function kindOf(file: File): FileKind | null {
  */
 function Progress({ busy }: { busy: Busy }) {
   const percent = Math.round(busy.fraction * 100);
+  // The compression pass reports no bytes-in-flight fraction, so its bar would
+  // sit at 0 and look stalled. It is quick and there is nothing to measure, so
+  // it shows as an indeterminate full track rather than a number nobody trusts.
+  const verb = busy.preparing ? 'Preparing' : 'Uploading';
+  const stage = busy.total > 1 ? `${verb} ${busy.done + 1} of ${busy.total}…` : `${verb}…`;
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-subtle p-4">
@@ -520,26 +530,27 @@ function Progress({ busy }: { busy: Busy }) {
 
       {/* `progressbar` rather than a styled div alone: the number is announced
           rather than only drawn, and it is the one thing on screen that says
-          the upload has not stalled. */}
+          the upload has not stalled. While preparing there is no measured value,
+          so the role carries no `aria-valuenow` and reads as busy-indeterminate. */}
       <div
         role="progressbar"
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Uploading ${busy.name}`}
+        {...(busy.preparing
+          ? {}
+          : { 'aria-valuenow': percent, 'aria-valuemin': 0, 'aria-valuemax': 100 })}
+        aria-label={`${verb} ${busy.name}`}
         className="h-1.5 w-full overflow-hidden rounded-full bg-border-subtle"
       >
         <div
           className="h-full rounded-full bg-accent transition-[width] duration-150"
-          style={{ width: `${percent}%` }}
+          style={{ width: busy.preparing ? '100%' : `${percent}%` }}
         />
       </div>
 
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="min-w-0 truncate text-content-subtle">
-          {busy.total > 1 ? `Uploading ${busy.done + 1} of ${busy.total}…` : 'Uploading…'}
-        </span>
-        <span className="shrink-0 font-semibold text-content-accent">{percent}%</span>
+        <span className="min-w-0 truncate text-content-subtle">{stage}</span>
+        {busy.preparing ? null : (
+          <span className="shrink-0 font-semibold text-content-accent">{percent}%</span>
+        )}
       </div>
     </div>
   );

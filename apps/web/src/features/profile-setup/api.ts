@@ -4,7 +4,6 @@ import { toMinorUnits, toTypedAmount } from './location-options.ts';
 import type { SectionsPayload } from './sections-payload.ts';
 
 export type OwnProfile = Schema<'OwnProfileResponse'>;
-export type UploadTicket = Schema<'UploadTicket'>;
 export type VisibilitySettings = Schema<'UpdateVisibilityRequest'>;
 export type ProfileVisibility = Schema<'ProfileVisibilityResponse'>;
 export type RatePeriod = OwnProfile['rates'][number]['period'];

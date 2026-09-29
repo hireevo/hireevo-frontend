@@ -529,10 +529,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * A signed upload for one of the caller’s files
-         * @description The bytes go straight to storage, never through this API (ADR-004). PUT the file to the returned URL with the returned headers, then claim the key with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for a portfolio image or document. The role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else.
+         * Signed uploads for the caller’s files
+         * @description One request signs every file being attached at once, and the tickets come back in the order they were asked for. The bytes still go straight to storage, never through this API (ADR-004): PUT each file to its returned URL with the returned headers, then claim the keys with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for portfolio images or documents. Each upload’s role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else. A single file is a batch of one.
          */
-        post: operations["ProfilesController_requestUpload_v1"];
+        post: operations["ProfilesController_requestUploads_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1060,57 +1060,61 @@ export interface components {
             searchIndexable: boolean;
             publishedAt: string | null;
         };
-        UploadRequest: {
-            /** @constant */
-            role: "avatar";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-image";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-thumbnail";
-            /** @constant */
-            contentType: "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "portfolio-document";
-            /** @enum {string} */
-            contentType: "application/pdf";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-image";
-            /** @enum {string} */
-            contentType: "image/jpeg" | "image/png" | "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-thumbnail";
-            /** @constant */
-            contentType: "image/webp";
-            byteSize: number;
-        } | {
-            /** @constant */
-            role: "certification-document";
-            /** @enum {string} */
-            contentType: "application/pdf";
-            byteSize: number;
+        UploadBatchRequest: {
+            uploads: ({
+                /** @constant */
+                role: "avatar";
+                /** @enum {string} */
+                contentType: "image/jpeg" | "image/png" | "image/webp";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "portfolio-image";
+                /** @enum {string} */
+                contentType: "image/jpeg" | "image/png" | "image/webp";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "portfolio-thumbnail";
+                /** @constant */
+                contentType: "image/webp";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "portfolio-document";
+                /** @enum {string} */
+                contentType: "application/pdf";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "certification-image";
+                /** @enum {string} */
+                contentType: "image/jpeg" | "image/png" | "image/webp";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "certification-thumbnail";
+                /** @constant */
+                contentType: "image/webp";
+                byteSize: number;
+            } | {
+                /** @constant */
+                role: "certification-document";
+                /** @enum {string} */
+                contentType: "application/pdf";
+                byteSize: number;
+            })[];
         };
-        UploadTicket: {
-            url: string;
-            headers: {
-                [key: string]: string;
-            };
-            key: string;
-            expiresAt: string;
-            byteSize: number;
+        UploadBatchResponse: {
+            tickets: {
+                url: string;
+                headers: {
+                    [key: string]: string;
+                };
+                key: string;
+                expiresAt: string;
+                byteSize: number;
+            }[];
         };
     };
     responses: never;
@@ -2347,7 +2351,7 @@ export interface operations {
             };
         };
     };
-    ProfilesController_requestUpload_v1: {
+    ProfilesController_requestUploads_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2356,7 +2360,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UploadRequest"];
+                "application/json": components["schemas"]["UploadBatchRequest"];
             };
         };
         responses: {
@@ -2365,7 +2369,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UploadTicket"];
+                    "application/json": components["schemas"]["UploadBatchResponse"];
                 };
             };
             /** @description The request failed validation; `details.issues` names each field */

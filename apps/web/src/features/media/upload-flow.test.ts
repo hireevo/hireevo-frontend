@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { uploadDocument, uploadImage, uploadProfilePhoto } from './upload.ts';
+import {
+  uploadAttachments,
+  uploadProfilePhoto,
+  type BatchProgress,
+  type DraftFile,
+  type FileGroup,
+  type FileKind,
+} from './upload.ts';
 
 const client = vi.hoisted(() => ({ GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn() }));
 vi.mock('@/lib/api.ts', () => ({ api: client }));
@@ -11,24 +18,28 @@ vi.mock('@/lib/api.ts', () => ({ api: client }));
  * Canvas encoding is not something jsdom does — `convertToBlob` and
  * `toBlob` produce nothing there — so a test that let this run would be
  * asserting against a stub of the browser rather than against a browser. What
- * these tests are about is the two-request upload: what is asked of the API,
- * what is sent to storage, and what comes back to be claimed. The encoder
- * itself has no automated cover: it is exercised by driving a real browser at
- * the running API by hand, which is how the batch-append defect below was
- * found. Naming a spec file that does not exist is worse than naming none
+ * these tests are about is the batched upload: what is asked of the API in the
+ * one request, what is sent to storage, and what comes back to be claimed. The
+ * encoder itself has no automated cover: it is exercised by driving a real
+ * browser at the running API by hand, which is how the batch-append defect below
+ * was found. Naming a spec file that does not exist is worse than naming none
  * (§8.1), so this says what is actually true.
  */
 const compressed = vi.hoisted(() => ({ compressImage: vi.fn() }));
 vi.mock('./compress-image.ts', () => compressed);
 
-const ticketFor = (key: string) => ({
-  data: {
-    url: `https://nyc3.digitaloceanspaces.com/hireevo-media/${key}?X-Amz-Signature=abc`,
-    headers: { 'Content-Type': 'image/webp' },
-    key,
-    expiresAt: '2026-09-20T10:00:00Z',
-    byteSize: 1000,
-  },
+/** One signed ticket, as the API returns it inside the batch. */
+const ticket = (key: string) => ({
+  url: `https://nyc3.digitaloceanspaces.com/hireevo-media/${key}?X-Amz-Signature=abc`,
+  headers: { 'Content-Type': 'image/webp' },
+  key,
+  expiresAt: '2026-09-20T10:00:00Z',
+  byteSize: 1000,
+});
+
+/** The endpoint's answer: one ticket per upload, in order. */
+const batch = (...keys: string[]) => ({
+  data: { tickets: keys.map(ticket) },
   error: undefined,
 });
 
@@ -39,6 +50,13 @@ const imageOk = (width = 2048, height = 1365) => ({
   ok: true as const,
   image: { full: blob(300_000), thumb: blob(14_000), width, height },
 });
+
+const png = (name: string): File => new File(['x'], name, { type: 'image/png' });
+
+const pdf = (name: string, size: number): File =>
+  Object.defineProperty(new File(['x'], name, { type: 'application/pdf' }), 'size', {
+    value: size,
+  });
 
 /** Each PUT that reached storage: the URL it went to and the method used. */
 let sent: Array<[string, RequestInit]>;
@@ -57,6 +75,25 @@ let storageAccepts = true;
 // `URL`.
 const realCreateObjectURL = URL.createObjectURL.bind(URL);
 const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+
+/** Runs a selection through the real batch uploader, collecting what it reports. */
+async function attach(chosen: { file: File; kind: FileKind }[], group: FileGroup = 'portfolio') {
+  const landed: DraftFile[] = [];
+  const progress: BatchProgress[] = [];
+  const result = await uploadAttachments(
+    chosen,
+    group,
+    (update) => progress.push(update),
+    (file) => landed.push(file),
+  );
+  return { result, landed, progress };
+}
+
+/** The role of each upload in the one request the batch sent. */
+function rolesAsked(): string[] {
+  const body = client.POST.mock.calls[0]?.[1] as { body: { uploads: { role: string }[] } };
+  return body.body.uploads.map((upload) => upload.role);
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -96,13 +133,6 @@ beforeEach(() => {
   );
   // Only these two are swapped, not the whole `URL` global: everything else
   // here still needs the real constructor.
-  //
-  // These blobs have their `size` overridden so a test can describe a 300 KB
-  // image without holding 300 KB, and jsdom's own `createObjectURL` reaches
-  // inside the blob it is given — which made a jsdom upgrade fail two tests
-  // that are not about object URLs at all. What they assert is that a preview
-  // URL is produced and handed back, which a stub answers without pinning the
-  // environment's internals.
   URL.createObjectURL = vi.fn(() => 'blob:preview-for-this-tab');
   URL.revokeObjectURL = vi.fn();
 });
@@ -113,64 +143,116 @@ afterEach(() => {
   URL.revokeObjectURL = realRevokeObjectURL;
 });
 
+describe('attaching a selection in one round trip', () => {
+  /**
+   * The reason the batch exists, and the answer to "ten attachments, ten API
+   * calls?": however many files are chosen, the signing is one request.
+   */
+  it('signs every file and every object in a single request', async () => {
+    compressed.compressImage.mockResolvedValue(imageOk());
+    client.POST.mockResolvedValueOnce(
+      batch(
+        'profiles/p1/portfolio/a.webp',
+        'profiles/p1/portfolio/a-thumb.webp',
+        'profiles/p1/portfolio/b.webp',
+        'profiles/p1/portfolio/b-thumb.webp',
+        'profiles/p1/portfolio/c.pdf',
+      ),
+    );
+
+    const { result, landed } = await attach([
+      { file: png('a.png'), kind: 'image' },
+      { file: png('b.png'), kind: 'image' },
+      { file: pdf('c.pdf', 500_000), kind: 'document' },
+    ]);
+
+    expect(result.ok).toBe(true);
+    // One call, not five: the whole point.
+    expect(client.POST).toHaveBeenCalledTimes(1);
+    // Every object across every file, in order, in that one request.
+    expect(rolesAsked()).toEqual([
+      'portfolio-image',
+      'portfolio-thumbnail',
+      'portfolio-image',
+      'portfolio-thumbnail',
+      'portfolio-document',
+    ]);
+    // Three files landed, five objects went to storage by PUT.
+    expect(landed).toHaveLength(3);
+    expect(sent).toHaveLength(5);
+    expect(sent.every(([, init]) => init.method === 'PUT')).toBe(true);
+  });
+
+  /**
+   * A file is added to the list the moment its own objects land, not once the
+   * whole batch is done — so a save pressed mid-batch keeps what is stored.
+   */
+  it('hands each file up as its objects land, in order', async () => {
+    compressed.compressImage.mockResolvedValue(imageOk());
+    client.POST.mockResolvedValueOnce(
+      batch('k/a.webp', 'k/a-thumb.webp', 'k/b.webp', 'k/b-thumb.webp'),
+    );
+
+    const { landed } = await attach([
+      { file: png('first.png'), kind: 'image' },
+      { file: png('second.png'), kind: 'image' },
+    ]);
+
+    expect(landed.map((file) => file.fileName)).toEqual(['first.png', 'second.png']);
+    expect(landed[0]?.objectKey).toBe('k/a.webp');
+    expect(landed[1]?.objectKey).toBe('k/b.webp');
+  });
+});
+
 describe('uploading a portfolio image', () => {
   it('sends the bytes to storage rather than through the API, and answers with the row to claim', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
     client.POST.mockResolvedValueOnce(
-      ticketFor('profiles/p1/portfolio/bbbb000000000000-thumb.webp'),
+      batch(
+        'profiles/p1/portfolio/aaaa000000000000.webp',
+        'profiles/p1/portfolio/bbbb000000000000-thumb.webp',
+      ),
     );
 
-    const file = new File(['x'], 'checkout.png', { type: 'image/png' });
-    const result = await uploadImage(file, 'portfolio');
+    const { result, landed } = await attach([{ file: png('checkout.png'), kind: 'image' }]);
 
-    expect(result).toMatchObject({
-      ok: true,
-      value: {
-        kind: 'image',
-        objectKey: 'profiles/p1/portfolio/aaaa000000000000.webp',
-        thumbKey: 'profiles/p1/portfolio/bbbb000000000000-thumb.webp',
-        contentType: 'image/webp',
-        byteSize: 300_000,
-        width: 2048,
-        height: 1365,
-        fileName: 'checkout.png',
-      },
+    expect(result.ok).toBe(true);
+    expect(landed[0]).toMatchObject({
+      kind: 'image',
+      objectKey: 'profiles/p1/portfolio/aaaa000000000000.webp',
+      thumbKey: 'profiles/p1/portfolio/bbbb000000000000-thumb.webp',
+      contentType: 'image/webp',
+      byteSize: 300_000,
+      width: 2048,
+      height: 1365,
+      fileName: 'checkout.png',
     });
     // The gallery shows the copy this tab holds until a save resolves a real
     // URL, so the uploaded file carries one from the moment it is chosen.
-    expect(result.ok ? result.value.thumbUrl : '').toMatch(/^blob:/);
+    expect(landed[0]?.thumbUrl).toMatch(/^blob:/);
 
-    // Two objects, both by PUT. The API was asked for the tickets and given
-    // none of the bytes.
+    // Two objects, both by PUT, one API call for the tickets and none of the bytes.
+    expect(client.POST).toHaveBeenCalledTimes(1);
     expect(sent).toHaveLength(2);
     expect(sent.every(([, init]) => init.method === 'PUT')).toBe(true);
     expect(sent[0]?.[0]).toContain('X-Amz-Signature');
   });
 
   /**
-   * The length is signed, so the request must carry the blob it was measured
-   * against. This is the check that catches a future edit compressing once and
-   * uploading something else.
+   * The length is signed, so the request must carry the size the blob was
+   * measured at. This is the check that catches a future edit compressing once
+   * and asking to sign something else.
    */
   it('declares the compressed length, not the original file’s', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
-    client.POST.mockResolvedValueOnce(
-      ticketFor('profiles/p1/portfolio/bbbb000000000000-thumb.webp'),
-    );
+    client.POST.mockResolvedValueOnce(batch('k/full.webp', 'k/thumb-thumb.webp'));
 
-    await uploadImage(
-      Object.defineProperty(new File(['x'], 'huge.png', { type: 'image/png' }), 'size', {
-        value: 9_000_000,
-      }),
-      'portfolio',
-    );
+    await attach([{ file: pngSized('huge.png', 9_000_000), kind: 'image' }]);
 
-    const bodies = (
-      client.POST.mock.calls as Array<[string, { body: { role: string; byteSize: number } }]>
-    ).map(([, options]) => options.body);
-    const [full, thumb] = bodies;
+    const body = client.POST.mock.calls[0]?.[1] as {
+      body: { uploads: { role: string; byteSize: number }[] };
+    };
+    const [full, thumb] = body.body.uploads;
     expect(full).toMatchObject({ role: 'portfolio-image', byteSize: 300_000 });
     expect(thumb).toMatchObject({ role: 'portfolio-thumbnail', byteSize: 14_000 });
   });
@@ -185,36 +267,28 @@ describe('uploading a portfolio image', () => {
    */
   it('reports progress as the bytes go, and finishes at 1', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
-    client.POST.mockResolvedValueOnce(
-      ticketFor('profiles/p1/portfolio/bbbb000000000000-thumb.webp'),
-    );
+    client.POST.mockResolvedValueOnce(batch('k/full.webp', 'k/thumb-thumb.webp'));
 
-    const seen: number[] = [];
-    await uploadImage(new File(['x'], 'a.png', { type: 'image/png' }), 'portfolio', (fraction) =>
-      seen.push(fraction),
-    );
+    const { progress } = await attach([{ file: png('a.png'), kind: 'image' }]);
+    const uploading = progress.filter((p) => p.phase === 'uploading').map((p) => p.fraction);
 
-    expect(seen.length).toBeGreaterThan(0);
-    expect(seen.at(-1)).toBe(1);
-    // Never backwards: an image is two objects, and the second must continue
-    // the first rather than restart the bar.
-    expect([...seen].sort((a, b) => a - b)).toEqual(seen);
+    expect(uploading.length).toBeGreaterThan(0);
+    expect(uploading.at(-1)).toBe(1);
+    // Never backwards: an image is two objects, and the second must continue the
+    // first rather than restart the bar.
+    expect([...uploading].sort((a, b) => a - b)).toEqual(uploading);
 
     // Weighted by real size, not halved. The thumbnail is a twentieth of the
     // full image, so halving would park the bar at 50% through the part that
     // actually takes time.
-    const halfway = seen.find((fraction) => fraction > 0);
+    const halfway = uploading.find((fraction) => fraction > 0);
     expect(halfway).toBeLessThan(0.5);
   });
 
   it('stops without uploading when the image cannot be read', async () => {
     compressed.compressImage.mockResolvedValueOnce({ ok: false, message: 'That image…' });
 
-    const result = await uploadImage(
-      new File(['x'], 'x.heic', { type: 'image/heic' }),
-      'portfolio',
-    );
+    const { result } = await attach([{ file: png('x.heic'), kind: 'image' }]);
 
     expect(result).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
@@ -223,72 +297,57 @@ describe('uploading a portfolio image', () => {
 
   it('reports a refusal from storage rather than claiming a key nothing was written to', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/aaaa000000000000.webp'));
+    client.POST.mockResolvedValueOnce(batch('k/full.webp', 'k/thumb-thumb.webp'));
     storageAccepts = false;
 
-    expect(
-      await uploadImage(new File(['x'], 'a.png', { type: 'image/png' }), 'portfolio'),
-    ).toMatchObject({ ok: false });
+    const { result } = await attach([{ file: png('a.png'), kind: 'image' }]);
+    expect(result).toMatchObject({ ok: false });
   });
 });
 
 describe('uploading a portfolio document', () => {
   it('sends a PDF as it is, with the name a person will download it under', async () => {
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/portfolio/cccc000000000000.pdf'));
+    client.POST.mockResolvedValueOnce(batch('profiles/p1/portfolio/cccc000000000000.pdf'));
 
-    const file = Object.defineProperty(
-      new File(['x'], 'case-study.pdf', { type: 'application/pdf' }),
-      'size',
-      { value: 880_000 },
-    );
+    const { result, landed } = await attach([
+      { file: pdf('case-study.pdf', 880_000), kind: 'document' },
+    ]);
 
-    expect(await uploadDocument(file, 'portfolio')).toEqual({
-      ok: true,
+    expect(result.ok).toBe(true);
+    expect(landed[0]).toEqual({
       // No `thumbUrl`: a document has no thumbnail to show.
-      value: {
-        kind: 'document',
-        objectKey: 'profiles/p1/portfolio/cccc000000000000.pdf',
-        contentType: 'application/pdf',
-        byteSize: 880_000,
-        fileName: 'case-study.pdf',
-      },
+      kind: 'document',
+      objectKey: 'profiles/p1/portfolio/cccc000000000000.pdf',
+      contentType: 'application/pdf',
+      byteSize: 880_000,
+      fileName: 'case-study.pdf',
     });
 
-    // Never compressed: rewriting a PDF in a browser risks handing back one
-    // that will not open.
+    // Never compressed: rewriting a PDF in a browser risks handing back one that
+    // will not open.
     expect(compressed.compressImage).not.toHaveBeenCalled();
   });
 
   it('refuses anything that is not a PDF before asking for a ticket', async () => {
-    const file = new File(['x'], 'notes.docx', {
+    const notPdf = new File(['x'], 'notes.docx', {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
-    expect(await uploadDocument(file, 'portfolio')).toMatchObject({ ok: false });
+    const { result } = await attach([{ file: notPdf, kind: 'document' }]);
+    expect(result).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
   });
 
   it('refuses one over the limit before a slow upload rather than after it', async () => {
-    const file = Object.defineProperty(
-      new File(['x'], 'huge.pdf', { type: 'application/pdf' }),
-      'size',
-      { value: 11_000_000 },
-    );
-
-    const result = await uploadDocument(file, 'portfolio');
+    const { result } = await attach([{ file: pdf('huge.pdf', 11_000_000), kind: 'document' }]);
     expect(result).toMatchObject({ ok: false });
     expect(result.ok ? '' : result.message).toMatch(/10MB/);
     expect(client.POST).not.toHaveBeenCalled();
   });
 
   it('refuses an empty file, which is a failed export rather than a document', async () => {
-    const file = Object.defineProperty(
-      new File([], 'empty.pdf', { type: 'application/pdf' }),
-      'size',
-      { value: 0 },
-    );
-
-    expect(await uploadDocument(file, 'portfolio')).toMatchObject({ ok: false });
+    const { result } = await attach([{ file: pdf('empty.pdf', 0), kind: 'document' }]);
+    expect(result).toMatchObject({ ok: false });
     expect(client.POST).not.toHaveBeenCalled();
   });
 });
@@ -296,60 +355,53 @@ describe('uploading a portfolio document', () => {
 describe('uploading a certification', () => {
   it('asks for the certification roles, so the object lands in its own folder', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk());
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/certification/aaaa000000000000.webp'));
     client.POST.mockResolvedValueOnce(
-      ticketFor('profiles/p1/certification/bbbb000000000000-thumb.webp'),
+      batch(
+        'profiles/p1/certification/aaaa000000000000.webp',
+        'profiles/p1/certification/bbbb000000000000-thumb.webp',
+      ),
     );
 
-    const result = await uploadImage(
-      new File(['x'], 'diploma.png', { type: 'image/png' }),
+    const { result, landed } = await attach(
+      [{ file: png('diploma.png'), kind: 'image' }],
       'certification',
     );
 
-    expect(result).toMatchObject({
-      ok: true,
-      value: { kind: 'image', objectKey: 'profiles/p1/certification/aaaa000000000000.webp' },
+    expect(result.ok).toBe(true);
+    expect(landed[0]).toMatchObject({
+      kind: 'image',
+      objectKey: 'profiles/p1/certification/aaaa000000000000.webp',
     });
-    const roles = (client.POST.mock.calls as Array<[string, { body: { role: string } }]>).map(
-      ([, options]) => options.body.role,
-    );
-    expect(roles).toEqual(['certification-image', 'certification-thumbnail']);
+    expect(rolesAsked()).toEqual(['certification-image', 'certification-thumbnail']);
   });
 
   it('sends a certificate PDF under the certification-document role', async () => {
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/certification/cccc000000000000.pdf'));
+    client.POST.mockResolvedValueOnce(batch('profiles/p1/certification/cccc000000000000.pdf'));
 
-    const file = Object.defineProperty(
-      new File(['x'], 'license.pdf', { type: 'application/pdf' }),
-      'size',
-      { value: 640_000 },
+    const { result, landed } = await attach(
+      [{ file: pdf('license.pdf', 640_000), kind: 'document' }],
+      'certification',
     );
 
-    const result = await uploadDocument(file, 'certification');
-    expect(result).toMatchObject({
-      ok: true,
-      value: { kind: 'document', objectKey: 'profiles/p1/certification/cccc000000000000.pdf' },
+    expect(result.ok).toBe(true);
+    expect(landed[0]).toMatchObject({
+      kind: 'document',
+      objectKey: 'profiles/p1/certification/cccc000000000000.pdf',
     });
-    const asked = (client.POST.mock.calls as Array<[string, { body: { role: string } }]>).map(
-      ([, options]) => options.body.role,
-    );
-    expect(asked).toEqual(['certification-document']);
+    expect(rolesAsked()).toEqual(['certification-document']);
   });
 });
 
 describe('uploading a profile photo', () => {
   it('uploads one object, because a photo has no gallery to thumbnail for', async () => {
     compressed.compressImage.mockResolvedValueOnce(imageOk(400, 400));
-    client.POST.mockResolvedValueOnce(ticketFor('profiles/p1/avatar/dddd000000000000.webp'));
+    client.POST.mockResolvedValueOnce(batch('profiles/p1/avatar/dddd000000000000.webp'));
 
     const result = await uploadProfilePhoto(new File(['x'], 'me.jpg', { type: 'image/jpeg' }));
 
     expect(result).toEqual({ ok: true, value: 'profiles/p1/avatar/dddd000000000000.webp' });
     expect(sent).toHaveLength(1);
-    const asked = (client.POST.mock.calls as Array<[string, { body: { role: string } }]>).map(
-      ([, options]) => options.body,
-    );
-    expect(asked[0]).toMatchObject({ role: 'avatar' });
+    expect(rolesAsked()).toEqual(['avatar']);
   });
 
   it('refuses a photo over 2MB before compressing or uploading it', async () => {
@@ -370,3 +422,8 @@ describe('uploading a profile photo', () => {
     expect(client.POST).not.toHaveBeenCalled();
   });
 });
+
+/** A PNG whose reported size stands in for a large original before compression. */
+function pngSized(name: string, size: number): File {
+  return Object.defineProperty(png(name), 'size', { value: size });
+}

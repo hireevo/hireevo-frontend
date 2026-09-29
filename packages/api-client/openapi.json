@@ -1485,15 +1485,15 @@
     },
     "/api/v1/profiles/me/uploads": {
       "post": {
-        "description": "The bytes go straight to storage, never through this API (ADR-004). PUT the file to the returned URL with the returned headers, then claim the key with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for a portfolio image or document. The role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else.",
-        "operationId": "ProfilesController_requestUpload_v1",
+        "description": "One request signs every file being attached at once, and the tickets come back in the order they were asked for. The bytes still go straight to storage, never through this API (ADR-004): PUT each file to its returned URL with the returned headers, then claim the keys with a normal PATCH of the profile — `avatarKey` for a photo, `sections.portfolio[].files` for portfolio images or documents. Each upload’s role decides which types and what size are allowed, and the signature states the key, the type and the exact length, so storage refuses anything else. A single file is a batch of one.",
+        "operationId": "ProfilesController_requestUploads_v1",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UploadRequest"
+                "$ref": "#/components/schemas/UploadBatchRequest"
               }
             }
           }
@@ -1504,7 +1504,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UploadTicket"
+                  "$ref": "#/components/schemas/UploadBatchResponse"
                 }
               }
             }
@@ -1550,7 +1550,7 @@
             }
           }
         },
-        "summary": "A signed upload for one of the caller’s files",
+        "summary": "Signed uploads for the caller’s files",
         "tags": ["profiles"]
       }
     },
@@ -4155,173 +4155,194 @@
         ],
         "additionalProperties": false
       },
-      "UploadRequest": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "avatar"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 2000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-image"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 5000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-thumbnail"
-              },
-              "contentType": {
-                "type": "string",
-                "const": "image/webp"
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 200000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "portfolio-document"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["application/pdf"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 10000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-image"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["image/jpeg", "image/png", "image/webp"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 5000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-thumbnail"
-              },
-              "contentType": {
-                "type": "string",
-                "const": "image/webp"
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 200000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "const": "certification-document"
-              },
-              "contentType": {
-                "type": "string",
-                "enum": ["application/pdf"]
-              },
-              "byteSize": {
-                "type": "integer",
-                "exclusiveMinimum": 0,
-                "maximum": 10000000
-              }
-            },
-            "required": ["role", "contentType", "byteSize"]
-          }
-        ]
-      },
-      "UploadTicket": {
+      "UploadBatchRequest": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
-          "url": {
-            "type": "string"
-          },
-          "headers": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": "string"
+          "uploads": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "avatar"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "enum": ["image/jpeg", "image/png", "image/webp"]
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 2000000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "portfolio-image"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "enum": ["image/jpeg", "image/png", "image/webp"]
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 5000000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "portfolio-thumbnail"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "const": "image/webp"
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 200000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "portfolio-document"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "enum": ["application/pdf"]
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 10000000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "certification-image"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "enum": ["image/jpeg", "image/png", "image/webp"]
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 5000000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "certification-thumbnail"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "const": "image/webp"
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 200000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "const": "certification-document"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "enum": ["application/pdf"]
+                    },
+                    "byteSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 10000000
+                    }
+                  },
+                  "required": ["role", "contentType", "byteSize"]
+                }
+              ]
             }
-          },
-          "key": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string"
-          },
-          "byteSize": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
           }
         },
-        "required": ["url", "headers", "key", "expiresAt", "byteSize"],
+        "required": ["uploads"]
+      },
+      "UploadBatchResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "tickets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "headers": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "key": {
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "type": "string"
+                },
+                "byteSize": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["url", "headers", "key", "expiresAt", "byteSize"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["tickets"],
         "additionalProperties": false
       }
     }

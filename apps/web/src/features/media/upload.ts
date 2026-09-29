@@ -2,8 +2,13 @@ import { toApiError, type Schema } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
 import { compressImage } from './compress-image.ts';
 
-export type UploadTicket = Schema<'UploadTicket'>;
-export type UploadRequest = Schema<'UploadRequest'>;
+// Derived from the batch shapes, which is what the endpoint now speaks: one
+// request signs every file at once and answers with a ticket per upload. A
+// single upload is the first element of a batch of one, so these read the member
+// types out of the batch rather than there being a second named contract to keep
+// in step (§6.1).
+export type UploadTicket = Schema<'UploadBatchResponse'>['tickets'][number];
+export type UploadRequest = Schema<'UploadBatchRequest'>['uploads'][number];
 export type UploadRole = UploadRequest['role'];
 type Sections = NonNullable<Schema<'UpdateProfileRequest'>['sections']>;
 export type PortfolioPiece = NonNullable<Sections['portfolio']>[number];
@@ -75,12 +80,35 @@ async function tracked<T>(run: () => Promise<Uploaded<T>>): Promise<Uploaded<T>>
 }
 
 /**
- * Sends one blob to storage and answers with the key to claim.
+ * Signs every upload in one request, and hands back the tickets in order.
  *
- * Two requests, because the bytes never go through the API (ADR-004): it signs
- * an upload, and the browser sends the file straight to the bucket. The key is
- * claimed with the next save of the profile, so an upload nobody finished
- * changes nothing — it is an orphan object rather than a change to a profile.
+ * The one place this app talks to the upload endpoint. The bytes never go
+ * through the API (ADR-004): this signs the uploads, and the browser sends each
+ * file straight to the bucket afterwards. Batching the signing is the whole
+ * point — attaching ten files is one request here rather than ten — so the
+ * caller collects every object it is about to send and asks for all of them at
+ * once. The tickets come back paired to the requests by position.
+ */
+async function requestTickets(requests: UploadRequest[]): Promise<Uploaded<UploadTicket[]>> {
+  try {
+    const { data, error } = await api.POST('/api/v1/profiles/me/uploads', {
+      body: { uploads: requests },
+    });
+    if (data === undefined) return { ok: false, message: messageOf(error) };
+    return { ok: true, value: data.tickets };
+  } catch {
+    return { ok: false, message: UNREACHABLE };
+  }
+}
+
+/**
+ * Signs one upload and sends its bytes to storage, answering with the key to
+ * claim. A batch of one, for the profile photo — every other upload goes up as
+ * part of a real batch.
+ *
+ * The key is claimed with the next save of the profile, so an upload nobody
+ * finished changes nothing — it is an orphan object rather than a change to a
+ * profile.
  */
 async function put(
   request: UploadRequest,
@@ -94,17 +122,11 @@ async function put(
   // this blob's, and that is the one the signature binds.
   if (request.byteSize !== blob.size) return { ok: false, message: REFUSED };
 
-  let ticket: UploadTicket;
+  const tickets = await requestTickets([request]);
+  if (!tickets.ok) return tickets;
 
-  try {
-    const { data, error } = await api.POST('/api/v1/profiles/me/uploads', {
-      body: request,
-    });
-    if (data === undefined) return { ok: false, message: messageOf(error) };
-    ticket = data;
-  } catch {
-    return { ok: false, message: UNREACHABLE };
-  }
+  const [ticket] = tickets.value;
+  if (ticket === undefined) return { ok: false, message: REFUSED };
 
   const sent = await send(ticket, blob, onProgress);
   if (!sent) return { ok: false, message: REFUSED };
@@ -227,6 +249,29 @@ const ROLES = {
   { image: UploadRole; thumbnail: UploadRole; document: UploadRole }
 >;
 
+/** Which uploader a chosen file belongs to. Its own type decides. */
+export type FileKind = 'image' | 'document';
+
+/** One object to store: the request that signs it, and the bytes to send. */
+interface Part {
+  request: UploadRequest;
+  blob: Blob;
+}
+
+/**
+ * A chosen file turned into the object(s) it becomes, and how to fold the keys
+ * those objects land under back into the row a save will claim.
+ *
+ * An image is two objects — a full copy and a thumbnail — and a document is one.
+ * `parts` are in the order they are signed and sent; `toDraft` receives their
+ * keys in that same order.
+ */
+interface Prepared {
+  file: File;
+  parts: Part[];
+  toDraft: (keys: string[]) => DraftFile;
+}
+
 /**
  * One image, as two objects and the row that will point at them.
  *
@@ -237,19 +282,7 @@ const ROLES = {
  * stored for; the compression and the shape are identical for both, to the same
  * ceilings the API signs.
  */
-export function uploadImage(
-  file: File,
-  group: FileGroup,
-  onProgress?: (fraction: number) => void,
-): Promise<Uploaded<DraftFile>> {
-  return tracked(() => sendImage(file, group, onProgress));
-}
-
-async function sendImage(
-  file: File,
-  group: FileGroup,
-  onProgress?: (fraction: number) => void,
-): Promise<Uploaded<DraftFile>> {
+async function prepareImage(file: File, group: FileGroup): Promise<Uploaded<Prepared>> {
   const limits =
     group === 'portfolio'
       ? { full: LIMITS.portfolioImage, thumb: LIMITS.portfolioThumbnail }
@@ -258,44 +291,44 @@ async function sendImage(
   if (!compressed.ok) return compressed;
 
   const { full, thumb, width, height } = compressed.image;
-
-  // An image is two objects, and the bar has to describe both as one upload.
-  // Split by their real sizes rather than in half: a thumbnail is a twentieth
-  // of the full image, so halving it would park the bar at 50% for the whole of
-  // the part that actually takes time.
-  const total = full.size + thumb.size;
-  const report = (done: number, fraction: number) => onProgress?.((done + fraction) / total);
-
-  // The role comes from a typed lookup, so the string is a real upload role,
-  // and WebP is valid for both the full and the thumbnail role of either group.
-  const uploadedFull = await put(
-    { role: ROLES[group].image, contentType: 'image/webp', byteSize: full.size },
-    full,
-    (fraction) => report(0, fraction * full.size),
-  );
-  if (!uploadedFull.ok) return uploadedFull;
-
-  const uploadedThumb = await put(
-    { role: ROLES[group].thumbnail, contentType: 'image/webp', byteSize: thumb.size },
-    thumb,
-    (fraction) => report(full.size, fraction * thumb.size),
-  );
-  if (!uploadedThumb.ok) return uploadedThumb;
+  // The copy this tab already holds, so the gallery fills in immediately rather
+  // than after a save and a round trip.
+  const thumbUrl = URL.createObjectURL(thumb);
 
   return {
     ok: true,
     value: {
-      kind: 'image',
-      objectKey: uploadedFull.value,
-      thumbKey: uploadedThumb.value,
-      contentType: 'image/webp',
-      byteSize: full.size,
-      width,
-      height,
-      fileName: file.name,
-      // The copy this tab already holds, so the gallery fills in immediately
-      // rather than after a save and a round trip.
-      thumbUrl: URL.createObjectURL(thumb),
+      file,
+      // The role comes from a typed lookup, so the string is a real upload role,
+      // and WebP is valid for both the full and the thumbnail role of either group.
+      parts: [
+        {
+          request: { role: ROLES[group].image, contentType: 'image/webp', byteSize: full.size },
+          blob: full,
+        },
+        {
+          request: {
+            role: ROLES[group].thumbnail,
+            contentType: 'image/webp',
+            byteSize: thumb.size,
+          },
+          blob: thumb,
+        },
+      ],
+      toDraft: (keys) => {
+        const [objectKey = '', thumbKey = ''] = keys;
+        return {
+          kind: 'image',
+          objectKey,
+          thumbKey,
+          contentType: 'image/webp',
+          byteSize: full.size,
+          width,
+          height,
+          fileName: file.name,
+          thumbUrl,
+        };
+      },
     },
   };
 }
@@ -308,19 +341,7 @@ async function sendImage(
  * size limit is the whole of the bargain, and it is enforced here so the person
  * is told before a slow upload rather than after it.
  */
-export function uploadDocument(
-  file: File,
-  group: FileGroup,
-  onProgress?: (fraction: number) => void,
-): Promise<Uploaded<DraftFile>> {
-  return tracked(() => sendDocument(file, group, onProgress));
-}
-
-async function sendDocument(
-  file: File,
-  group: FileGroup,
-  onProgress?: (fraction: number) => void,
-): Promise<Uploaded<DraftFile>> {
+function prepareDocument(file: File, group: FileGroup): Uploaded<Prepared> {
   if (file.type !== 'application/pdf') {
     return { ok: false, message: 'Attach a PDF. Export from Word or Pages if you need to.' };
   }
@@ -335,30 +356,143 @@ async function sendDocument(
     return { ok: false, message: 'That file is empty.' };
   }
 
-  const uploaded = await put(
-    { role: ROLES[group].document, contentType: 'application/pdf', byteSize: file.size },
-    file,
-    onProgress,
-  );
-  if (!uploaded.ok) return uploaded;
-
   return {
     ok: true,
     value: {
-      kind: 'document',
-      objectKey: uploaded.value,
-      contentType: 'application/pdf',
-      byteSize: file.size,
-      fileName: file.name,
+      file,
+      parts: [
+        {
+          request: {
+            role: ROLES[group].document,
+            contentType: 'application/pdf',
+            byteSize: file.size,
+          },
+          blob: file,
+        },
+      ],
+      toDraft: (keys) => ({
+        kind: 'document',
+        objectKey: keys[0] ?? '',
+        contentType: 'application/pdf',
+        byteSize: file.size,
+        fileName: file.name,
+      }),
     },
   };
+}
+
+/**
+ * How far a batch of attachments has got, for the one progress bar the zone shows.
+ *
+ * `preparing` is the compression pass that has to finish before anything can be
+ * signed — an object's length is signed, so it must be known first, and twenty
+ * images re-encoded is a few seconds a bar that only appeared once bytes started
+ * moving would spend looking frozen. `uploading` is the bytes going up.
+ */
+export interface BatchProgress {
+  phase: 'preparing' | 'uploading';
+  /** Which file of the batch, zero-based. */
+  index: number;
+  total: number;
+  name: string;
+  size: number;
+  /** 0..1 across this file's own objects; 0 while preparing. */
+  fraction: number;
+}
+
+/**
+ * Attaches several files in one round trip to the API.
+ *
+ * Every file is compressed or checked first, so every object's exact length is
+ * known, and then one request signs all of them at once — the whole reason this
+ * exists: ten attachments are one call to the API and one insert of ten rows,
+ * not ten of each. The bytes still go up one object at a time straight to
+ * storage (ADR-004): firing forty PUTs together is how a phone on a slow
+ * connection times several out and reports congestion as a failure, and the
+ * signing is what was batched, not the transfer. Each file is handed back the
+ * moment its objects have all landed, so a batch that fails partway keeps what
+ * it stored rather than a save clearing the list.
+ */
+export function uploadAttachments(
+  chosen: readonly { file: File; kind: FileKind }[],
+  group: FileGroup,
+  onProgress: (progress: BatchProgress) => void,
+  onLanded: (file: DraftFile) => void,
+): Promise<Uploaded<void>> {
+  return tracked(() => runBatch(chosen, group, onProgress, onLanded));
+}
+
+async function runBatch(
+  chosen: readonly { file: File; kind: FileKind }[],
+  group: FileGroup,
+  onProgress: (progress: BatchProgress) => void,
+  onLanded: (file: DraftFile) => void,
+): Promise<Uploaded<void>> {
+  const total = chosen.length;
+
+  const prepared: Prepared[] = [];
+  for (const [index, { file, kind }] of chosen.entries()) {
+    onProgress({ phase: 'preparing', index, total, name: file.name, size: file.size, fraction: 0 });
+    const result =
+      kind === 'image' ? await prepareImage(file, group) : prepareDocument(file, group);
+    if (!result.ok) return result;
+    prepared.push(result.value);
+  }
+
+  // One request for every object across every file — the batch this whole
+  // function exists for.
+  const tickets = await requestTickets(
+    prepared.flatMap((item) => item.parts.map((part) => part.request)),
+  );
+  if (!tickets.ok) return tickets;
+
+  let cursor = 0;
+  for (const [index, item] of prepared.entries()) {
+    // An image is two objects, and the bar has to describe both as one upload.
+    // Split by their real sizes rather than in half: a thumbnail is a twentieth
+    // of the full image, so halving would park the bar at 50% for the whole of
+    // the part that actually takes time.
+    const totalBytes = item.parts.reduce((sum, part) => sum + part.blob.size, 0);
+    let sentBytes = 0;
+    const keys: string[] = [];
+
+    for (const part of item.parts) {
+      const ticket = tickets.value[cursor];
+      cursor += 1;
+      // One ticket was asked for per object, in this order, so a missing one
+      // means the API answered with fewer than it was asked for — refuse rather
+      // than claim a key nothing signed.
+      if (ticket === undefined) return { ok: false, message: REFUSED };
+
+      const ok = await send(ticket, part.blob, (fraction) =>
+        onProgress({
+          phase: 'uploading',
+          index,
+          total,
+          name: item.file.name,
+          size: item.file.size,
+          fraction: (sentBytes + fraction * part.blob.size) / totalBytes,
+        }),
+      );
+      if (!ok) return { ok: false, message: REFUSED };
+
+      sentBytes += part.blob.size;
+      keys.push(ticket.key);
+    }
+
+    // Handed up the moment its objects have landed, so a save pressed mid-batch
+    // includes whatever is stored rather than clearing the list.
+    onLanded(item.toDraft(keys));
+  }
+
+  return { ok: true, value: undefined };
 }
 
 /**
  * What the API will sign, mirrored here so a file is refused before it is
  * compressed rather than after.
  *
- * These are asserted against the generated contract by `upload.spec.ts`, which
+ * These are asserted against the generated contract by `upload.test.ts`, which
  * is what keeps a copy from drifting into a lie (§6.1).
  */
 /**

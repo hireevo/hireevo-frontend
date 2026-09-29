@@ -23,9 +23,18 @@ const spec = JSON.parse(
 ) as {
   components: {
     schemas: {
-      UploadRequest: {
-        anyOf?: Variant[];
-        oneOf?: Variant[];
+      // A single upload is one member of the batch request's array, so its
+      // variants are read from there rather than from a standalone schema —
+      // there is one contract for signing, and it is the batch.
+      UploadBatchRequest: {
+        properties: {
+          uploads: {
+            items: {
+              anyOf?: Variant[];
+              oneOf?: Variant[];
+            };
+          };
+        };
       };
     };
   };
@@ -39,8 +48,8 @@ interface Variant {
   };
 }
 
-const variants =
-  spec.components.schemas.UploadRequest.anyOf ?? spec.components.schemas.UploadRequest.oneOf ?? [];
+const item = spec.components.schemas.UploadBatchRequest.properties.uploads.items;
+const variants = item.anyOf ?? item.oneOf ?? [];
 
 function roleIn(spec_: Variant): string {
   return spec_.properties.role.const ?? spec_.properties.role.enum?.[0] ?? '';
