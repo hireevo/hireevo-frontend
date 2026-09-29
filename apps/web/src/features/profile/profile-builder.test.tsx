@@ -48,6 +48,31 @@ vi.mock('@/features/profile-setup/api.ts', async (importOriginal) => ({
   unpublishProfile: () => calls.unpublish(),
 }));
 
+// The biography editor is a TipTap/ProseMirror rich-text field, which does not
+// take keystrokes under jsdom. These tests are about the builder's save flow —
+// that what is typed into a section reaches the API — not the editor's own
+// behaviour, which is verified where it is built. A plain textarea stands in for
+// it so the flow can be driven; markdown for plain text is the same text.
+vi.mock('@/features/rich-text/markdown-editor.tsx', () => ({
+  MarkdownEditor: (props: {
+    id: string;
+    value: string;
+    onChange: (value: string) => void;
+    maxLength?: number;
+    'aria-label'?: string;
+    'aria-describedby'?: string;
+  }) => (
+    <textarea
+      id={props.id}
+      aria-label={props['aria-label']}
+      aria-describedby={props['aria-describedby']}
+      maxLength={props.maxLength}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
+  ),
+}));
+
 /** What the API returns for a profile nobody has filled contact details into. */
 const NO_CONTACT = {
   phoneE164: null,
@@ -287,7 +312,10 @@ describe('ProfileBuilder', () => {
 
     const about = section(/About/);
     expect(await about.findByLabelText('Biography')).toBeInTheDocument();
-    expect(about.getByLabelText('Display name')).toHaveValue('Ayesha Khan');
+    // Biography alone: the name and headline are edited on the header above, so
+    // the About card no longer repeats them.
+    expect(about.queryByLabelText('Display name')).not.toBeInTheDocument();
+    expect(about.queryByLabelText('Professional headline')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save and close/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save and next/ })).not.toBeInTheDocument();
     expect(about.getByRole('button', { name: 'Close' })).toBeInTheDocument();

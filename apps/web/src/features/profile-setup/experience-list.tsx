@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { cn } from '@hireevo/ui-web';
-import { AutoGrowTextarea } from './auto-grow-textarea.tsx';
+import { MarkdownEditor } from '@/features/rich-text/markdown-editor.tsx';
 import type { EXPERIENCE_FIELDS } from './entries-validation.ts';
 import { DATE_INPUT, border } from './entry-fields.ts';
 import { EntryPanel, ListHeader } from './entry-panel.tsx';
@@ -108,17 +108,13 @@ export function ExperienceList({
                     className="sm:col-span-2"
                   >
                     {(control) => (
-                      <AutoGrowTextarea
+                      <MarkdownEditor
                         {...control}
-                        {...bind('summary')}
-                        rows={3}
-                        maxHeight={240}
+                        aria-label="Summary"
+                        value={item.values.summary}
                         maxLength={SECTION_LIMITS.summary}
-                        className={cn(
-                          CONTROL,
-                          'min-h-20 resize-none py-2 leading-relaxed',
-                          border(error('summary')),
-                        )}
+                        onChange={(next) => experience.update(item.key, 'summary', next)}
+                        className={cn(CONTROL, 'py-2 leading-relaxed', border(error('summary')))}
                       />
                     )}
                   </SetupField>

@@ -8,7 +8,7 @@
 export const IDENTITY_LIMITS = {
   displayName: 80,
   headline: 100,
-  overview: 1500,
+  overview: 1000,
   availabilityNote: 140,
 } as const;
 

@@ -18,6 +18,7 @@ import {
   phraseOfProjectLength,
 } from '@/features/profile-setup/preference-options.ts';
 import { videoThumbnail } from '@/features/profile/video-url.ts';
+import { Markdown } from '@/features/rich-text/markdown.tsx';
 import { FileDocuments, FileThumbGrid } from '@/features/media/file-gallery.tsx';
 import { FileCover } from '@/features/media/file-preview.tsx';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
@@ -256,9 +257,7 @@ export function PublicProfileScreen({
 
           {profile.overview === null ? null : (
             <Card title="About">
-              <p className="mt-3 text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
-                {profile.overview}
-              </p>
+              <Markdown source={profile.overview} className="mt-3 text-sm text-content-muted" />
             </Card>
           )}
 
@@ -294,9 +293,10 @@ export function PublicProfileScreen({
                       </p>
                     )}
                     {entry.summary === null ? null : (
-                      <p className="mt-2 text-sm leading-[1.7] text-content-muted">
-                        {entry.summary}
-                      </p>
+                      <Markdown
+                        source={entry.summary}
+                        className="mt-2 text-sm text-content-muted"
+                      />
                     )}
                   </li>
                 ))}

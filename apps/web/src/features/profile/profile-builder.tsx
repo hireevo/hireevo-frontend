@@ -78,6 +78,7 @@ import { FileThumbnails } from '@/features/media/attachments.tsx';
 import { uploadsInFlight, watchUploads, type DraftFile } from '@/features/media/upload.ts';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import { videoThumbnail } from './video-url.ts';
+import { Markdown } from '@/features/rich-text/markdown.tsx';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
 import type { SavePart } from '@/features/profile-setup/use-profile-draft.ts';
@@ -888,15 +889,16 @@ export function ProfileBuilder() {
           footer={saveFor(['about'])}
         >
           {open === 'about' ? (
+            // Only the biography: the name and headline are edited on the
+            // profile header above, so the About card is the story alone.
             <IdentityEditor
               values={values}
               fieldErrors={identity.fieldErrors}
               onChange={identity.change}
+              only={['overview']}
             />
           ) : filled.about ? (
-            <p className="text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
-              {values.overview}
-            </p>
+            <Markdown source={values.overview} className="text-sm text-content-muted" />
           ) : undefined}
         </SectionCard>
 
@@ -940,74 +942,71 @@ export function ProfileBuilder() {
                   durationOf(item.values.startDate, item.values.endDate),
                 ),
                 body: item.values.summary,
+                bodyMarkdown: true,
               }))}
             />
           ) : undefined}
         </SectionCard>
 
-        {/* The only pair the design puts side by side, and only from `lg` — below
-          that the column is too narrow for two of these to hold their shape. */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
-          <SectionCard
-            title="Education"
-            description="Back up your skills by adding any educational degrees or programs."
-            filled={filled.education}
-            icon={<LuGraduationCap />}
-            className={open === 'education' ? 'lg:col-span-2' : ''}
-            editing={open === 'education'}
-            action={actionFor('education', 'education', ['education'])}
-            footer={saveFor(['education'])}
-          >
-            {open === 'education' ? (
-              <EducationEditor education={education} heading={false} />
-            ) : filled.education ? (
-              <SummaryList
-                variant="ruled"
-                rows={courses.map((item) => ({
-                  key: item.key,
-                  // The degree is the thing; the school is where it came from.
-                  // Read in that order on the published profile too, so the two
-                  // screens cannot describe the same entry differently.
-                  primary: joined(item.values.qualification, item.values.fieldOfStudy),
-                  secondary: item.values.institution,
-                  accentSecondary: true,
-                  tertiary:
-                    yearOf(item.values.endDate) === ''
-                      ? ''
-                      : `Graduated ${yearOf(item.values.endDate)}`,
-                }))}
-              />
-            ) : undefined}
-          </SectionCard>
+        {/* Stacked one above the other, like every other section, rather than
+            paired side by side. */}
+        <SectionCard
+          title="Education"
+          description="Back up your skills by adding any educational degrees or programs."
+          filled={filled.education}
+          icon={<LuGraduationCap />}
+          editing={open === 'education'}
+          action={actionFor('education', 'education', ['education'])}
+          footer={saveFor(['education'])}
+        >
+          {open === 'education' ? (
+            <EducationEditor education={education} heading={false} />
+          ) : filled.education ? (
+            <SummaryList
+              variant="ruled"
+              rows={courses.map((item) => ({
+                key: item.key,
+                // The degree is the thing; the school is where it came from.
+                // Read in that order on the published profile too, so the two
+                // screens cannot describe the same entry differently.
+                primary: joined(item.values.qualification, item.values.fieldOfStudy),
+                secondary: item.values.institution,
+                accentSecondary: true,
+                tertiary:
+                  yearOf(item.values.endDate) === ''
+                    ? ''
+                    : `Graduated ${yearOf(item.values.endDate)}`,
+              }))}
+            />
+          ) : undefined}
+        </SectionCard>
 
-          <SectionCard
-            title="Certifications"
-            description="Showcase your mastery with certifications earned in your field."
-            filled={filled.certifications}
-            icon={<LuAward />}
-            className={open === 'certifications' ? 'lg:col-span-2' : ''}
-            editing={open === 'certifications'}
-            action={actionFor('certifications', 'certifications', ['licenses'])}
-            footer={saveFor(['licenses'])}
-          >
-            {open === 'certifications' ? (
-              <LicenseEditor licenses={licenses} heading={false} />
-            ) : filled.certifications ? (
-              <SummaryList
-                variant="ruled"
-                rows={certificates.map((item) => ({
-                  key: item.key,
-                  icon: <LuBadgeCheck className="size-5" />,
-                  primary: item.values.name,
-                  secondary: [item.values.issuer, yearOf(item.values.issued)]
-                    .filter((part) => part.trim() !== '')
-                    .join(' • '),
-                  media: <FileThumbnails files={item.files ?? []} />,
-                }))}
-              />
-            ) : undefined}
-          </SectionCard>
-        </div>
+        <SectionCard
+          title="Certifications"
+          description="Showcase your mastery with certifications earned in your field."
+          filled={filled.certifications}
+          icon={<LuAward />}
+          editing={open === 'certifications'}
+          action={actionFor('certifications', 'certifications', ['licenses'])}
+          footer={saveFor(['licenses'])}
+        >
+          {open === 'certifications' ? (
+            <LicenseEditor licenses={licenses} heading={false} />
+          ) : filled.certifications ? (
+            <SummaryList
+              variant="ruled"
+              rows={certificates.map((item) => ({
+                key: item.key,
+                icon: <LuBadgeCheck className="size-5" />,
+                primary: item.values.name,
+                secondary: [item.values.issuer, yearOf(item.values.issued)]
+                  .filter((part) => part.trim() !== '')
+                  .join(' • '),
+                media: <FileThumbnails files={item.files ?? []} />,
+              }))}
+            />
+          ) : undefined}
+        </SectionCard>
 
         <PortfolioSection
           open={open === 'portfolio'}
