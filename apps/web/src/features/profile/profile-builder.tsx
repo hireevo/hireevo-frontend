@@ -78,6 +78,7 @@ import { FileThumbnails } from '@/features/media/attachments.tsx';
 import { uploadsInFlight, watchUploads, type DraftFile } from '@/features/media/upload.ts';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import { videoThumbnail } from './video-url.ts';
+import { Markdown } from '@/features/rich-text/markdown.tsx';
 import { PortfolioSection } from './portfolio-section.tsx';
 import { useContactValues } from '@/features/profile-setup/use-contact-values.ts';
 import type { SavePart } from '@/features/profile-setup/use-profile-draft.ts';
@@ -897,9 +898,7 @@ export function ProfileBuilder() {
               only={['overview']}
             />
           ) : filled.about ? (
-            <p className="text-sm leading-[1.7] wrap-anywhere whitespace-pre-line text-content-muted">
-              {values.overview}
-            </p>
+            <Markdown source={values.overview} className="text-sm text-content-muted" />
           ) : undefined}
         </SectionCard>
 

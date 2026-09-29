@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@hireevo/ui-web';
+import { MarkdownEditor } from '@/features/rich-text/markdown-editor.tsx';
 import type { FieldErrors, IdentityField, IdentityValues } from './api.ts';
 import { AutoGrowTextarea } from './auto-grow-textarea.tsx';
 import { border } from './entry-fields.ts';
@@ -89,14 +90,11 @@ export function IdentityFields({
           className="sm:col-span-2"
         >
           {(control) => (
-            <AutoGrowTextarea
+            <MarkdownEditor
               {...control}
-              name="overview"
-              rows={4}
-              maxHeight={360}
               value={values.overview}
               maxLength={IDENTITY_LIMITS.overview}
-              onChange={(event) => onChange('overview', event.target.value)}
+              onChange={(next) => onChange('overview', next)}
               className={cn(
                 CONTROL,
                 'min-h-24 resize-none py-2 leading-relaxed',
