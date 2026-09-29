@@ -82,7 +82,10 @@ export function MarkdownEditor({
         ...(invalid ? { 'aria-invalid': 'true' } : {}),
         class: cn(
           className,
-          'min-h-24 max-h-90 overflow-y-auto',
+          // Grows with its content rather than capping and scrolling: a capped,
+          // scrolling contenteditable leaves its inner paragraphs overflowing
+          // its box, and their rectangles then overlap the fields below it.
+          'min-h-24',
           // The marks the toolbar makes, styled the way the read view styles
           // them, since Tailwind's reset strips a browser's own list styling.
           '[&_strong]:font-semibold [&_em]:italic',
