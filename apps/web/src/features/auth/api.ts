@@ -55,7 +55,7 @@ export async function signIn(
 ): Promise<AuthResult> {
   const { data, error } = await api.POST('/api/v1/auth/login', {
     body: { email: values.email, password: values.password },
-    // The reCAPTCHA token from the checkbox rides as a header, so the request
+    // The Turnstile token from the widget rides as a header, so the request
     // body — and the published contract — stays the shape every client sends.
     // Null when protection is off.
     ...(captchaToken ? { headers: { 'x-captcha-token': captchaToken } } : {}),
@@ -79,7 +79,7 @@ export async function signUp(
   values: SignUpValues,
   captchaToken?: string | null,
 ): Promise<AuthResult> {
-  // The reCAPTCHA token from the checkbox rides as a header, so the request body
+  // The Turnstile token from the widget rides as a header, so the request body
   // — and the published contract — does not have to carry a field only
   // bot-verification uses. Null when protection is off.
   const { error } = await api.POST('/api/v1/auth/register', {

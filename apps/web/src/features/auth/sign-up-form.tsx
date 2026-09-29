@@ -7,13 +7,13 @@ import { Button, Checkbox, PasswordField, TextField } from '@hireevo/ui-web';
 import { isUsernameAvailable, signUp } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordStrength } from './password-strength.tsx';
-import { recaptchaEnabled } from './recaptcha.ts';
-import { RecaptchaCheckbox, type RecaptchaHandle } from './recaptcha-checkbox.tsx';
+import { turnstileEnabled } from './turnstile.ts';
+import { TurnstileWidget, type TurnstileHandle } from './turnstile-widget.tsx';
 import { signUpSchema, type SignUpValues } from './schemas.ts';
 import { useAuthForm } from './use-auth-form.ts';
 
 export function SignUpForm() {
-  // The reCAPTCHA token lives in a ref so the submit handler always reads the
+  // The Turnstile token lives in a ref so the submit handler always reads the
   // current one without re-creating the form's submit function each render.
   const captchaTokenRef = useRef<string | null>(null);
   const runSignUp = useCallback(
@@ -36,7 +36,7 @@ export function SignUpForm() {
 
   const [usernameTaken, setUsernameTaken] = useState<string | null>(null);
 
-  const captcha = useRef<RecaptchaHandle>(null);
+  const captcha = useRef<TurnstileHandle>(null);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
   const handleCaptcha = useCallback((token: string | null) => {
     captchaTokenRef.current = token;
@@ -69,8 +69,8 @@ export function SignUpForm() {
     }
 
     // The checkbox has to be ticked before the sign-up leaves the page.
-    if (recaptchaEnabled && captchaTokenRef.current === null) {
-      setCaptchaError('Please confirm you are not a robot.');
+    if (turnstileEnabled && captchaTokenRef.current === null) {
+      setCaptchaError('Please complete the verification below.');
       return;
     }
 
@@ -83,11 +83,11 @@ export function SignUpForm() {
       password: data.get('password'),
       confirmPassword: data.get('confirmPassword'),
     }).then((outcome) => {
-      // A reCAPTCHA token is spent the moment the server verifies it, so a
-      // request that reached the server needs a fresh tick before the next try.
+      // A Turnstile token is spent the moment the server verifies it, so a
+      // request that reached the server needs a fresh pass before the next try.
       // A client-side validation failure never sent the token, so the solved
-      // checkbox is kept — correcting a field typo must not cost the person
-      // another "I'm not a robot" challenge.
+      // widget is kept — correcting a field typo must not cost the person
+      // another verification.
       if (outcome === 'failed') {
         captcha.current?.reset();
         captchaTokenRef.current = null;
@@ -174,9 +174,9 @@ export function SignUpForm() {
         />
       </div>
 
-      {recaptchaEnabled ? (
+      {turnstileEnabled ? (
         <div className="mt-[calc(6px+0.16*var(--fit))]">
-          <RecaptchaCheckbox ref={captcha} onChange={handleCaptcha} />
+          <TurnstileWidget ref={captcha} onChange={handleCaptcha} />
           {captchaError === null ? null : (
             <p role="alert" className="mt-1.5 text-sm text-content-warning">
               {captchaError}

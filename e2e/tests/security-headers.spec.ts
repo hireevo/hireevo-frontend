@@ -59,14 +59,15 @@ test('the nonce differs from one request to the next', async ({ request }) => {
   expect(first).not.toEqual(second);
 });
 
-// Runs only when a reCAPTCHA site key is configured for the build (the CI job
-// and local `pnpm e2e` leave it unset). With Google's public test key it proves
-// the widget loads and renders under the strict, nonce-based policy — the exact
-// interaction that breaks if the CSP forgets google.com.
-const recaptchaConfigured = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
+// Runs only when a Turnstile site key is configured for the build (the CI job
+// and local `pnpm e2e` leave it unset). With Cloudflare's public test key
+// (`1x00000000000000000000AA`, always passes) it proves the widget loads and
+// renders under the strict, nonce-based policy — the exact interaction that
+// breaks if the CSP forgets challenges.cloudflare.com.
+const turnstileConfigured = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY !== undefined;
 
-test('the reCAPTCHA widget renders under the CSP without a violation', async ({ page }) => {
-  test.skip(!recaptchaConfigured, 'no reCAPTCHA site key configured for this build');
+test('the Turnstile widget renders under the CSP without a violation', async ({ page }) => {
+  test.skip(!turnstileConfigured, 'no Turnstile site key configured for this build');
 
   const violations: string[] = [];
   page.on('console', (message) => {
@@ -75,10 +76,16 @@ test('the reCAPTCHA widget renders under the CSP without a violation', async ({ 
 
   await page.goto('/sign-in');
 
-  // The v2 checkbox is an iframe served from google.com; if frame-src (or the
-  // script/connect entries) were missing it would never appear.
-  const widget = page.locator('iframe[src*="google.com/recaptcha"]');
+  // The widget's iframe (served from challenges.cloudflare.com) sits inside a
+  // closed shadow root, so what can be located is the container Turnstile
+  // renders into — the parent of the hidden input it adds. If frame-src (or the
+  // script entry) were missing, the container would stay empty and never take
+  // on a size, and the input would never receive a token.
+  const widget = page.locator('div:has(> input[name="cf-turnstile-response"])');
   await expect(widget.first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, {
+    timeout: 15_000,
+  });
   expect(violations, violations.join('\n')).toEqual([]);
 });
 

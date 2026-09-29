@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as ApiModule from './api.ts';
 import type { signUp } from './api.ts';
-import type { RecaptchaHandle } from './recaptcha-checkbox.tsx';
+import type { TurnstileHandle } from './turnstile-widget.tsx';
 import { SignUpForm } from './sign-up-form.tsx';
 
 vi.mock('next/link', () => ({
@@ -17,14 +17,14 @@ vi.mock('./session.tsx', () => ({
   useSession: () => ({ status: 'anonymous', user: null, adopt: vi.fn(), signOut: vi.fn() }),
 }));
 
-// With protection switched on, the checkbox is present and must be solved before
-// submit. The stub reports a token the instant it mounts — the same as a person
-// ticking the box — and exposes the reset the form calls, so a test can watch
+// With protection switched on, the widget is present and must pass before
+// submit. The stub reports a token the instant it mounts — the same as the
+// check passing — and exposes the reset the form calls, so a test can watch
 // whether a given outcome cost the person their solved challenge.
 const resetSpy = vi.fn();
-vi.mock('./recaptcha.ts', () => ({ recaptchaEnabled: true, recaptchaSiteKey: 'test-site-key' }));
-vi.mock('./recaptcha-checkbox.tsx', () => ({
-  RecaptchaCheckbox: forwardRef<RecaptchaHandle, { onChange: (token: string | null) => void }>(
+vi.mock('./turnstile.ts', () => ({ turnstileEnabled: true, turnstileSiteKey: 'test-site-key' }));
+vi.mock('./turnstile-widget.tsx', () => ({
+  TurnstileWidget: forwardRef<TurnstileHandle, { onChange: (token: string | null) => void }>(
     function Stub({ onChange }, ref) {
       useImperativeHandle(ref, () => ({ reset: resetSpy }), []);
       useEffect(() => {
@@ -54,7 +54,7 @@ const fillValid = async (
   await user.type(screen.getByLabelText('Re-Password'), confirmPassword);
 };
 
-describe('SignUpForm reCAPTCHA lifecycle', () => {
+describe('SignUpForm Turnstile lifecycle', () => {
   beforeEach(() => {
     resetSpy.mockClear();
     signUpMock.mockClear();
@@ -65,7 +65,7 @@ describe('SignUpForm reCAPTCHA lifecycle', () => {
     render(<SignUpForm />);
 
     // Passwords do not match: the request never leaves the browser, so the
-    // reCAPTCHA token is not spent and the person must not have to solve it again.
+    // Turnstile token is not spent and the person must not have to pass it again.
     await fillValid(user, { confirmPassword: 'Different1' });
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 

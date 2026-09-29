@@ -50,13 +50,13 @@ export default function PrivacyPage() {
 
         <h2>3. Bot protection</h2>
         <p>
-          Sign-up may be protected by Google reCAPTCHA to prevent automated abuse. reCAPTCHA
-          collects device and usage information subject to Google&rsquo;s{' '}
-          <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">
+          Sign-in and sign-up may be protected by Cloudflare Turnstile to prevent automated abuse.
+          Turnstile collects device and usage information subject to Cloudflare&rsquo;s{' '}
+          <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noreferrer">
             Privacy Policy
           </a>{' '}
           and{' '}
-          <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer">
+          <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noreferrer">
             Terms of Service
           </a>
           .
