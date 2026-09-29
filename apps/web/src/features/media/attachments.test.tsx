@@ -7,15 +7,16 @@ import type * as Upload from './upload.ts';
 import type { DraftFile } from './upload.ts';
 
 const uploads = vi.hoisted(() => ({
-  uploadImage: vi.fn<typeof Upload.uploadImage>(),
-  uploadDocument: vi.fn<typeof Upload.uploadDocument>(),
+  uploadAttachments: vi.fn<typeof Upload.uploadAttachments>(),
 }));
 vi.mock('./upload.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof Upload>()),
-  uploadImage: (...args: Parameters<typeof Upload.uploadImage>) => uploads.uploadImage(...args),
-  uploadDocument: (...args: Parameters<typeof Upload.uploadDocument>) =>
-    uploads.uploadDocument(...args),
+  uploadAttachments: (...args: Parameters<typeof Upload.uploadAttachments>) =>
+    uploads.uploadAttachments(...args),
 }));
+
+/** The index a fixture file encodes in its name, so a landed row matches it. */
+const indexOf = (file: File) => Number(/(\d+)/.exec(file.name)?.[1] ?? 0);
 
 const fileFor = (index: number): DraftFile => ({
   kind: 'image',
@@ -75,9 +76,11 @@ describe('attaching several files at once', () => {
    */
   it('keeps every file in the batch, not only the last one', async () => {
     const onFiles = vi.fn<(files: DraftFile[]) => void>();
-    uploads.uploadImage.mockImplementation((file: File) => {
-      const index = Number(/(\d+)/.exec(file.name)?.[1] ?? 0);
-      return Promise.resolve({ ok: true, value: fileFor(index) });
+    // The batch hands each file up as it lands; the component appends each to the
+    // list, which is the seam that once kept only the last.
+    uploads.uploadAttachments.mockImplementation((chosen, _group, _onProgress, onLanded) => {
+      for (const { file } of chosen) onLanded(fileFor(indexOf(file)));
+      return Promise.resolve({ ok: true, value: undefined });
     });
 
     render(<Editor onFiles={onFiles} />);
@@ -92,7 +95,9 @@ describe('attaching several files at once', () => {
     Object.defineProperty(picker, 'files', { value: chosen, configurable: true });
     picker?.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await waitFor(() => expect(uploads.uploadImage).toHaveBeenCalledTimes(10));
+    // One request for the ten, not ten requests — and all ten kept.
+    await waitFor(() => expect(uploads.uploadAttachments).toHaveBeenCalledTimes(1));
+    expect(uploads.uploadAttachments.mock.calls[0]?.[0]).toHaveLength(10);
     await waitFor(() => expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(10));
 
     // And each one exactly once: a file handed up twice would be claimed twice.
@@ -100,11 +105,14 @@ describe('attaching several files at once', () => {
     expect(new Set(keys).size).toBe(10);
   });
 
-  it('keeps what landed when one of the batch fails', async () => {
+  it('keeps what landed when the batch fails partway', async () => {
     const onFiles = vi.fn<(files: DraftFile[]) => void>();
-    uploads.uploadImage
-      .mockResolvedValueOnce({ ok: true, value: fileFor(1) })
-      .mockResolvedValueOnce({ ok: false, message: 'Storage refused that file.' });
+    // The first file's objects land, then storage refuses the second — the batch
+    // returns an error but what already landed stays.
+    uploads.uploadAttachments.mockImplementation((_chosen, _group, _onProgress, onLanded) => {
+      onLanded(fileFor(1));
+      return Promise.resolve({ ok: false, message: 'Storage refused that file.' });
+    });
 
     render(<Editor onFiles={onFiles} />);
 
@@ -137,10 +145,12 @@ describe('the one box that takes images and PDFs', () => {
   };
   const box = () => document.querySelectorAll('input[type=file]');
 
-  it('sends each file to the uploader its own type belongs to', async () => {
+  it('tags each file with the kind its own type belongs to', async () => {
     const onFiles = vi.fn<(files: DraftFile[]) => void>();
-    uploads.uploadImage.mockResolvedValue({ ok: true, value: fileFor(1) });
-    uploads.uploadDocument.mockResolvedValue({ ok: true, value: pdfFor(1) });
+    uploads.uploadAttachments.mockImplementation((chosen, _group, _onProgress, onLanded) => {
+      for (const { kind } of chosen) onLanded(kind === 'image' ? fileFor(1) : pdfFor(1));
+      return Promise.resolve({ ok: true, value: undefined });
+    });
 
     render(<Editor onFiles={onFiles} />);
 
@@ -155,16 +165,24 @@ describe('the one box that takes images and PDFs', () => {
       new File(['x'], 'case-study-1.pdf', { type: 'application/pdf' }),
     ]);
 
-    await waitFor(() => expect(uploads.uploadImage).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(uploads.uploadDocument).toHaveBeenCalledTimes(1));
-    expect(uploads.uploadImage.mock.calls[0]?.[0].name).toBe('shot-1.jpg');
-    expect(uploads.uploadDocument.mock.calls[0]?.[0].name).toBe('case-study-1.pdf');
+    // One request carries both, each tagged by its own type — that tag is what
+    // decides the upload role and so the folder, and it is set from the file, not
+    // from which zone it was dropped on.
+    await waitFor(() => expect(uploads.uploadAttachments).toHaveBeenCalledTimes(1));
+    const chosen = uploads.uploadAttachments.mock.calls[0]?.[0] ?? [];
+    expect(chosen.map(({ file, kind }) => [file.name, kind])).toEqual([
+      ['shot-1.jpg', 'image'],
+      ['case-study-1.pdf', 'document'],
+    ]);
     await waitFor(() => expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(2));
   });
 
   it('says which files it would not take, and still takes the rest', async () => {
     const onFiles = vi.fn<(files: DraftFile[]) => void>();
-    uploads.uploadImage.mockResolvedValue({ ok: true, value: fileFor(2) });
+    uploads.uploadAttachments.mockImplementation((chosen, _group, _onProgress, onLanded) => {
+      for (const _file of chosen) onLanded(fileFor(2));
+      return Promise.resolve({ ok: true, value: undefined });
+    });
 
     render(<Editor onFiles={onFiles} />);
 
@@ -175,6 +193,9 @@ describe('the one box that takes images and PDFs', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('clip.mov'));
     await waitFor(() => expect(onFiles.mock.calls.at(-1)?.[0]).toHaveLength(1));
-    expect(uploads.uploadDocument).not.toHaveBeenCalled();
+    // Only the image reached the uploader; the video never did.
+    expect(uploads.uploadAttachments.mock.calls[0]?.[0].map(({ file }) => file.name)).toEqual([
+      'shot-2.jpg',
+    ]);
   });
 });
