@@ -24,15 +24,23 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function open(page: Page) {
+/**
+ * `fonts` is for the sweep and for nothing else.
+ *
+ * Waiting on `document.fonts.ready` is what makes a measured layout the one a
+ * reader sees. The behaviour tests measure nothing, and under a full sweep —
+ * four engines, a hundred window sizes — that wait is where they time out
+ * instead of testing anything.
+ */
+async function open(page: Page, { fonts = false }: { fonts?: boolean } = {}) {
   await page.goto('/design-system/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Worker accounts' })).toBeVisible();
-  await page.evaluate(() => document.fonts.ready);
+  if (fonts) await page.evaluate(() => document.fonts.ready);
 }
 
 test('the admin workers screen holds its layout at every window size', async ({ page }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
-  await open(page);
+  await open(page, { fonts: true });
   await sweep(page, 'admin workers');
 });
 
@@ -87,7 +95,7 @@ test('the search narrows the table, and the state control follows the country', 
   await state.selectOption('Ontario');
   await expect(rows).toHaveCount(1);
 
-  await page.getByRole('button', { name: 'Reset' }).click();
+  await page.getByRole('button', { name: 'Clear filters' }).click();
   await expect(rows).toHaveCount(10);
   await expect(state).toBeDisabled();
 });
@@ -103,31 +111,80 @@ test('banning asks first, names the person, and changes the row', async ({ page 
   await open(page);
 
   const row = page.locator('tbody tr').filter({ hasText: 'danielle.okafor@example.com' });
-  await expect(row.getByText('Active')).toBeVisible();
+  await expect(row.getByText('Unflagged')).toBeVisible();
 
-  await row.getByRole('button', { name: /^Ban/ }).click();
+  await row.getByRole('button', { name: /^Actions for/ }).click();
+  await page.getByRole('menuitem', { name: 'Ban user' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Ban Danielle Okafor?' })).toBeVisible();
 
   // Cancel leaves the account exactly as it was.
   await dialog.getByRole('button', { name: 'Cancel' }).click();
-  await expect(row.getByText('Active')).toBeVisible();
+  await expect(row.getByText('Unflagged')).toBeVisible();
 
-  await row.getByRole('button', { name: /^Ban/ }).click();
+  await row.getByRole('button', { name: /^Actions for/ }).click();
+  await page.getByRole('menuitem', { name: 'Ban user' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Ban Danielle' }).click();
-  await expect(row.getByText('Banned')).toBeVisible();
+  await expect(row.getByText('Flagged')).toBeVisible();
 
   // And letting them back in does not ask, because that is the undo.
-  await row.getByRole('button', { name: /^Unban/ }).click();
+  await row.getByRole('button', { name: /^Actions for/ }).click();
+  await page.getByRole('menuitem', { name: 'Unban user' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(row.getByText('Active')).toBeVisible();
+  await expect(row.getByText('Unflagged')).toBeVisible();
 });
 
 test('the admin workers screen has no automatically detectable accessibility violations', async ({
   page,
 }) => {
+  // Axe walks the whole tree, and under a full sweep it does so on a machine
+  // already running three engines through a hundred window sizes.
+  test.setTimeout(FULL ? 120_000 : 30_000);
   await open(page);
 
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+/**
+ * The search box carries its own two controls.
+ *
+ * The magnifier and the cross are where a reader looks for them — inside the
+ * field — rather than as a pair of buttons underneath it. The cross only exists
+ * while there is something to cancel, so it cannot be a control that does
+ * nothing (§6.7).
+ */
+test('the search box searches and cancels from inside itself', async ({ page }) => {
+  // The whole sweep is running beside this one on three other engines, and the
+  // page it opens is a production bundle being hydrated on a busy machine.
+  test.setTimeout(FULL ? 180_000 : 60_000);
+  await open(page);
+
+  const name = page.getByRole('textbox', { name: 'Worker name' });
+  const rows = page.locator('tbody tr');
+  await expect(page.getByRole('button', { name: 'Clear the search' })).toBeHidden();
+
+  // Wait for the page to be interactive before typing into it. The field is
+  // only controlled once React has attached, and a fill that lands before that
+  // sets the value and has it thrown away by the first render — which is not a
+  // thing this test is about. Opening a menu is pure client behaviour, so it
+  // answering at all is the signal.
+  const menu = rows.first().getByRole('button', { name: /^Actions for/ });
+  await expect(async () => {
+    await menu.click();
+    await expect(page.getByRole('menu')).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 60_000 });
+  await page.keyboard.press('Escape');
+
+  await name.fill('nwosu');
+  await expect(rows).toHaveCount(1);
+
+  const clear = page.getByRole('button', { name: 'Clear the search' });
+  await expect(clear).toBeVisible();
+  await clear.click();
+
+  await expect(name).toHaveValue('');
+  await expect(rows).toHaveCount(10);
+  // The field keeps the focus, so the next search is typed rather than aimed at.
+  await expect(name).toBeFocused();
 });

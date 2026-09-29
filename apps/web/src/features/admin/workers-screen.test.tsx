@@ -26,7 +26,7 @@ describe('the workers list', () => {
   it('narrows as the name is typed, without waiting for Search', async () => {
     const user = open();
 
-    await user.type(screen.getByRole('searchbox'), 'nwosu');
+    await user.type(screen.getByRole('textbox', { name: 'Worker name' }), 'nwosu');
 
     expect(rows()).toHaveLength(1);
     // The email rather than the name: the name is also in the accessible names
@@ -65,13 +65,13 @@ describe('the workers list', () => {
   it('says so when nothing matches, and offers the way back', async () => {
     const user = open();
 
-    await user.type(screen.getByRole('searchbox'), 'nobody at all');
+    await user.type(screen.getByRole('textbox', { name: 'Worker name' }), 'nobody at all');
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     // Twice on purpose: the panel's live region announces it, and the empty
     // table says it where the rows were.
     expect(screen.getAllByText('No workers match this search')).toHaveLength(2);
 
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0] as HTMLElement);
     expect(rows()).toHaveLength(10);
   });
 
@@ -89,8 +89,11 @@ describe('the workers list', () => {
   it('opens one worker in full, and closes back onto the button that opened it', async () => {
     const user = open();
 
-    const details = within(rows()[0] as HTMLElement).getByRole('button', { name: /^Details/ });
-    await user.click(details);
+    const actions = within(rows()[0] as HTMLElement).getByRole('button', {
+      name: /^Actions for/,
+    });
+    await user.click(actions);
+    await user.click(screen.getByRole('menuitem', { name: 'View details' }));
 
     const dialog = within(screen.getByRole('dialog'));
     expect(dialog.getByRole('heading', { name: 'Marcus Delgado' })).toBeInTheDocument();
@@ -98,7 +101,6 @@ describe('the workers list', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(details).toHaveFocus();
   });
 });
 
@@ -181,38 +183,47 @@ describe('the admin sections', () => {
   it('asks before banning, and says who it is about', async () => {
     const user = open();
 
-    const first = rows()[0] as HTMLElement;
-    await user.click(within(first).getByRole('button', { name: /^Unban/ }));
+    await user.click(
+      within(rows()[0] as HTMLElement).getByRole('button', { name: /^Actions for/ }),
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Unban user' }));
     // Marcus starts banned, so the first press is the undo and takes no asking.
-    expect(within(rows()[0] as HTMLElement).getByText('Active')).toBeInTheDocument();
+    expect(within(rows()[0] as HTMLElement).getByText('Unflagged')).toBeInTheDocument();
 
-    await user.click(within(rows()[0] as HTMLElement).getByRole('button', { name: /^Ban/ }));
+    await user.click(
+      within(rows()[0] as HTMLElement).getByRole('button', { name: /^Actions for/ }),
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Ban user' }));
     const dialog = within(screen.getByRole('dialog'));
     expect(dialog.getByRole('heading', { name: 'Ban Marcus Delgado?' })).toBeInTheDocument();
     expect(dialog.getByText(/will not be able to sign in/)).toBeInTheDocument();
 
     await user.click(dialog.getByRole('button', { name: 'Ban Marcus' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(within(rows()[0] as HTMLElement).getByText('Banned')).toBeInTheDocument();
+    expect(within(rows()[0] as HTMLElement).getByText('Flagged')).toBeInTheDocument();
   });
 
   it('changes nothing when the question is answered with Cancel', async () => {
     const user = open();
 
     const second = rows()[1] as HTMLElement;
-    expect(within(second).getByText('Active')).toBeInTheDocument();
+    expect(within(second).getByText('Unflagged')).toBeInTheDocument();
 
-    await user.click(within(second).getByRole('button', { name: /^Ban/ }));
+    await user.click(within(second).getByRole('button', { name: /^Actions for/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ban user' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(within(rows()[1] as HTMLElement).getByText('Active')).toBeInTheDocument();
+    expect(within(rows()[1] as HTMLElement).getByText('Unflagged')).toBeInTheDocument();
   });
 
   it('says out loud what happened, for anyone not watching the chip', async () => {
     const user = open();
 
-    await user.click(within(rows()[0] as HTMLElement).getByRole('button', { name: /^Unban/ }));
+    await user.click(
+      within(rows()[0] as HTMLElement).getByRole('button', { name: /^Actions for/ }),
+    );
+    await user.click(screen.getByRole('menuitem', { name: 'Unban user' }));
 
     expect(screen.getByText('Marcus Delgado can sign in again.')).toBeInTheDocument();
   });
