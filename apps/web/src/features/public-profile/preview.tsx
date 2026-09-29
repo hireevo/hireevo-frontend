@@ -90,7 +90,7 @@ export function ProfilePreview() {
           things axe refuses, and rightly — a page has one. The states that are
           not the profile need one, so they carry it themselves. */}
       {state.kind === 'ready' ? (
-        <PublicProfileScreen profile={state.profile} />
+        <PublicProfileScreen profile={state.profile} preview />
       ) : (
         <main id="main-content" className={cn(CONTAINER, 'pt-8 pb-24')}>
           <p role="status" className="text-sm text-content-subtle">
