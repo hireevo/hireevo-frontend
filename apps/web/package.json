@@ -17,7 +17,7 @@
     "@hireevo/api-client": "workspace:*",
     "@hireevo/tokens": "workspace:*",
     "@hireevo/ui-web": "workspace:*",
-    "@tiptap/pm": "^2.27.3",
+    "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^2.27.3",
     "@tiptap/starter-kit": "^2.27.3",
     "next": "16.3.6",
