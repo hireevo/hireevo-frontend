@@ -402,6 +402,13 @@ test('closing the tab on unsaved work is interrupted', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Edit About' }).click();
   await page.getByLabel('Biography').fill('Typed, never sent.');
+  // Wait for the page to know it is dirty before closing it. Typing goes
+  // through the editor's own update before React commits the state the guard
+  // reads, and closing in the same breath can beat that: on Firefox this test
+  // failed two runs in three, dismissing nothing because there was nothing to
+  // dismiss yet. The Save turning on is the page saying it has unsent work,
+  // which is the precondition this test exists to check the consequence of.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
 
   await page.close({ runBeforeUnload: true });
   await expect.poll(() => asked).toBeGreaterThan(0);
