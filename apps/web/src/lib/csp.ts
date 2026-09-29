@@ -27,19 +27,17 @@ export function buildContentSecurityPolicy(nonce: string): string {
     connect: isProduction ? '' : ' ws: wss:',
   };
 
-  // reCAPTCHA v2, only when a site key is configured (mirrors the API, which
-  // skips verification when its secret is unset). Its widget is a google.com
-  // iframe that makes its own requests, so a frame-src and connect-src are
-  // required — `'strict-dynamic'` governs script-src alone and does not reach
-  // frames or fetches. The google/gstatic entries in script-src are a fallback
-  // for engines without strict-dynamic: the widget's own script is injected by
-  // the app's already-trusted bundle (`loadRecaptcha` appends a <script>), so a
-  // strict-dynamic browser trusts it by propagation and ignores the host list.
-  const recaptchaEnabled = env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY !== undefined;
-  const recaptcha = {
-    script: recaptchaEnabled ? ' https://www.google.com https://www.gstatic.com' : '',
-    connect: recaptchaEnabled ? ' https://www.google.com' : '',
-  };
+  // Turnstile, only when a site key is configured (mirrors the API, which skips
+  // verification when its secret is unset). Its widget is a
+  // challenges.cloudflare.com iframe, so a frame-src entry is required —
+  // `'strict-dynamic'` governs script-src alone and does not reach frames. The
+  // script-src entry is a fallback for engines without strict-dynamic: the
+  // widget's own script is injected by the app's already-trusted bundle
+  // (`loadTurnstile` appends a <script>), so a strict-dynamic browser trusts it
+  // by propagation and ignores the host list.
+  const turnstileOrigin = 'https://challenges.cloudflare.com';
+  const turnstileEnabled = env.NEXT_PUBLIC_TURNSTILE_SITE_KEY !== undefined;
+  const turnstile = turnstileEnabled ? ` ${turnstileOrigin}` : '';
 
   // The browser sends each file straight to storage and then loads it back
   // (ADR-004), so both directives have to name those origins — a policy that
@@ -62,7 +60,7 @@ export function buildContentSecurityPolicy(nonce: string): string {
     // understand it ignore `'self'` and any host list and trust only what a
     // nonced script loads, so no `'unsafe-inline'` is needed for scripts;
     // `'self'` stays as a fallback for older engines.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentOnly.script}${recaptcha.script}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentOnly.script}${turnstile}`,
     // Styles still allow inline: Next ships critical CSS and styled-jsx inline
     // without a nonce, and injecting a stylesheet is not script execution.
     // Tightening this is a separate change in how styles are delivered.
@@ -71,7 +69,7 @@ export function buildContentSecurityPolicy(nonce: string): string {
     // holds and has not uploaded yet.
     `img-src 'self' blob: data: https:${storage}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin}${storage}${developmentOnly.connect}${recaptcha.connect}`,
+    `connect-src 'self' ${apiOrigin}${storage}${developmentOnly.connect}`,
     "manifest-src 'self'",
     // Object storage is here as well as in `img-src` because a certificate or a
     // case study is shown in a frame on the profile that carries it: a document
@@ -79,7 +77,7 @@ export function buildContentSecurityPolicy(nonce: string): string {
     // Only `application/pdf` is ever signed for a document and the bytes are
     // checked against that type before the object is claimed, and the frame is
     // a different origin from this app, so it cannot reach into the page.
-    `frame-src 'self'${storage}${recaptchaEnabled ? ' https://www.google.com' : ''}`,
+    `frame-src 'self'${storage}${turnstile}`,
     // Production only. Safari applies this to `http://localhost` too, rewriting
     // every asset to an `https` address the dev server does not answer, so the
     // page renders unstyled in Safari and nowhere else. Production is served

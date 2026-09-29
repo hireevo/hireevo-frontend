@@ -36,14 +36,14 @@ const schema = z.object({
    */
   NEXT_PUBLIC_DEV_MAILBOX_URL: z.url().optional(),
   /**
-   * The Google reCAPTCHA v3 site key, when bot protection is enabled.
+   * The Cloudflare Turnstile site key, when bot protection is enabled.
    *
-   * Optional so local development and CI run without it: the sign-up form loads
-   * the reCAPTCHA script and attaches a token only when this is set, and the API
-   * verifies a token only when its matching secret is set. Set both together, in
-   * production, to turn the protection on.
+   * Optional so local development and CI run without it: the sign-in and
+   * sign-up forms load the Turnstile script and attach a token only when this is
+   * set, and the API verifies a token only when its matching secret is set. Set
+   * both together, in production, to turn the protection on.
    */
-  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
   /**
    * Where uploaded media is sent and read back from, as a comma-separated list
    * of origins.
@@ -91,7 +91,7 @@ const parsed = schema.safeParse({
   // The optional ones treat an empty string as unset: a Docker build arg that
   // was not passed arrives as "", and "" is neither a URL nor a key.
   NEXT_PUBLIC_DEV_MAILBOX_URL: process.env.NEXT_PUBLIC_DEV_MAILBOX_URL || undefined,
-  NEXT_PUBLIC_RECAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || undefined,
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined,
   NEXT_PUBLIC_STORAGE_ORIGINS: process.env.NEXT_PUBLIC_STORAGE_ORIGINS || undefined,
   NODE_ENV: process.env.NODE_ENV,
 });

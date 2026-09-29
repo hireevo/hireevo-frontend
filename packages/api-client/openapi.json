@@ -324,7 +324,7 @@
           {
             "name": "x-captcha-token",
             "in": "header",
-            "description": "reCAPTCHA token from the sign-in checkbox; verified only when protection is on.",
+            "description": "Turnstile token from the sign-in bot check; verified only when protection is on.",
             "required": false,
             "schema": {
               "type": "string"

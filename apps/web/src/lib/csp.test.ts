@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// The env module is read at import time (apiOrigin) and per call (the reCAPTCHA
+// The env module is read at import time (apiOrigin) and per call (the Turnstile
 // site key), so it is mocked with a mutable object the tests flip.
 const { mockEnv } = vi.hoisted(() => ({
   mockEnv: {
     NEXT_PUBLIC_API_URL: 'https://api.example.com/',
-    NEXT_PUBLIC_RECAPTCHA_SITE_KEY: undefined as string | undefined,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: undefined as string | undefined,
     NEXT_PUBLIC_STORAGE_ORIGINS: undefined as string | undefined,
   },
 }));
@@ -24,7 +24,7 @@ function directive(csp: string, name: string): string {
 }
 
 afterEach(() => {
-  mockEnv.NEXT_PUBLIC_RECAPTCHA_SITE_KEY = undefined;
+  mockEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY = undefined;
   mockEnv.NEXT_PUBLIC_STORAGE_ORIGINS = undefined;
   vi.unstubAllEnvs();
 });
@@ -48,13 +48,12 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain('upgrade-insecure-requests');
   });
 
-  it('grants nothing to google when reCAPTCHA is off', () => {
+  it('grants nothing to cloudflare when Turnstile is off', () => {
     const csp = buildContentSecurityPolicy('n');
 
-    expect(csp).not.toContain('google.com');
-    expect(csp).not.toContain('gstatic.com');
+    expect(csp).not.toContain('challenges.cloudflare.com');
     // `frame-src` is still there — it is what lets a profile show the documents
-    // attached to it — but with nothing of google's in it.
+    // attached to it — but with nothing of cloudflare's in it.
     expect(directive(csp, 'frame-src')).toBe("frame-src 'self'");
   });
 
@@ -71,16 +70,15 @@ describe('buildContentSecurityPolicy', () => {
     expect(directive(csp, 'img-src')).toContain('https://media.example.com');
   });
 
-  it('opens exactly what reCAPTCHA needs when a site key is set', () => {
-    mockEnv.NEXT_PUBLIC_RECAPTCHA_SITE_KEY = 'a-site-key';
+  it('opens exactly what Turnstile needs when a site key is set', () => {
+    mockEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'a-site-key';
     const csp = buildContentSecurityPolicy('n');
 
-    // The widget's iframe and its own requests are not covered by
-    // 'strict-dynamic', so they need explicit host entries.
-    expect(directive(csp, 'frame-src')).toBe("frame-src 'self' https://www.google.com");
-    expect(directive(csp, 'connect-src')).toContain('https://www.google.com');
+    // The widget's iframe is not covered by 'strict-dynamic', so it needs an
+    // explicit frame-src entry; the widget makes no fetches from the page.
+    expect(directive(csp, 'frame-src')).toBe("frame-src 'self' https://challenges.cloudflare.com");
+    expect(directive(csp, 'connect-src')).not.toContain('cloudflare.com');
     // Fallback for engines that ignore 'strict-dynamic'.
-    expect(directive(csp, 'script-src')).toContain('https://www.google.com');
-    expect(directive(csp, 'script-src')).toContain('https://www.gstatic.com');
+    expect(directive(csp, 'script-src')).toContain('https://challenges.cloudflare.com');
   });
 });

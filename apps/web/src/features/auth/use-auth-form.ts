@@ -14,7 +14,7 @@ export type FieldErrors = Record<string, string>;
  * `invalid` means the values failed client-side validation and nothing was
  * sent; `failed` means the request left the browser and did not succeed; `ok`
  * means it did. The sign-up form uses the distinction to keep a solved
- * reCAPTCHA checkbox across a field typo — the token is only spent once the
+ * Turnstile widget across a field typo — the token is only spent once the
  * request actually reaches the server.
  */
 export type RunOutcome = 'ok' | 'invalid' | 'failed';
