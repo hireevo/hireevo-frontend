@@ -43,6 +43,30 @@ vi.mock('./api.ts', async (importOriginal) => ({
   publishProfile: (...args: Parameters<typeof Api.publishProfile>) => calls.publish(...args),
 }));
 
+// The biography and the experience summary are TipTap rich-text fields, which do
+// not take keystrokes under jsdom. These tests drive the setup flow, not the
+// editor's internals, so a plain textarea stands in for it; markdown for plain
+// text is the same text.
+vi.mock('@/features/rich-text/markdown-editor.tsx', () => ({
+  MarkdownEditor: (props: {
+    id: string;
+    value: string;
+    onChange: (value: string) => void;
+    maxLength?: number;
+    'aria-label'?: string;
+    'aria-describedby'?: string;
+  }) => (
+    <textarea
+      id={props.id}
+      aria-label={props['aria-label']}
+      aria-describedby={props['aria-describedby']}
+      maxLength={props.maxLength}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
+  ),
+}));
+
 const NOTHING_SHARED = {
   nameHeadline: false,
   biography: false,

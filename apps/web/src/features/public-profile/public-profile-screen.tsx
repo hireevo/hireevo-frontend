@@ -293,9 +293,10 @@ export function PublicProfileScreen({
                       </p>
                     )}
                     {entry.summary === null ? null : (
-                      <p className="mt-2 text-sm leading-[1.7] text-content-muted">
-                        {entry.summary}
-                      </p>
+                      <Markdown
+                        source={entry.summary}
+                        className="mt-2 text-sm text-content-muted"
+                      />
                     )}
                   </li>
                 ))}

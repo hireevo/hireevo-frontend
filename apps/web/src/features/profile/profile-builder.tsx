@@ -942,6 +942,7 @@ export function ProfileBuilder() {
                   durationOf(item.values.startDate, item.values.endDate),
                 ),
                 body: item.values.summary,
+                bodyMarkdown: true,
               }))}
             />
           ) : undefined}

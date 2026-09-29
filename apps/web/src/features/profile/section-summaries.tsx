@@ -7,6 +7,7 @@
  */
 import { type ReactNode } from 'react';
 import { cn } from '@hireevo/ui-web';
+import { Markdown } from '@/features/rich-text/markdown.tsx';
 import {
   CONTACT_FIELDS,
   type ContactField,
@@ -76,6 +77,8 @@ export type SummaryRow = {
   /** A mark before the title — the tick the design puts beside a certificate. */
   icon?: ReactNode;
   body?: string;
+  /** Render `body` as the biography's small markdown set rather than plain text. */
+  bodyMarkdown?: boolean;
   /** Anything the row shows below its text — the portfolio's image previews. */
   media?: ReactNode;
 };
@@ -130,7 +133,9 @@ export function SummaryList({
             {row.tertiary === undefined || row.tertiary === '' ? null : (
               <p className="mt-0.5 text-sm text-content-subtle">{row.tertiary}</p>
             )}
-            {row.body === undefined || row.body.trim() === '' ? null : (
+            {row.body === undefined || row.body.trim() === '' ? null : row.bodyMarkdown ? (
+              <Markdown source={row.body} className="mt-2 text-sm text-content-muted" />
+            ) : (
               <p className="mt-2 text-sm leading-[1.6] wrap-anywhere whitespace-pre-line text-content-muted">
                 {row.body}
               </p>
