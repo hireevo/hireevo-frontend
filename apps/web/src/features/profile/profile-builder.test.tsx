@@ -86,6 +86,15 @@ const NO_CONTACT = {
   dateOfBirth: null,
 };
 
+/** What the API returns once somebody has filled the contact card in and saved. */
+const SAVED_CONTACT = {
+  ...NO_CONTACT,
+  phoneE164: '+14155550123',
+  contactEmail: 'julian@example.com',
+  whatsappE164: '+14155550123',
+  linkedinUrl: 'linkedin.com/in/julianreyes',
+};
+
 const NO_SECTIONS = {
   languages: [],
   skills: [],
@@ -403,6 +412,68 @@ describe('ProfileBuilder', () => {
     const preview = await screen.findByRole('link', { name: 'Preview' });
     expect(preview).toHaveAttribute('href', '/profile/preview');
     expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Contact details that came back from the server are saved, and stay saved.
+   *
+   * The card is seeded from the profile in an effect, which runs *after* the
+   * load has already recorded what the server holds — so the baseline was taken
+   * while the contact fields were still empty. Nothing showed until something
+   * else was typed, and then the next comparison found the seeded details
+   * "different" from that empty baseline and the card said "Not saved" about
+   * details the server had. Reported after a sign-out and back in, which is
+   * exactly the path that has no local draft to hide it.
+   */
+  it('keeps contact details marked saved when another section is edited', async () => {
+    // The reported path: the header's "Edit profile", which lands here with the
+    // pencils already on — not the "Complete your profile" button, whose own
+    // work would refresh the baseline and hide this.
+    search = new URLSearchParams('edit=1');
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ contact: SAVED_CONTACT }) });
+    const user = await open();
+
+    const contact = section(/Contact Details/);
+    expect(contact.queryByText('Not saved')).not.toBeInTheDocument();
+
+    // Anything at all, in a different card: this is what used to reveal it.
+    await user.click(screen.getByRole('button', { name: 'Edit About' }));
+    await user.type(await screen.findByLabelText('Biography'), 'Hello');
+
+    expect(section(/Contact Details/).queryByText('Not saved')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The same, with a draft in this browser.
+   *
+   * Signing out does not clear the draft — it is this browser's copy of work
+   * the server has not been told about, and it belongs to the account either
+   * way. So the reported path, signing out and back in, opens with a draft
+   * present, and that is the arrangement where the baseline is built from one
+   * set of values and the contact card is seeded from another.
+   */
+  it('keeps contact details marked saved when a draft is restored', async () => {
+    search = new URLSearchParams('edit=1');
+    window.localStorage.setItem(
+      'hireevo.client-profile-draft.user-1',
+      JSON.stringify({
+        version: 6,
+        profileVersion: 3,
+        identity: { headline: 'Typed and not yet saved' },
+        country: '',
+        languages: [],
+        skills: [],
+        experience: [],
+        education: [],
+        licenses: [],
+        portfolio: [],
+      }),
+    );
+    calls.load.mockResolvedValue({ ok: true, profile: stored({ contact: SAVED_CONTACT }) });
+    await open();
+
+    await screen.findByRole('region', { name: /Contact Details/ });
+    expect(section(/Contact Details/).queryByText('Not saved')).not.toBeInTheDocument();
   });
 
   /**
