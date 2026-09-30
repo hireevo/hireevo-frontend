@@ -191,7 +191,8 @@ export function useProfileDraft({
   /**
    * Fills the display name when the profile has none — the account's own name,
    * so a new profile opens with the person's name rather than a placeholder.
-   * It counts as unsaved until something is saved, and the status says so.
+   * It is part of the loaded baseline, so it does not make an untouched profile
+   * read as unsaved; it is persisted whenever the About card is next saved.
    */
   fallbackDisplayName?: string;
   /** Values typed before and not saved — a draft read back from this browser. */
@@ -263,10 +264,19 @@ export function useProfileDraft({
         : withDraft;
     latest.current = opening;
     version.current = result.profile.version;
-    // Keyed on what the server holds, not on the fallback, so a filled-in name
-    // is saved by the next save rather than mistaken for something already sent.
+    // The baseline includes the fallback name we injected for display, so a name
+    // the person never typed does not read as "unsaved" the moment a fresh
+    // profile loads. A restored draft is the opposite — the person's own unsaved
+    // work — so it is deliberately left out of the baseline (built from `loaded`,
+    // not `opening`) and still shows as unsaved. The injected name is not lost:
+    // it rides along in the About group the next time that card is saved for any
+    // reason, so it reaches the server the first time the person saves About.
+    const baseline =
+      loaded.displayName.trim() === '' && fallback.current.trim() !== ''
+        ? { ...loaded, displayName: fallback.current }
+        : loaded;
     savedParts.current = partsOf(
-      loaded,
+      baseline,
       sections.current?.(),
       rates.current?.(),
       contact.current?.(),

@@ -259,7 +259,7 @@ beforeEach(() => {
 });
 
 describe('ProfileBuilder', () => {
-  it('opens on the account holder’s name, which is not saved until Save is pressed', async () => {
+  it('opens on the account holder’s name, with nothing to save yet', async () => {
     await open();
 
     // Read, not pressed: the page is landed on as the profile it is, so the
@@ -267,6 +267,20 @@ describe('ProfileBuilder', () => {
     expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
     expect(screen.getByText('@blacksmith90')).toBeInTheDocument();
     expect(bar()).toHaveAttribute('aria-valuetext', '0 percent complete, 0 of 6 steps done');
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
+  it('does not mark a section unsaved because of the pre-filled account name', async () => {
+    // The default profile has no display name, so the form opens on the account
+    // holder's name — "Ayesha Khan" — which the person never typed. A name that
+    // was injected for display, not entered, must not make an untouched profile
+    // read as having unsaved work: on a brand-new account, About said "Not
+    // saved" before anything was touched.
+    await openForEditing();
+
+    expect(screen.getByText('Ayesha Khan')).toBeInTheDocument();
+    expect(section(/About/).queryByText('Not saved')).not.toBeInTheDocument();
+    // And nothing was quietly sent to make that true.
     expect(calls.save).not.toHaveBeenCalled();
   });
 
