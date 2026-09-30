@@ -21,6 +21,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The worker accounts, for the moderation console
+         * @description One page of the accounts holding the freelancer role, newest first, with what their profile says about them. `search` matches the email and the account name; `country` and `region` match what the profile stored. The countries and regions in use come back with the page, so the filters can be built from what exists rather than from a list that goes stale.
+         */
+        get: operations["AdminController_listWorkers_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workers/{userId}/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close a worker’s account
+         * @description They can no longer sign in, their sessions are revoked and their published profile stops being served. Nothing is deleted. Banning an account that is already banned answers 409; an id that is not a worker answers 404, the same as one that does not exist.
+         */
+        post: operations["AdminController_ban_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/workers/{userId}/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a worker back in
+         * @description The account can sign in again and its profile is served as it was. Unbanning an account that is not banned answers 409.
+         */
+        post: operations["AdminController_unban_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/username-available": {
         parameters: {
             query?: never;
@@ -1112,6 +1172,28 @@ export interface components {
             expiresAt: string;
             byteSize: number;
         };
+        AdminWorkerPage: {
+            workers: {
+                /** Format: uuid */
+                userId: string;
+                name: string | null;
+                /** Format: email */
+                email: string;
+                country: string | null;
+                region: string | null;
+                profileComplete: boolean;
+                banned: boolean;
+                /** Format: date-time */
+                joinedOn: string;
+            }[];
+            total: number;
+            page: number;
+            pageSize: number;
+            places: {
+                country: string;
+                regions: string[];
+            }[];
+        };
     };
     responses: never;
     parameters: never;
@@ -1269,6 +1351,180 @@ export interface operations {
                             };
                         };
                     };
+                };
+            };
+        };
+    };
+    AdminController_listWorkers_v1: {
+        parameters: {
+            query?: {
+                pageSize?: number;
+                page?: number;
+                /** @description The state or province, within the country above it. */
+                region?: string;
+                /** @description Exactly as the profile stored it. */
+                country?: string;
+                /** @description Matches the email and the account name, case-insensitively. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of workers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkerPage"];
+                };
+            };
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AdminController_ban_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The worker’s account id */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AdminController_unban_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The worker’s account id */
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
