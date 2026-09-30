@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { LuGlobe, LuStar, LuTrash2 } from 'react-icons/lu';
 import { Chip } from '@hireevo/ui-web';
 import type { ProfileLanguage } from './draft.ts';
+import { proficiencyLabel, proficiencyTint } from './language-proficiency.ts';
 import { LanguageAdder } from './language-adder.tsx';
 import { SectionCard } from './section-card.tsx';
 
@@ -64,17 +65,21 @@ export function LanguagesSection({
               // sitting in the list directly — a `ul` whose children are spans
               // is not a list to anything reading the page aloud.
               <li key={language.name}>
-                <Chip>
+                <Chip
+                  className={proficiencyTint(language.proficiency)}
+                  title={proficiencyLabel(language.name, language.proficiency)}
+                >
                   {!language.starred ? null : (
                     <LuStar
                       aria-hidden="true"
                       className="size-3.5 shrink-0 fill-current text-content-warning"
                     />
                   )}
-                  {/* The level set apart from the name, as the design draws
-                      it: the language is the fact, the level qualifies it. */}
+                  {/* The level is carried by the chip's tint now, not spelled out
+                      beside the name — but it stays in the label for anyone who
+                      cannot tell the shades apart. */}
                   {language.name}
-                  <span className="text-content-subtle">&mdash; {language.proficiency}</span>
+                  <span className="sr-only">&mdash; {language.proficiency}</span>
                   {!language.starred ? null : (
                     <span className="sr-only">, shown beside my name</span>
                   )}

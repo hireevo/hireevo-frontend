@@ -12,12 +12,15 @@ export type ChipProps = {
    * so a screen reader hears "Remove English" rather than five "Remove"s.
    */
   removeLabel?: string | undefined;
+  /** A hover tooltip, for a chip whose full meaning is not all in its text. */
+  title?: string | undefined;
   className?: string | undefined;
 };
 
-export function Chip({ children, onRemove, removeLabel = 'Remove', className }: ChipProps) {
+export function Chip({ children, onRemove, removeLabel = 'Remove', title, className }: ChipProps) {
   return (
     <span
+      {...(title === undefined ? {} : { title })}
       className={cn(
         'inline-flex items-center gap-2 rounded-full bg-surface-accent-subtle py-1.5 pl-3 text-sm text-content-accent',
         onRemove === undefined ? 'pr-3' : 'pr-1.5',

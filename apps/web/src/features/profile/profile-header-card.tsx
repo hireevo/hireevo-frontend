@@ -9,6 +9,7 @@ import { env } from '@/env.ts';
 import { AvatarPicker } from './avatar-picker.tsx';
 import { ShareDialog } from './share-dialog.tsx';
 import type { ProfileDraft } from './draft.ts';
+import { proficiencyLabel, proficiencyTint } from './language-proficiency.ts';
 import { InlineEdit } from './inline-edit.tsx';
 
 const CONTROL = 'h-9 rounded-lg px-3 text-[0.8125rem] font-semibold';
@@ -203,8 +204,15 @@ export function ProfileHeaderCard({
               <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
                 <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
                 {starred.map((language) => (
-                  <Chip key={language.name}>
-                    {language.name} &middot; {language.proficiency}
+                  <Chip
+                    key={language.name}
+                    className={proficiencyTint(language.proficiency)}
+                    title={proficiencyLabel(language.name, language.proficiency)}
+                  >
+                    {language.name}
+                    {language.proficiency === null ? null : (
+                      <span className="sr-only"> &middot; {language.proficiency}</span>
+                    )}
                   </Chip>
                 ))}
               </span>
