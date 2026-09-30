@@ -118,7 +118,11 @@ export function AdminShell({
   return (
     <div className="min-h-dvh bg-surface-subtle">
       <header className="sticky top-0 z-20 border-b border-border-subtle bg-surface">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 px-4 py-3 sm:px-6">
+        {/* The console takes the window it is given. A centred column caps a
+            table at a fraction of a wide monitor and spends the rest on
+            margin, and the whole point of this screen is how many rows fit on
+            it. The gutter grows with the window instead. */}
+        <div className="flex w-full items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <button
             ref={toggle}
             type="button"
@@ -162,7 +166,7 @@ export function AdminShell({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1600px] gap-6 px-4 py-6 sm:px-6">
+      <div className="flex w-full gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <aside
           aria-label="Admin sections"
           className="sticky top-[4.5rem] hidden h-fit w-64 shrink-0 rounded-2xl border border-border-subtle bg-surface p-3 lg:block"

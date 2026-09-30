@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LuTriangleAlert } from 'react-icons/lu';
 import { Button } from '@hireevo/ui-web';
-import { banWorker, listWorkers, unbanWorker, type WorkerList } from './api.ts';
+import {
+  approveNameChange,
+  banWorker,
+  listWorkers,
+  rejectNameChange,
+  unbanWorker,
+  type WorkerList,
+} from './api.ts';
 import { PAGE_SIZE, type WorkerFilters } from './filter-workers.ts';
 import { WorkersScreen } from './workers-screen.tsx';
 
@@ -73,19 +80,17 @@ export function WorkersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const act = async (userId: string, action: 'ban' | 'unban') => {
+  /** Every write goes through here, so the list is re-read whatever happened. */
+  const act = async (
+    action: () => Promise<{ ok: true; value: void } | { ok: false; message: string }>,
+  ) => {
     setActing(true);
-    const result = action === 'ban' ? await banWorker(userId) : await unbanWorker(userId);
+    const result = await action();
     setActing(false);
 
-    if (!result.ok) {
-      setProblem(result.message);
-      // A refusal means the row is not what the screen is showing — a conflict
-      // is somebody else having acted — so the list is read again either way.
-      await load(asked.current.filters, asked.current.page);
-      return;
-    }
-
+    // A refusal means the row is not what the screen is showing — a conflict is
+    // somebody else having acted — so the list is read again either way.
+    if (!result.ok) setProblem(result.message);
     await load(asked.current.filters, asked.current.page);
   };
 
@@ -127,8 +132,14 @@ export function WorkersPage() {
       busy={acting}
       problem={problem}
       onQuery={(filters, page) => void load(filters, page)}
-      onBan={(worker) => void act(worker.id, 'ban')}
-      onUnban={(worker) => void act(worker.id, 'unban')}
+      onBan={(worker) => void act(() => banWorker(worker.id))}
+      onUnban={(worker) => void act(() => unbanWorker(worker.id))}
+      onApproveName={(worker) => {
+        if (worker.nameChange !== null) void act(() => approveNameChange(worker.nameChange!.id));
+      }}
+      onRejectName={(worker) => {
+        if (worker.nameChange !== null) void act(() => rejectNameChange(worker.nameChange!.id));
+      }}
     />
   );
 }

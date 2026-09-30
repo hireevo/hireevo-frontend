@@ -148,6 +148,10 @@ test.beforeEach(async ({ page }) => {
     (route) => fulfil(route, USER),
   );
   await page.route(
+    (url) => url.pathname === '/api/v1/auth/me/name-change',
+    (route) => fulfil(route, { pending: null, decided: null }),
+  );
+  await page.route(
     (url) => url.pathname === '/api/v1/auth/sessions',
     (route) => fulfil(route, SESSIONS),
   );
@@ -202,14 +206,38 @@ test('the visibility row is the one that can be changed, and it writes', async (
   expect(sent).toMatchObject({ version: 7, profile: { availability: 'unavailable' } });
 });
 
-test('the name row writes both names, and clears one sent empty', async ({ page }) => {
+test('the name row asks for a review and keeps the account name until it is decided', async ({
+  page,
+}) => {
   let sent: unknown = null;
+  let withdrawn = false;
+  const request = {
+    id: '0199a3c4-0000-7000-8000-00000000e001',
+    firstName: 'Sophie',
+    lastName: null,
+    status: 'pending',
+    requestedAt: '2026-09-24T10:00:00.000Z',
+  };
+
+  // The state the GET answers changes as the test goes: nothing waiting, then
+  // the request, then nothing again. A single fixture would not be able to tell
+  // "the notice appeared" from "the notice was always there".
   await page.route(
-    (url) => url.pathname === '/api/v1/auth/me' && url.search === '',
+    (url) => url.pathname === '/api/v1/auth/me/name-change',
     (route) => {
-      if (route.request().method() !== 'PATCH') return fulfil(route, USER);
-      sent = route.request().postDataJSON();
-      return fulfil(route, { ...USER, firstName: 'Sophie', lastName: null });
+      const method = route.request().method();
+      if (method === 'POST') {
+        sent = route.request().postDataJSON();
+        return fulfil(route, request, 201);
+      }
+      if (method === 'DELETE') {
+        withdrawn = true;
+        return fulfil(route, {}, 204);
+      }
+      return fulfil(route, {
+        pending: sent !== null && !withdrawn ? request : null,
+        decided: null,
+      });
     },
   );
 
@@ -221,10 +249,12 @@ test('the name row writes both names, and clears one sent empty', async ({ page 
   // Opens on what the account holds rather than empty, so a correction is an
   // edit and not a re-type.
   await expect(box.getByLabel('First Name')).toHaveValue('Ayesha');
+  // Said before the button: this starts a review, it does not rename anybody.
+  await expect(box.getByText(/reviewed before it appears/)).toBeVisible();
 
   await box.getByLabel('First Name').fill('Sophie');
   await box.getByLabel('Last Name').fill('');
-  await box.getByRole('button', { name: 'Save name' }).click();
+  await box.getByRole('button', { name: 'Request name change' }).click();
 
   // Polled rather than read straight after the click: the assertion is about
   // what the request carried, and the request has not necessarily left by the
@@ -232,7 +262,20 @@ test('the name row writes both names, and clears one sent empty', async ({ page 
   // and clears an explicit null, and emptying a name has to reach it as the
   // second.
   await expect.poll(() => sent).toEqual({ firstName: 'Sophie', lastName: null });
-  await expect(page.getByText('Sophie', { exact: true })).toBeVisible();
+
+  // The row is the account, and the account has not moved. Showing "Sophie"
+  // here would be telling somebody their account says something it does not.
+  await expect(page.getByText('Name change waiting for review')).toBeVisible();
+  await expect(page.getByText('Ayesha Khan', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sophie', { exact: true })).toHaveCount(0);
+  // With one waiting there is nothing to edit — the row offers the request.
+  await expect(page.getByRole('button', { name: 'View request' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Cancel request' }).click();
+
+  await expect.poll(() => withdrawn).toBe(true);
+  await expect(page.getByText('Name change waiting for review')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit' }).first()).toBeVisible();
 });
 
 test('the email row asks, then confirms, and never moves the address early', async ({ page }) => {

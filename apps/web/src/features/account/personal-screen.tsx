@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { LuClock, LuInfo } from 'react-icons/lu';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import {
   Button,
@@ -28,7 +29,11 @@ import {
   deactivateAccount,
   pendingEmailChange,
   requestEmailChange,
-  updateName,
+  readNameChange,
+  requestNameChange,
+  withdrawNameChange,
+  type NameChangeRequest,
+  type NameChangeState,
   type PendingEmailChange,
 } from './api.ts';
 import { RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
@@ -102,6 +107,7 @@ function DetailsCard() {
   const { user } = useSession();
   const [fetched, setFetched] = useState<AuthenticatedUser | null>(null);
   const [open, setOpen] = useState<'name' | 'email' | null>(null);
+  const [nameChange, setNameChange] = useState<NameChangeState | null>(null);
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -113,10 +119,15 @@ function DetailsCard() {
     void (async () => {
       // Read back rather than trusted from the sign-in response: this is the
       // screen that claims to show what the account holds.
-      const [me, own] = await Promise.all([api.GET('/api/v1/auth/me', {}), loadOrCreateProfile()]);
+      const [me, own, name] = await Promise.all([
+        api.GET('/api/v1/auth/me', {}),
+        loadOrCreateProfile(),
+        readNameChange(),
+      ]);
       if (!live) return;
       if (me.data !== undefined) setFetched(me.data);
       if (own.ok) setProfile(own.profile);
+      setNameChange(name);
     })();
     return () => {
       live = false;
@@ -124,6 +135,8 @@ function DetailsCard() {
   }, []);
 
   const shown = fetched ?? user;
+  const waiting = nameChange?.pending ?? null;
+  const refused = nameChange?.decided?.status === 'rejected' ? nameChange.decided : null;
   const name = shown === null ? '' : [shown.firstName, shown.lastName].filter(Boolean).join(' ');
 
   async function setAvailability(availability: Availability) {
@@ -155,8 +168,37 @@ function DetailsCard() {
       <SettingRow
         label="Full name"
         value={shown === null ? '—' : name === '' ? 'Not set' : name}
-        action={shown === null ? null : <RowAction label="Edit" onClick={() => setOpen('name')} />}
+        action={
+          shown === null ? null : (
+            <RowAction
+              label={waiting === null ? 'Edit' : 'View request'}
+              onClick={() => setOpen('name')}
+            />
+          )
+        }
       />
+
+      {/* What happened to the last request, said where the name is. A change
+          that is waiting has not happened yet, and a row that showed the new
+          name would be telling somebody their account says something it does
+          not. */}
+      {waiting !== null ? (
+        <NameChangeNotice
+          tone="waiting"
+          title="Name change waiting for review"
+          detail={`You asked to be shown as ${fullName(waiting) || 'no name'}. Your account keeps its current name until an administrator decides.`}
+          onCancel={async () => {
+            if (!(await withdrawNameChange())) return;
+            setNameChange(await readNameChange());
+          }}
+        />
+      ) : refused !== null ? (
+        <NameChangeNotice
+          tone="refused"
+          title="Your last name change was not approved"
+          detail={`${fullName(refused) || 'The name you asked for'} was reviewed and declined. You can ask again.`}
+        />
+      ) : null}
 
       <SettingRow
         label="Email address"
@@ -222,8 +264,9 @@ function DetailsCard() {
         <NameDialog
           firstName={shown.firstName}
           lastName={shown.lastName}
-          onDone={(updated) => {
-            setFetched(updated);
+          waiting={waiting}
+          onDone={(next) => {
+            setNameChange(next);
             setOpen(null);
           }}
           onClose={() => setOpen(null)}
@@ -238,15 +281,27 @@ function DetailsCard() {
 }
 
 /** The box the Full name row opens. Either name may be emptied. */
+/**
+ * The box the Full name row opens.
+ *
+ * It asks rather than sets: the name beside somebody's work is not theirs alone
+ * to change, so what this sends is a request and what it shows afterwards is
+ * that somebody will look at it. When one is already waiting the box says so
+ * instead of offering a second — one open request is the rule, and a form that
+ * lets you fill it in only to be refused is a form that wasted your time.
+ */
 function NameDialog({
   firstName,
   lastName,
+  waiting,
   onDone,
   onClose,
 }: {
   firstName: string | null;
   lastName: string | null;
-  onDone: (user: AuthenticatedUser) => void;
+  /** The request already waiting, if there is one. */
+  waiting: NameChangeRequest | null;
+  onDone: (state: NameChangeState | null) => void;
   onClose: () => void;
 }) {
   const [first, setFirst] = useState(firstName ?? '');
@@ -261,22 +316,57 @@ function NameDialog({
     setMessage(null);
     setSaving(true);
 
-    // Trimmed to null rather than to an empty string: the API treats null as
-    // "clear this" and an absent key as "leave it", and a box with two inputs
-    // has to be able to empty either of them.
-    const result = await updateName(
+    // Trimmed to null rather than to an empty string: null is how the contract
+    // says "no name in this half", and a box with two inputs has to be able to
+    // empty either of them.
+    const result = await requestNameChange(
       first.trim() === '' ? null : first,
       last.trim() === '' ? null : last,
     );
     setSaving(false);
 
     if (result.ok) {
-      onDone(result.user);
+      onDone(await readNameChange());
       return;
     }
     if (result.field === 'firstName') setErrors({ first: result.message });
     else if (result.field === 'lastName') setErrors({ last: result.message });
     else setMessage(result.message);
+  }
+
+  if (waiting !== null) {
+    return (
+      <Dialog
+        title="Name change waiting for review"
+        description="Your account keeps its current name until this is decided."
+        onClose={onClose}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl bg-surface-warning-subtle px-4 py-3 text-sm text-content-warning">
+            <p className="font-semibold">You asked to be shown as</p>
+            <p className="mt-1 text-base">
+              {[waiting.firstName, waiting.lastName].filter(Boolean).join(' ') || 'no name'}
+            </p>
+          </div>
+          <p className="text-sm text-content-muted">
+            An administrator reviews name changes so that the name beside your work stays the one
+            employers agreed to. You will see the new name here once it is allowed.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={() => {
+              void (async () => {
+                if (await withdrawNameChange()) onDone(await readNameChange());
+              })();
+            }}
+          >
+            Cancel this request
+          </Button>
+        </div>
+      </Dialog>
+    );
   }
 
   return (
@@ -301,10 +391,17 @@ function NameDialog({
           {...(errors.last === undefined ? {} : { error: errors.last })}
         />
 
+        {/* Said before the button, not after it: somebody should know that
+            pressing this starts a review rather than renames them. */}
+        <p className="rounded-lg bg-surface-subtle px-3 py-2.5 text-sm text-content-muted">
+          Your new name is reviewed before it appears. Your account keeps its current name until
+          then.
+        </p>
+
         {message === null ? null : <FormMessage>{message}</FormMessage>}
 
-        <Button type="submit" size="xl" fullWidth loading={saving} loadingLabel="Saving">
-          Save name
+        <Button type="submit" size="xl" fullWidth loading={saving} loadingLabel="Sending">
+          Request name change
         </Button>
       </form>
     </Dialog>
@@ -602,5 +699,67 @@ function HelpCard() {
         Go to your profile
       </Link>
     </UsernameHelpCard>
+  );
+}
+
+/** "Ayesha" + "Khan" → "Ayesha Khan"; either half alone is still a name. */
+function fullName(request: NameChangeRequest): string {
+  return [request.firstName, request.lastName].filter(Boolean).join(' ');
+}
+
+/**
+ * What happened to a name change, under the row it is about.
+ *
+ * Quiet rather than alarming: nothing has gone wrong, something is being
+ * looked at. The words carry the state — "waiting for review", "not approved" —
+ * so nothing depends on which of the two tints somebody can see.
+ */
+function NameChangeNotice({
+  tone,
+  title,
+  detail,
+  onCancel,
+}: {
+  tone: 'waiting' | 'refused';
+  title: string;
+  detail: string;
+  onCancel?: () => Promise<void>;
+}) {
+  const [cancelling, setCancelling] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'mt-1 mb-4 flex flex-col gap-2 rounded-xl px-4 py-3 sm:flex-row sm:items-start sm:gap-3',
+        tone === 'waiting'
+          ? 'bg-surface-warning-subtle text-content-warning'
+          : 'bg-surface-muted text-content-muted',
+      )}
+    >
+      {tone === 'waiting' ? (
+        <LuClock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      ) : (
+        <LuInfo aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      )}
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 text-sm">{detail}</p>
+      </div>
+
+      {onCancel === undefined ? null : (
+        <button
+          type="button"
+          disabled={cancelling}
+          onClick={() => {
+            setCancelling(true);
+            void onCancel().finally(() => setCancelling(false));
+          }}
+          className="shrink-0 self-start rounded-sm text-sm font-medium underline underline-offset-4 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {cancelling ? 'Cancelling…' : 'Cancel request'}
+        </button>
+      )}
+    </div>
   );
 }

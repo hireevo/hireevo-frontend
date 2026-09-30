@@ -48,6 +48,23 @@ export function WorkersPreview() {
     );
   };
 
+  /** Over the fixture, approving copies the name across and closes the request. */
+  const decideName = (worker: AdminWorker, decision: 'approved' | 'rejected') => {
+    const wanted = worker.nameChange?.wanted ?? worker.name;
+    setRows((all) =>
+      all.map((row) =>
+        row.id === worker.id
+          ? { ...row, name: decision === 'approved' ? wanted : row.name, nameChange: null }
+          : row,
+      ),
+    );
+    setSaid(
+      decision === 'approved'
+        ? `${worker.name} is now shown as ${wanted}.`
+        : `The name change for ${worker.name} was refused.`,
+    );
+  };
+
   return (
     <WorkersScreen
       workers={current.rows}
@@ -65,6 +82,8 @@ export function WorkersPreview() {
       }}
       onBan={(worker) => setAccount(worker, 'banned')}
       onUnban={(worker) => setAccount(worker, 'active')}
+      onApproveName={(worker) => decideName(worker, 'approved')}
+      onRejectName={(worker) => decideName(worker, 'rejected')}
     />
   );
 }

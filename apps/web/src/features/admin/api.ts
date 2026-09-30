@@ -82,6 +82,29 @@ export async function listWorkers(request: WorkerRequest): Promise<Result<Worker
 }
 
 export const banWorker = (userId: string): Promise<Result<void>> => move(userId, 'ban');
+export const approveNameChange = (requestId: string): Promise<Result<void>> =>
+  decide(requestId, 'approve');
+export const rejectNameChange = (requestId: string): Promise<Result<void>> =>
+  decide(requestId, 'reject');
+
+/** Allowing or refusing a name somebody asked to be known by. */
+async function decide(requestId: string, decision: 'approve' | 'reject'): Promise<Result<void>> {
+  try {
+    const { error, response } =
+      decision === 'approve'
+        ? await api.POST('/api/v1/admin/name-changes/{requestId}/approve', {
+            params: { path: { requestId } },
+          })
+        : await api.POST('/api/v1/admin/name-changes/{requestId}/reject', {
+            params: { path: { requestId } },
+          });
+
+    if (response.ok) return { ok: true, value: undefined };
+    return { ok: false, ...failure(response.status, error) };
+  } catch {
+    return { ok: false, kind: 'failed', message: UNREACHABLE };
+  }
+}
 export const unbanWorker = (userId: string): Promise<Result<void>> => move(userId, 'unban');
 
 async function move(userId: string, action: 'ban' | 'unban'): Promise<Result<void>> {
@@ -118,7 +141,8 @@ function failure(
   if (status === 409) {
     return {
       kind: 'conflict',
-      message: 'That account has already changed. Refresh the list to see where it stands.',
+      message:
+        'That has already been decided — by somebody else, or by a second press. The list below is now up to date.',
     };
   }
   if (status === 404) {
@@ -135,6 +159,7 @@ function toWorker(row: WorkerPage['workers'][number]): AdminWorker {
   return {
     id: row.userId,
     name: row.name ?? 'No name yet',
+    displayName: row.displayName,
     email: row.email,
     country: row.country ?? 'Not given',
     // The contract says `region`, this screen says `state`: the API has to
@@ -144,5 +169,17 @@ function toWorker(row: WorkerPage['workers'][number]): AdminWorker {
     status: row.profileComplete ? 'completed' : 'not_completed',
     account: row.banned ? 'banned' : 'active',
     joinedOn: row.joinedOn.slice(0, 10),
+    nameChange:
+      row.nameChange === null
+        ? null
+        : {
+            id: row.nameChange.id,
+            firstName: row.nameChange.firstName,
+            lastName: row.nameChange.lastName,
+            requestedAt: row.nameChange.requestedAt.slice(0, 10),
+            wanted:
+              [row.nameChange.firstName, row.nameChange.lastName].filter(Boolean).join(' ') ||
+              'no name',
+          },
   };
 }
