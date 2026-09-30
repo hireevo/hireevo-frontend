@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EMPTY_VALUES,
+  contactOf,
   loadOrCreateProfile,
   saveProfilePatch,
   toContactPayload,
@@ -275,19 +276,23 @@ export function useProfileDraft({
       loaded.displayName.trim() === '' && fallback.current.trim() !== ''
         ? { ...loaded, displayName: fallback.current }
         : loaded;
-    savedParts.current = partsOf(
-      baseline,
-      sections.current?.(),
-      rates.current?.(),
-      contact.current?.(),
-    );
+    // The contact details come from the profile that just arrived, not from the
+    // card that shows them. That card is seeded in an effect, which runs after
+    // this — so asking it here records "no contact details" as what the server
+    // holds, however many it actually returned. The card then seeds itself, and
+    // the next comparison finds the two different and says "Not saved" about
+    // details that were saved. Reported after a sign-out and back in: signing
+    // out leaves the browser's draft in place, and restoring one is what makes
+    // that next comparison happen.
+    const held = contactOf(result.profile);
+    savedParts.current = partsOf(baseline, sections.current?.(), rates.current?.(), held);
     blocked.current = false;
     setProfile(result.profile);
     setValues(opening);
     setFieldErrors({});
     // By value, not by identity: a restored draft equal to the server is saved.
     const opened = differing(
-      partsOf(opening, sections.current?.(), rates.current?.(), contact.current?.()),
+      partsOf(opening, sections.current?.(), rates.current?.(), held),
       savedParts.current,
       SAVE_PARTS,
     );
