@@ -75,6 +75,7 @@ import {
 import { ProfileHeaderCard } from './profile-header-card.tsx';
 import { LanguagesSection } from './languages-section.tsx';
 import { FileThumbnails } from '@/features/media/attachments.tsx';
+import { FileDocuments, storedDocuments } from '@/features/media/file-gallery.tsx';
 import { uploadsInFlight, watchUploads, type DraftFile } from '@/features/media/upload.ts';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import { videoThumbnail } from './video-url.ts';
@@ -1002,7 +1003,22 @@ export function ProfileBuilder() {
                 secondary: [item.values.issuer, yearOf(item.values.issued)]
                   .filter((part) => part.trim() !== '')
                   .join(' • '),
-                media: <FileThumbnails files={item.files ?? []} />,
+                // Both the image scans and the PDFs, the way the preview shows
+                // them: the read-only view listed only the picture thumbnails, so
+                // a certificate uploaded as a document simply vanished once the
+                // section was closed. Each component renders nothing for the kind
+                // it does not hold, so a certificate with only one kind shows only
+                // that.
+                media:
+                  (item.files?.length ?? 0) === 0 ? undefined : (
+                    <div className="flex flex-col gap-3">
+                      <FileThumbnails files={item.files ?? []} />
+                      <FileDocuments
+                        files={storedDocuments(item.files ?? [])}
+                        fallbackName="Certificate"
+                      />
+                    </div>
+                  ),
               }))}
             />
           ) : undefined}

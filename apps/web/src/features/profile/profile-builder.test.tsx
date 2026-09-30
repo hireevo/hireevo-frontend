@@ -1221,6 +1221,46 @@ describe('ProfileBuilder', () => {
     expect(section(/Portfolio/).queryByText(/\bimage\b/)).not.toBeInTheDocument();
   });
 
+  it('shows a certificate’s uploaded document in the closed section, not only its images', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          licenses: [
+            {
+              name: 'Full Stack Development',
+              issuer: 'Mark Spenser',
+              issuedOn: '2026-01-01',
+              expiresOn: null,
+              files: [
+                {
+                  kind: 'document',
+                  url: 'https://storage.test/cert.pdf',
+                  thumbUrl: null,
+                  objectKey: 'obj-cert',
+                  thumbKey: null,
+                  contentType: 'application/pdf',
+                  byteSize: 2048,
+                  width: null,
+                  height: null,
+                  fileName: 'Certificate.pdf',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    // The closed view listed only image thumbnails, so a certificate uploaded as
+    // a PDF vanished once the section was closed. It now appears here, the way the
+    // preview page always showed it.
+    const certs = section(/Certifications/);
+    expect(await certs.findByText('Certificate.pdf')).toBeInTheDocument();
+  });
+
   it('keeps editing a piece it has already added, rather than only adding and deleting', async () => {
     const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);

@@ -20,6 +20,35 @@ export type StoredFile = {
   fileName: string | null;
 };
 
+/** A file as the editor's draft holds it, before it is narrowed to a stored one. */
+type DraftLike = {
+  kind: 'image' | 'document';
+  url?: string | null;
+  thumbUrl?: string | null;
+  objectKey: string;
+  fileName?: string | null;
+};
+
+/**
+ * The saved documents among a set of files, in the shape the gallery renders.
+ *
+ * A document is only listed once it has an address to open — one chosen a moment
+ * ago and not yet saved has none, and a row that opens nothing is worse than no
+ * row. Shared so the portfolio and certification read views narrow their files
+ * the one same way (§8.4).
+ */
+export function storedDocuments(files: readonly DraftLike[]): StoredFile[] {
+  return files
+    .filter((file) => file.kind === 'document' && (file.url ?? '') !== '')
+    .map((file) => ({
+      kind: 'document' as const,
+      url: file.url ?? '',
+      thumbUrl: file.thumbUrl ?? null,
+      objectKey: file.objectKey,
+      fileName: file.fileName ?? null,
+    }));
+}
+
 /**
  * The images of a piece or a certificate, each opening the full one.
  *
