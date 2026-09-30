@@ -3,10 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { CONSOLE_PERMISSION } from '@/features/auth/landing.ts';
 import { useSession } from '@/features/auth/session.tsx';
-
-/** What the console's own list asks of whoever opens it. */
-const CONSOLE_PERMISSION = 'admin.user.read';
 
 /**
  * Renders the console only for an account that may use it.

@@ -1,6 +1,7 @@
 import type { Route } from 'next';
 import { toApiError, toFieldIssues, type AuthenticatedUser } from '@hireevo/api-client';
 import { api } from '@/lib/api.ts';
+import { landingFor } from './landing.ts';
 import type {
   ConfirmEmailValues,
   RecoverValues,
@@ -70,7 +71,9 @@ export async function signIn(
 
   return {
     ok: true,
-    redirectTo: '/client-profile',
+    // Where they belong, not where most people belong: an administrator has no
+    // client profile, and sending them to one is a screen that can only say so.
+    redirectTo: landingFor(data.user),
     session: { accessToken: data.accessToken, user: data.user },
   };
 }

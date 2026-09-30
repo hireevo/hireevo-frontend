@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { landingFor } from './landing.ts';
 import { useSession } from './session.tsx';
 
 /**
@@ -17,15 +18,12 @@ import { useSession } from './session.tsx';
 export function RedirectIfSignedIn() {
   const router = useRouter();
   const { status, user } = useSession();
-  // An administrator's work is the console, not a profile they do not have.
-  // Asked of the permission rather than of a role name, for the same reason the
-  // console's own gate is: the API may grant this to another role tomorrow.
-  const console_ = user?.permissions.includes('admin.user.read') === true;
+  const landing = landingFor(user);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
-    router.replace(console_ ? '/admin/workers' : '/client-profile');
-  }, [console_, router, status]);
+    router.replace(landing);
+  }, [landing, router, status]);
 
   return null;
 }
