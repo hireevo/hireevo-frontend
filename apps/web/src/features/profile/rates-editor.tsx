@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { LuInfo } from 'react-icons/lu';
 import { Checkbox, cn } from '@hireevo/ui-web';
 import {
@@ -45,16 +45,6 @@ const PERIOD_BLURB: Record<RatePeriod, string> = {
 };
 
 /**
- * Every currency the design offers, and the one the API stores.
- *
- * The others are drawn because the design draws them, and refused because a
- * rate is stored in one currency and nothing in the API takes another. A
- * disabled control that says why is the honest version of a design that is
- * ahead of the product: it cannot silently do nothing (§6.7).
- */
-const CURRENCIES = ['USD', 'EUR', 'GBP'] as const;
-
-/**
  * What the work costs — one card per period, priced for the ones quoted.
  *
  * A card per period rather than an add-a-rate list. There are exactly five
@@ -85,7 +75,6 @@ export function RatesEditor({
   onChange: (rates: RateValue[]) => void;
 }) {
   const sign = symbolOf(RATE_CURRENCY);
-  const currencyLabelId = useId();
   // What each period held before it was unticked, so ticking it again brings
   // the number back rather than an empty box.
   const [remembered, setRemembered] = useState<Partial<Record<RatePeriod, string>>>({});
@@ -125,37 +114,17 @@ export function RatesEditor({
           Choose the rates you offer
         </p>
 
-        <div className="flex items-center gap-2">
-          <span id={currencyLabelId} className="text-sm text-content-muted">
-            Currency
+        {/* Said, not offered. Every rate is quoted in one currency, so there
+            is nothing here to choose between — this is the label on the boxes
+            below, which is why it is the only thing drawn. It used to be three
+            buttons with two of them permanently disabled, which is a control
+            that cannot do anything (§6.7). */}
+        <p className="flex items-center gap-2 text-sm text-content-muted">
+          Currency
+          <span className="rounded-md bg-surface-accent-subtle px-3 py-1.5 text-sm font-medium text-content-accent">
+            {RATE_CURRENCY}
           </span>
-          <div
-            role="group"
-            aria-labelledby={currencyLabelId}
-            className="flex overflow-hidden rounded-md border border-border"
-          >
-            {CURRENCIES.map((currency) => {
-              const current = currency === RATE_CURRENCY;
-              return (
-                <button
-                  key={currency}
-                  type="button"
-                  disabled={!current}
-                  aria-pressed={current}
-                  className={cn(
-                    'min-h-9 px-3 text-sm font-medium transition-colors',
-                    current
-                      ? 'bg-surface-accent-subtle text-content-accent'
-                      : 'text-content-subtle',
-                  )}
-                >
-                  {currency}
-                  {current ? null : <span className="sr-only"> (not available yet)</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        </p>
       </div>
 
       {/* One column on a phone, two from `sm`, three where there is room: five
