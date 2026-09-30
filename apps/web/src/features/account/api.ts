@@ -102,21 +102,32 @@ export type UpdateNameResult =
   | { ok: true; user: Schema<'AuthenticatedUser'> }
   | { ok: false; field: 'firstName' | 'lastName' | null; message: string };
 
+export type NameChangeState = Schema<'NameChangeState'>;
+export type NameChangeRequest = Schema<'NameChangeRequest'>;
+
+export type NameChangeResult =
+  | { ok: true; request: NameChangeRequest }
+  | { ok: false; field: 'firstName' | 'lastName' | null; message: string };
+
 /**
- * Changing the name on the account.
+ * Asking to be known by a different name.
  *
- * Both fields are sent every time the box is submitted, including as `null`
- * when one is cleared: the API leaves an absent field alone and clears an
- * explicit null, and a box that shows two inputs has to be able to empty
- * either of them.
+ * The account is not changed by this. The name beside somebody's work is not
+ * theirs alone to set, so this records what they want and an administrator
+ * decides; the screen says so rather than pretending the change has happened.
+ *
+ * Both parts are sent every time, including as `null` when one is cleared: what
+ * is reviewed and then copied onto the account is a whole name.
  */
-export async function updateName(
+export async function requestNameChange(
   firstName: string | null,
   lastName: string | null,
-): Promise<UpdateNameResult> {
+): Promise<NameChangeResult> {
   try {
-    const { data, error } = await api.PATCH('/api/v1/auth/me', { body: { firstName, lastName } });
-    if (data !== undefined) return { ok: true, user: data };
+    const { data, error } = await api.POST('/api/v1/auth/me/name-change', {
+      body: { firstName, lastName },
+    });
+    if (data !== undefined) return { ok: true, request: data };
 
     const first = toFieldIssues(error)[0];
     const field = first?.path.split('.').at(-1);
@@ -130,6 +141,25 @@ export async function updateName(
   }
 }
 
+/** The open request and the last decision, for the line the screen shows. */
+export async function readNameChange(): Promise<NameChangeState | null> {
+  try {
+    const { data } = await api.GET('/api/v1/auth/me/name-change', {});
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Takes back a request that is still waiting. */
+export async function withdrawNameChange(): Promise<boolean> {
+  try {
+    const { response } = await api.DELETE('/api/v1/auth/me/name-change', {});
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 export type PendingEmailChange = Schema<'PendingEmailChange'>;
 
 /** The address waiting to be confirmed, if one is. Never the code. */

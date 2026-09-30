@@ -33,6 +33,8 @@ export interface AdminWorker {
    */
   id: string;
   name: string;
+  /** What their profile calls them, when that is not the account's name. */
+  displayName: string | null;
   email: string;
   country: string;
   /** The state, province or region; some countries have none. */
@@ -41,6 +43,13 @@ export interface AdminWorker {
   account: AccountState;
   /** ISO date the account was created, for the detail panel. */
   joinedOn: string;
+  /**
+   * A name this worker has asked to be known by, waiting for a decision.
+   *
+   * It rides with the row because what an administrator needs in order to
+   * decide is who is asking, and that is the row they are already reading.
+   */
+  nameChange: PendingNameChange | null;
 }
 
 /**
@@ -55,6 +64,16 @@ export interface AdminSection {
   icon: IconType;
   /** Typed, so a section cannot point at a route that does not exist. */
   href?: Route;
+}
+
+/** A name somebody has asked to be known by, and when they asked. */
+export interface PendingNameChange {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  requestedAt: string;
+  /** The two halves as one line, which is what the screen shows. */
+  wanted: string;
 }
 
 /** The sidebar in groups, because seventeen flat entries is a list nobody reads. */

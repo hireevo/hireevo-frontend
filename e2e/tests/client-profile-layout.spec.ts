@@ -542,6 +542,14 @@ test('the rates and visibility editors hold their layout at every window size', 
   // five, so a row that stopped rendering one of them fails here.
   await expect(rates.getByLabel('Hourly rate')).toBeVisible();
   await expect(rates.getByLabel('Yearly rate')).toBeVisible();
+
+  // Priced in dollars and nothing else. The editor used to draw EUR and GBP
+  // beside USD with both permanently disabled — a control that cannot do
+  // anything (§6.7) — and the currency is now said rather than offered.
+  await expect(rates.getByText('USD')).toBeVisible();
+  await expect(rates.getByText('EUR')).toHaveCount(0);
+  await expect(rates.getByText('GBP')).toHaveCount(0);
+
   await sweep(page, 'client profile with the rates editor open');
 
   // And the working preferences beside them, four controls in one card.

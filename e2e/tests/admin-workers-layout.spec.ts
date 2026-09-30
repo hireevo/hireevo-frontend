@@ -45,6 +45,51 @@ test('the admin workers screen holds its layout at every window size', async ({ 
 });
 
 /**
+ * The header with its account menu open, at every window size.
+ *
+ * The panel is anchored to the right edge of a header that runs the full width,
+ * so the size it is most likely to fall off the side of is the narrowest one.
+ * Swept separately because the sweep above measures the page as it opens, and a
+ * panel that is shut is a panel nothing measures (§6.11).
+ */
+test('the account menu holds its layout at every window size', async ({ page }) => {
+  test.setTimeout(FULL ? 900_000 : 240_000);
+  await open(page, { fonts: true });
+
+  await page.getByRole('button', { name: /Account menu for/ }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+
+  await sweep(page, 'the console account menu');
+});
+
+/**
+ * The console's way out.
+ *
+ * It shipped without one — the header named a person in its source and offered
+ * nothing to press — so this is the guard for the screen having the same exit
+ * every other signed-in screen has. Escape rather than only a click outside: a
+ * panel a keyboard is stuck behind is the trap §6.8 is about.
+ */
+test('the account menu opens on Sign out alone, and closes on Escape', async ({ page }) => {
+  await open(page);
+
+  const button = page.getByRole('button', { name: /Account menu for/ });
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  await button.click();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  const signOut = page.getByRole('button', { name: 'Sign out' });
+  await expect(signOut).toBeVisible();
+  // Signing out and nothing else: the account page is a freelancer's, and a
+  // link into it from here leads out of the console (§6.7).
+  await expect(page.getByRole('link', { name: 'Account settings' })).toHaveCount(0);
+
+  await page.keyboard.press('Escape');
+  await expect(signOut).toBeHidden();
+  await expect(button).toBeFocused();
+});
+
+/**
  * The sidebar has to fold rather than stay beside a table.
  *
  * Seventeen entries in a column next to a seven-column table is most of a

@@ -165,33 +165,31 @@ export function PublicProfileScreen({
 
   return (
     <main id="main-content" className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
-      {/* Two trails for one page. A buyer arrived from the (future) makers
-          index — "Makers" is not a link yet, because a breadcrumb into a 404 is
-          worse than one that does not move (§6.7). The owner arrived from their
-          own workspace to preview it, so theirs leads back to the dashboard and
-          says what this is, rather than pretending they browsed to themselves. */}
-      <nav aria-label="Breadcrumb" className="mb-5 text-sm text-content-subtle">
-        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <li>
-            <Link
-              href={preview ? '/dashboard' : '/'}
-              className="rounded-sm hover:text-content-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              {preview ? 'Dashboard' : 'Home'}
-            </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          {preview ? (
+      {/* A trail only where there is one to describe.
+
+          The owner reached this page from their own workspace, so "Dashboard /
+          Profile preview" is both true and the way back. A buyer did not: this
+          is the page a link is sent to, opened cold in a new tab, and
+          "Home / Makers / …" described a walk nobody took through two places
+          that do not exist — `/` sends a signed-out visitor to the sign-in form,
+          and there is no makers index at all (§6.7). A visitor who was sent a
+          profile has nowhere above it to go, so nothing is drawn. */}
+      {preview ? (
+        <nav aria-label="Breadcrumb" className="mb-5 text-sm text-content-subtle">
+          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <li>
+              <Link
+                href="/dashboard"
+                className="rounded-sm hover:text-content-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                Dashboard
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
             <li className="font-medium text-content">Profile preview</li>
-          ) : (
-            <>
-              <li>Makers</li>
-              <li aria-hidden="true">/</li>
-              <li className="min-w-0 truncate font-medium text-content">{name}</li>
-            </>
-          )}
-        </ol>
-      </nav>
+          </ol>
+        </nav>
+      ) : null}
 
       {/* `*:min-w-0` because a grid item defaults to `min-width: auto` and
           refuses to shrink below its content: one long unbreakable figure in

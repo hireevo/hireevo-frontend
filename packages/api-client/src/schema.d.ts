@@ -81,6 +81,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/name-changes/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Allow a name change
+         * @description The account takes the name it asked for, in the same statement that closes the request. A request that has already been decided answers 409 — which is what two administrators reaching the same row get, one each.
+         */
+        post: operations["AdminNameChangesController_approveNameChange_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/name-changes/{requestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refuse a name change
+         * @description The account keeps the name it has and the request is closed. The person may ask again.
+         */
+        post: operations["AdminNameChangesController_rejectNameChange_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/username-available": {
         parameters: {
             query?: never;
@@ -350,11 +390,35 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/name-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * Change the name on the account
-         * @description An absent field is left alone and null clears it, so one name can be corrected without restating the other. No password: a name is not a way back into an account, and asking for one to fix a typo teaches people to type their password into anything that asks.
+         * Where a name change has got to
+         * @description The open request, if there is one, and the most recent decided one, so the screen can say either "waiting to be reviewed" or what was decided. Both are null for somebody who has never asked.
          */
-        patch: operations["AccountController_updateName_v1"];
+        get: operations["AccountController_nameChange_v1"];
+        put?: never;
+        /**
+         * Ask to be known by a different name
+         * @description The account keeps the name it has until an administrator allows the change. Both parts are sent, because what is reviewed and then copied onto the account is a whole name. Asking again while one is waiting answers 409; asking for the name the account already has answers 400.
+         */
+        post: operations["AccountController_requestNameChange_v1"];
+        /**
+         * Take back a name change that is waiting
+         * @description Somebody who asked for the wrong name should not have to wait for it to be refused before they can ask for the right one. Answers 404 when nothing is waiting.
+         */
+        delete: operations["AccountController_withdrawNameChange_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/auth/me/email-change": {
@@ -651,9 +715,41 @@ export interface components {
             roles: string[];
             permissions: string[];
         };
-        UpdateAccountRequest: {
-            firstName?: string | null;
-            lastName?: string | null;
+        NameChangeState: {
+            pending: {
+                /** Format: uuid */
+                id: string;
+                firstName: string | null;
+                lastName: string | null;
+                /** @enum {string} */
+                status: "pending" | "approved" | "rejected";
+                /** Format: date-time */
+                requestedAt: string;
+            } | null;
+            decided: {
+                /** Format: uuid */
+                id: string;
+                firstName: string | null;
+                lastName: string | null;
+                /** @enum {string} */
+                status: "pending" | "approved" | "rejected";
+                /** Format: date-time */
+                requestedAt: string;
+            } | null;
+        };
+        RequestNameChangeRequest: {
+            firstName: string | null;
+            lastName: string | null;
+        };
+        NameChangeRequest: {
+            /** Format: uuid */
+            id: string;
+            firstName: string | null;
+            lastName: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** Format: date-time */
+            requestedAt: string;
         };
         PendingEmailChangeState: {
             newEmail: string;
@@ -1177,6 +1273,7 @@ export interface components {
                 /** Format: uuid */
                 userId: string;
                 name: string | null;
+                displayName: string | null;
                 /** Format: email */
                 email: string;
                 country: string | null;
@@ -1185,6 +1282,14 @@ export interface components {
                 banned: boolean;
                 /** Format: date-time */
                 joinedOn: string;
+                nameChange: {
+                    /** Format: uuid */
+                    id: string;
+                    firstName: string | null;
+                    lastName: string | null;
+                    /** Format: date-time */
+                    requestedAt: string;
+                } | null;
             }[];
             total: number;
             page: number;
@@ -1511,6 +1616,106 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AdminNameChangesController_approveNameChange_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The name change request */
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AdminNameChangesController_rejectNameChange_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The name change request */
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request failed validation; `details.issues` names each field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Signed in without the permission this needs */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1872,7 +2077,35 @@ export interface operations {
             };
         };
     };
-    AccountController_updateName_v1: {
+    AccountController_nameChange_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NameChangeState"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AccountController_requestNameChange_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1881,16 +2114,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateAccountRequest"];
+                "application/json": components["schemas"]["RequestNameChangeRequest"];
             };
         };
         responses: {
-            200: {
+            /** @description Waiting to be reviewed */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticatedUser"];
+                    "application/json": components["schemas"]["NameChangeRequest"];
                 };
             };
             /** @description The request failed validation; `details.issues` names each field */
@@ -1902,6 +2136,35 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflicts with the current state; see `error.code` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    AccountController_withdrawNameChange_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             /** @description Not signed in */
             401: {
                 headers: {

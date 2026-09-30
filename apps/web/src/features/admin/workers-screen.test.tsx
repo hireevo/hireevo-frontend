@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AdminIdentity } from './admin-account.tsx';
 import { AdminShell } from './admin-shell.tsx';
 import { WorkersPreview } from './workers-preview.tsx';
 
@@ -129,7 +130,9 @@ describe('the admin sections', () => {
         title="Worker accounts"
         description="Search every worker."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        account={
+          <AdminIdentity name="Husnain Raza" role="Administrator" email={null} onSignOut={null} />
+        }
       >
         <p>Screen</p>
       </AdminShell>,
@@ -163,7 +166,9 @@ describe('the admin sections', () => {
         title="Worker accounts"
         description="Search every worker."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        account={
+          <AdminIdentity name="Husnain Raza" role="Administrator" email={null} onSignOut={null} />
+        }
       >
         <p>Screen</p>
       </AdminShell>,
@@ -249,5 +254,54 @@ describe('the admin sections', () => {
     open();
 
     expect(screen.getByText(/nothing here reaches an account/)).toBeInTheDocument();
+  });
+
+  /**
+   * A name somebody has asked to be known by.
+   *
+   * It is shown under the name it would replace, and the decision is the first
+   * thing in that row's menu: a row that is asking for something is a row an
+   * administrator opened the menu to answer.
+   */
+  it('shows an open name change on the row it belongs to, and decides it from the menu', async () => {
+    const user = open();
+
+    const asking = rows().find((row) => row.textContent?.includes('Danielle'));
+    expect(asking).toBeDefined();
+    expect(within(asking as HTMLElement).getByText(/Asked to be/)).toHaveTextContent(
+      'Danielle Okafor-Reyes',
+    );
+
+    await user.click(within(asking as HTMLElement).getByRole('button', { name: /^Actions for/ }));
+    const items = screen.getAllByRole('menuitem').map((item) => item.textContent);
+    expect(items[0]).toBe('Approve name change');
+
+    await user.click(screen.getByRole('menuitem', { name: 'Approve name change' }));
+
+    // The row now reads as the name that was asked for, and asks for nothing.
+    const decided = rows().find((row) => row.textContent?.includes('danielle.okafor@example.com'));
+    expect(decided?.textContent).toContain('Danielle Okafor-Reyes');
+    expect(within(decided as HTMLElement).queryByText(/Asked to be/)).not.toBeInTheDocument();
+  });
+
+  it('leaves the name alone when the request is refused', async () => {
+    const user = open();
+
+    const asking = rows().find((row) => row.textContent?.includes('danielle.okafor@example.com'));
+    await user.click(within(asking as HTMLElement).getByRole('button', { name: /^Actions for/ }));
+    await user.click(screen.getByRole('menuitem', { name: 'Reject name change' }));
+
+    const decided = rows().find((row) => row.textContent?.includes('danielle.okafor@example.com'));
+    expect(decided?.textContent).toContain('Danielle Okafor');
+    expect(decided?.textContent).not.toContain('Okafor-Reyes');
+  });
+
+  it('offers no decision on a row that is not asking for one', async () => {
+    const user = open();
+
+    const quiet = rows().find((row) => row.textContent?.includes('marcus.delgado@example.com'));
+    await user.click(within(quiet as HTMLElement).getByRole('button', { name: /^Actions for/ }));
+
+    expect(screen.queryByRole('menuitem', { name: /name change/ })).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { AdminShell } from '@/features/admin/admin-shell.tsx';
-import { WorkersPreview } from '@/features/admin/workers-preview.tsx';
+import { AdminIdentityPreview, WorkersPreview } from '@/features/admin/workers-preview.tsx';
 
 export const metadata: Metadata = {
   title: 'Admin workers preview',
@@ -24,7 +24,10 @@ export default function AdminPreviewPage() {
         title="Worker accounts"
         description="Search every worker on HireEvo, and open one to see what is recorded about it."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        // A client component, not an inline block: this page is rendered on
+        // the server, and the sign-out it needs is a function — which a server
+        // component may not hand across the boundary.
+        account={<AdminIdentityPreview />}
       >
         <WorkersPreview />
       </AdminShell>

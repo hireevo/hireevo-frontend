@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   LuChevronLeft,
+  LuClock,
   LuChevronRight,
   LuSearch,
   LuTriangleAlert,
@@ -42,6 +43,8 @@ export interface WorkersScreenProps {
   onQuery: (filters: WorkerFilters, page: number) => void;
   onBan: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
+  onApproveName: (worker: AdminWorker) => void;
+  onRejectName: (worker: AdminWorker) => void;
   /** Said out loud after an act — what happened, for anyone not watching a chip. */
   said?: string;
   /** Shown where the API cannot keep what this screen does, as the preview cannot. */
@@ -73,6 +76,8 @@ export function WorkersScreen({
   onQuery,
   onBan,
   onUnban,
+  onApproveName,
+  onRejectName,
   said = '',
   notice,
 }: WorkersScreenProps) {
@@ -264,7 +269,12 @@ export function WorkersScreen({
 
       <section
         aria-label="Workers"
-        className="overflow-hidden rounded-2xl border border-border-subtle bg-surface"
+        // Not `overflow-hidden`, which is the obvious way to keep a table
+        // inside a rounded card and also the thing that cut the row menu in
+        // half: a panel positioned from a cell is clipped by every ancestor
+        // that hides its overflow. The corners are rounded on the cells that
+        // reach them instead.
+        className="rounded-2xl border border-border-subtle bg-surface"
       >
         {workers.length === 0 ? (
           <EmptyState onReset={() => ask(NO_FILTERS, 1)} />
@@ -276,6 +286,8 @@ export function WorkersScreen({
               onOpen={setShown}
               onAsk={setAsking}
               onUnban={onUnban}
+              onApproveName={onApproveName}
+              onRejectName={onRejectName}
             />
             <WorkerCards
               rows={workers}
@@ -283,6 +295,8 @@ export function WorkersScreen({
               onOpen={setShown}
               onAsk={setAsking}
               onUnban={onUnban}
+              onApproveName={onApproveName}
+              onRejectName={onRejectName}
             />
           </>
         )}
@@ -379,6 +393,8 @@ function WorkerActions({
   onOpen,
   onAsk,
   onUnban,
+  onApproveName,
+  onRejectName,
 }: {
   worker: AdminWorker;
   /** True while another act is in flight — pressing again would race it. */
@@ -386,12 +402,22 @@ function WorkerActions({
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
+  onApproveName: (worker: AdminWorker) => void;
+  onRejectName: (worker: AdminWorker) => void;
 }) {
   return (
     <RowMenu
       label={worker.name}
       busy={busy}
       items={[
+        // The decision first when there is one to make: a row that is asking
+        // for something is a row somebody opened this menu to answer.
+        ...(worker.nameChange === null
+          ? []
+          : [
+              { label: 'Approve name change', onChoose: () => onApproveName(worker) },
+              { label: 'Reject name change', onChoose: () => onRejectName(worker), danger: true },
+            ]),
         { label: 'View details', onChoose: () => onOpen(worker) },
         worker.account === 'banned'
           ? { label: 'Unban user', onChoose: () => onUnban(worker) }
@@ -416,12 +442,16 @@ function WorkerTable({
   onOpen,
   onAsk,
   onUnban,
+  onApproveName,
+  onRejectName,
 }: {
   rows: readonly AdminWorker[];
   busy: boolean;
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
+  onApproveName: (worker: AdminWorker) => void;
+  onRejectName: (worker: AdminWorker) => void;
 }) {
   return (
     // `xl`, not `md`: six columns with two lines of text in several of them
@@ -430,10 +460,13 @@ function WorkerTable({
     // page into a sideways scroll with the Details column off the edge. The
     // horizontal scroll here is the second line of defence, for a name longer
     // than any of these.
-    <div className="hidden overflow-x-auto xl:block">
+    // No horizontal scroll container either, for the same reason — and it has
+    // nothing to scroll: every cell that could grow truncates, and the table
+    // only appears from `xl`, where its six columns fit.
+    <div className="hidden xl:block">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
-          <tr className="border-b border-border-subtle bg-surface-subtle">
+          <tr className="border-b border-border-subtle bg-surface-subtle [&>th:first-child]:rounded-tl-2xl [&>th:last-child]:rounded-tr-2xl">
             <th scope="col" className="px-4 py-3 font-semibold text-content-muted">
               Worker
             </th>
@@ -457,11 +490,17 @@ function WorkerTable({
               key={worker.id}
               className="border-b border-border-subtle last:border-0 hover:bg-surface-subtle"
             >
-              <td className="max-w-[20rem] px-4 py-3 align-top">
+              <td className="max-w-[22rem] px-4 py-3 align-top">
                 <span className="block truncate font-medium text-content-accent">
                   {worker.name}
                 </span>
                 <span className="block truncate text-xs text-content-subtle">{worker.email}</span>
+                {worker.displayName === null ? null : (
+                  <span className="block truncate text-xs text-content-subtle">
+                    Profile: {worker.displayName}
+                  </span>
+                )}
+                <NameChangeLine worker={worker} />
               </td>
               <td className="px-4 py-3 align-top text-content-muted">
                 <span className="block">{worker.country}</span>
@@ -480,6 +519,8 @@ function WorkerTable({
                   onOpen={onOpen}
                   onAsk={onAsk}
                   onUnban={onUnban}
+                  onApproveName={onApproveName}
+                  onRejectName={onRejectName}
                 />
               </td>
             </tr>
@@ -497,12 +538,16 @@ function WorkerCards({
   onOpen,
   onAsk,
   onUnban,
+  onApproveName,
+  onRejectName,
 }: {
   rows: readonly AdminWorker[];
   busy: boolean;
   onOpen: (worker: AdminWorker) => void;
   onAsk: (worker: AdminWorker) => void;
   onUnban: (worker: AdminWorker) => void;
+  onApproveName: (worker: AdminWorker) => void;
+  onRejectName: (worker: AdminWorker) => void;
 }) {
   return (
     <ul className="flex flex-col divide-y divide-border-subtle xl:hidden">
@@ -514,6 +559,7 @@ function WorkerCards({
                 {worker.name}
               </span>
               <span className="block truncate text-xs text-content-subtle">{worker.email}</span>
+              <NameChangeLine worker={worker} />
             </span>
             <WorkerActions
               worker={worker}
@@ -521,6 +567,8 @@ function WorkerCards({
               onOpen={onOpen}
               onAsk={onAsk}
               onUnban={onUnban}
+              onApproveName={onApproveName}
+              onRejectName={onRejectName}
             />
           </div>
           <p className="text-sm text-content-muted">
@@ -657,5 +705,24 @@ function ConfirmBan({
         </Button>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The name this worker has asked to be known by.
+ *
+ * Under the name it would replace, so the two are read together: an
+ * administrator deciding this is comparing what the account says with what it
+ * is being asked to say, and a request shown anywhere else makes them hold one
+ * of the two in their head.
+ */
+function NameChangeLine({ worker }: { worker: AdminWorker }) {
+  if (worker.nameChange === null) return null;
+
+  return (
+    <span className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-surface-warning-subtle px-2 py-0.5 text-xs font-medium text-content-warning">
+      <LuClock aria-hidden="true" className="size-3 shrink-0" />
+      <span className="min-w-0 truncate">Asked to be “{worker.nameChange.wanted}”</span>
+    </span>
   );
 }

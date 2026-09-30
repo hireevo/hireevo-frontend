@@ -13,12 +13,14 @@ import type { AdminWorker } from './types.ts';
 const worker = (over: Partial<AdminWorker>): AdminWorker => ({
   id: 'a1',
   name: 'Marcus Delgado',
+  displayName: null,
   email: 'marcus@example.com',
   country: 'United States',
   state: 'California',
   status: 'completed',
   account: 'active',
   joinedOn: '2026-01-01',
+  nameChange: null,
   ...over,
 });
 

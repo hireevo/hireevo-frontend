@@ -87,13 +87,18 @@ export function AdminShell({
   title,
   description,
   current,
-  admin,
+  account,
   children,
 }: {
   title: string;
   description: string;
   current: string;
-  admin: { name: string; role: string };
+  /**
+   * Who is signed in, and the way out — `AdminAccount` on the real console and
+   * a fixture on the preview. Passed in rather than read here, so this shell
+   * stays renderable with no session for the sweep.
+   */
+  account: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -118,7 +123,11 @@ export function AdminShell({
   return (
     <div className="min-h-dvh bg-surface-subtle">
       <header className="sticky top-0 z-20 border-b border-border-subtle bg-surface">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3 px-4 py-3 sm:px-6">
+        {/* The console takes the window it is given. A centred column caps a
+            table at a fraction of a wide monitor and spends the rest on
+            margin, and the whole point of this screen is how many rows fit on
+            it. The gutter grows with the window instead. */}
+        <div className="flex w-full items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <button
             ref={toggle}
             type="button"
@@ -142,27 +151,11 @@ export function AdminShell({
             HireEvo <span className="text-content-subtle">Admin</span>
           </Link>
 
-          <span className="ml-auto flex min-w-0 items-center gap-3">
-            <span className="min-w-0 text-right">
-              <span className="block truncate text-sm font-semibold text-content-accent">
-                {admin.name}
-              </span>
-              <span className="block truncate text-xs text-content-subtle">{admin.role}</span>
-            </span>
-            {/* Initials rather than a photograph: nothing uploads one yet, and a
-                grey circle that never becomes a face is a promise the product
-                has not made. */}
-            <span
-              aria-hidden="true"
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-accent-subtle text-sm font-semibold text-content-link"
-            >
-              {initialsOf(admin.name)}
-            </span>
-          </span>
+          <div className="ml-auto min-w-0">{account}</div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1600px] gap-6 px-4 py-6 sm:px-6">
+      <div className="flex w-full gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <aside
           aria-label="Admin sections"
           className="sticky top-[4.5rem] hidden h-fit w-64 shrink-0 rounded-2xl border border-border-subtle bg-surface p-3 lg:block"
@@ -192,13 +185,4 @@ export function AdminShell({
       </div>
     </div>
   );
-}
-
-/** "Husnain Raza" → "HR"; one letter is better than a blank circle. */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
 }
