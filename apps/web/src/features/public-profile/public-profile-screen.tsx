@@ -17,6 +17,8 @@ import {
   labelOfResponseTime,
   phraseOfProjectLength,
 } from '@/features/profile-setup/preference-options.ts';
+import { cn } from '@hireevo/ui-web';
+import { proficiencyLabel, proficiencyTint } from '@/features/profile/language-proficiency.ts';
 import { videoThumbnail } from '@/features/profile/video-url.ts';
 import { Markdown } from '@/features/rich-text/markdown.tsx';
 import { FileDocuments, FileThumbGrid } from '@/features/media/file-gallery.tsx';
@@ -93,9 +95,23 @@ function Card({
 }
 
 /** The pill used for skills and languages: same shape, different contents. */
-function Chip({ children }: { children: React.ReactNode }) {
+function Chip({
+  children,
+  className,
+  title,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+}) {
   return (
-    <li className="rounded-full bg-surface-accent-subtle px-3 py-1.5 text-sm text-content-accent">
+    <li
+      {...(title === undefined ? {} : { title })}
+      className={cn(
+        'rounded-full bg-surface-accent-subtle px-3 py-1.5 text-sm text-content-accent',
+        className,
+      )}
+    >
       {children}
     </li>
   );
@@ -370,15 +386,16 @@ export function PublicProfileScreen({
             <Card title="Languages">
               <ul className="mt-4 flex flex-wrap gap-2">
                 {profile.languages.map((language) => (
-                  <Chip key={language.name}>
+                  <Chip
+                    key={language.name}
+                    className={proficiencyTint(language.proficiency)}
+                    title={proficiencyLabel(language.name, language.proficiency)}
+                  >
                     <span className="font-medium">{language.name}</span>
+                    {/* The tint carries the level; the word stays in the label
+                        for anyone who cannot tell the shades apart. */}
                     {language.proficiency === null ? null : (
-                      <>
-                        <span aria-hidden="true" className="mx-2 text-content-subtle">
-                          —
-                        </span>
-                        <span className="text-content-muted">{language.proficiency}</span>
-                      </>
+                      <span className="sr-only"> — {language.proficiency}</span>
                     )}
                   </Chip>
                 ))}

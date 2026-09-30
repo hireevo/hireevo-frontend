@@ -131,7 +131,7 @@ export function SkillsList({
             >
               {() => (
                 <div className="grid gap-x-3 gap-y-4 sm:grid-cols-3">
-                  <SetupField label="Skill" error={error('name')}>
+                  <SetupField label="Skill" optional={false} error={error('name')}>
                     {(control) => (
                       <input
                         {...control}

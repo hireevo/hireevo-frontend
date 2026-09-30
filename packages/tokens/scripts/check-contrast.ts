@@ -62,6 +62,13 @@ const PAIRS: Array<[foreground: string, background: string, level: Level]> = [
   ['content-subtle', 'surface-accent-subtle', 'body'],
   // "Remove" on an entry panel, once it is hovered or focused.
   ['content-danger', 'surface-subtle', 'body'],
+  // Language chips tinted by proficiency (features/profile, features/public-profile):
+  // one dark text on a scale of brand tints, darkest for Native down to lightest
+  // for Basic. The word moves to the label; the tint carries the level on screen.
+  ['content-accent', 'surface-proficiency-native', 'body'],
+  ['content-accent', 'surface-proficiency-fluent', 'body'],
+  ['content-accent', 'surface-proficiency-conversational', 'body'],
+  ['content-accent', 'surface-proficiency-basic', 'body'],
 ];
 
 const channel = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
