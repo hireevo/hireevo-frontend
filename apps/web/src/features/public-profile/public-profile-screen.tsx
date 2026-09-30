@@ -336,10 +336,11 @@ export function PublicProfileScreen({
             </Card>
           )}
 
-          {/* Two short sections side by side on a wide screen, as the design
-              has them: each is a handful of lines, and a full-width card for
-              three of them leaves a column of white space beside the page. */}
-          <div className="grid items-start gap-5 *:min-w-0 lg:grid-cols-2">
+          {/* Stacked, not side by side: Certifications sits under Education, so a
+              profile that lists several certificates — each with its own files —
+              reads straight down the page rather than running long beside a short
+              Education card. */}
+          <div className="flex flex-col gap-5 *:min-w-0">
             {profile.education.length === 0 ? null : (
               <Card title="Education">
                 <ol className="mt-4 flex flex-col gap-4">
