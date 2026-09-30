@@ -1,19 +1,9 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import {
-  Button,
-  Card,
-  Dialog,
-  OtpInput,
-  PasswordField,
-  TextField,
-  buttonVariants,
-  cn,
-} from '@hireevo/ui-web';
+import { Button, Card, Dialog, OtpInput, PasswordField, TextField } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
 import { useSession } from '@/features/auth/session.tsx';
 import {
@@ -31,7 +21,7 @@ import {
   updateName,
   type PendingEmailChange,
 } from './api.ts';
-import { RowAction, SettingRow, UsernameHelpCard } from './settings-rows.tsx';
+import { RowAction, SettingRow } from './settings-rows.tsx';
 
 /**
  * An email with most of it hidden, as the design shows it.
@@ -77,9 +67,9 @@ const VISIBILITY_OPTIONS = [
 type Availability = NonNullable<OwnProfile['availability']>;
 
 /**
- * Personal information, as the design lays it out: the account's details in
- * rows that each offer an Edit, the way out of the account under them, and the
- * note about usernames beside them.
+ * Personal information: the account's details in rows that each offer an Edit,
+ * with the way out of the account under them. A single centred column — the page
+ * wrapper sets the width, so the cards line up under the header.
  *
  * Only one of the three rows can be edited today. No endpoint changes a name or
  * an email address — `/auth/me` is a GET — and none deactivates an account, so
@@ -88,12 +78,9 @@ type Availability = NonNullable<OwnProfile['availability']>;
  */
 export function PersonalScreen() {
   return (
-    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-      <div className="flex min-w-0 flex-col gap-5">
-        <DetailsCard />
-        <DeactivateCard />
-      </div>
-      <HelpCard />
+    <div className="flex min-w-0 flex-col gap-5">
+      <DetailsCard />
+      <DeactivateCard />
     </div>
   );
 }
@@ -589,18 +576,5 @@ function DeactivateDialog({ onClose }: { onClose: () => void }) {
         </Button>
       </form>
     </Dialog>
-  );
-}
-
-function HelpCard() {
-  return (
-    <UsernameHelpCard>
-      <Link
-        href="/client-profile"
-        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'mt-5 w-fit')}
-      >
-        Go to your profile
-      </Link>
-    </UsernameHelpCard>
   );
 }
