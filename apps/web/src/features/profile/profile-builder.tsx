@@ -614,6 +614,16 @@ export function ProfileBuilder() {
   // detail towards completeness. Adding it here would make the two disagree.
   const contactFilled = CONTACT_FIELDS.some((field) => contact.values[field].trim() !== '');
   const isPublished = identity.profile?.status === 'published';
+  /**
+   * Whether the public address actually serves this profile.
+   *
+   * Not the same question as `isPublished`, which is the one the Publish button
+   * asks. Publishing turns the profile public in the same statement, but the
+   * visibility editor can turn it private again without unpublishing it — and
+   * the public route answers 404 for a private profile. Share has to ask this
+   * one, or it copies a link to a page that says the profile does not exist.
+   */
+  const isLive = isPublished && identity.profile?.visibility.profilePublic === true;
 
   /**
    * Takes a finished profile public.
@@ -777,7 +787,7 @@ export function ProfileBuilder() {
       <ProfileHeaderCard
         draft={headerDraft}
         username={user?.username ?? null}
-        published={isPublished}
+        live={isLive}
         slug={identity.profile?.slug ?? null}
         editable={editMode}
         onChange={patchHeader}

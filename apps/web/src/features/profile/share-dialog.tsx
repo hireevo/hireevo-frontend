@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { LuCheck, LuCopy, LuTriangleAlert, LuX } from 'react-icons/lu';
+import { LuCheck, LuCopy, LuX } from 'react-icons/lu';
 import { Button, cn } from '@hireevo/ui-web';
 
 /** How long the "Link copied" note stays before the button offers to copy again. */
@@ -20,21 +20,14 @@ const COPIED_FOR = 2500;
  * A modal dialog rather than a popover: it is short-lived, it has one job, and
  * `aria-modal` with a real focus trap is the arrangement a keyboard or screen
  * reader user can get into and out of predictably (§6.8).
+ *
+ * It says the link works, without qualification, because it is only opened for
+ * a profile that is both published and public — the one control that opens it
+ * is drawn only then. It used to take a `live` flag and carry a warning for the
+ * other case; that case cannot happen, and a warning nobody can reach is a
+ * second, quieter statement of a rule that belongs in one place.
  */
-export function ShareDialog({
-  url,
-  live,
-  onClose,
-}: {
-  url: string;
-  /**
-   * Whether the profile is published, which is what decides whether the link
-   * leads anywhere: the public route answers 404 until then, so a link handed
-   * to somebody before that is a link they cannot open.
-   */
-  live: boolean;
-  onClose: () => void;
-}) {
+export function ShareDialog({ url, onClose }: { url: string; onClose: () => void }) {
   const titleId = useId();
   const linkId = useId();
   const dialog = useRef<HTMLDivElement>(null);
@@ -151,9 +144,7 @@ export function ShareDialog({
                   Share your profile
                 </h2>
                 <p className="mt-1 text-sm text-content-subtle">
-                  {live
-                    ? 'Anyone with this link can read your published profile.'
-                    : 'This is where your profile will live.'}
+                  Anyone with this link can read your published profile.
                 </p>
               </div>
               <button
@@ -198,16 +189,6 @@ export function ShareDialog({
                 {copied ? 'Copied' : 'Copy'}
               </Button>
             </div>
-
-            {live ? null : (
-              <p className="flex items-start gap-2 rounded-md bg-surface-warning-subtle px-3 py-2 text-xs text-content-warning">
-                <LuTriangleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-                <span>
-                  Your profile is not published yet, so this link will not open for anyone else.
-                  Publish it to make the link work.
-                </span>
-              </p>
-            )}
 
             <p
               role="status"

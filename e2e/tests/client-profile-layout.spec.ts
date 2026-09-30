@@ -608,12 +608,19 @@ test('the portfolio gallery holds its layout at every window size', async ({ pag
 test('the share dialog holds its layout at every window size', async ({ page }) => {
   test.setTimeout(FULL ? 900_000 : 240_000);
 
-  // Share waits for publishing, because the public route answers 404 until
-  // then. This registers after the one in `beforeEach`, and the last route
-  // registered is the one Playwright uses.
+  // Share waits for the profile to be reachable, which is published *and*
+  // public — the public route answers 404 for either one missing, so both
+  // halves are set here the way publishing sets them. This registers after the
+  // one in `beforeEach`, and the last route registered is the one Playwright
+  // uses.
   await page.route(
     (url) => url.pathname === '/api/v1/profiles/me',
-    (route) => fulfil(route, { ...PROFILE, status: 'published' }),
+    (route) =>
+      fulfil(route, {
+        ...PROFILE,
+        status: 'published',
+        visibility: { ...PROFILE.visibility, profilePublic: true },
+      }),
   );
 
   await open(page);
@@ -626,6 +633,34 @@ test('the share dialog holds its layout at every window size', async ({ page }) 
 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await sweep(page, 'client profile with the share dialog open');
+});
+
+/**
+ * A profile can only be shared while it is actually reachable.
+ *
+ * Published is not the same as public: the visibility editor turns a profile
+ * private without unpublishing it, and the public route answers 404 for a
+ * private profile like any other. Share used to ask only about the status, so
+ * it handed people a link to their own "This page does not exist". Unpublish
+ * stays — the profile is still published, and taking it down is still the thing
+ * to offer.
+ */
+test('offers no Share for a published profile that was switched to private', async ({ page }) => {
+  await page.route(
+    (url) => url.pathname === '/api/v1/profiles/me',
+    (route) =>
+      fulfil(route, {
+        ...PROFILE,
+        status: 'published',
+        visibility: { ...PROFILE.visibility, profilePublic: false },
+      }),
+  );
+
+  await open(page);
+
+  await expect(page.getByRole('link', { name: 'Preview' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unpublish' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Share' })).toHaveCount(0);
 });
 
 test('the client profile has no automatically detectable accessibility violations', async ({

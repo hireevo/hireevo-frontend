@@ -181,6 +181,26 @@ const stored = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
     ...overrides,
   }) as OwnProfile;
 
+/**
+ * A published profile, as the API leaves one.
+ *
+ * Publishing turns the profile public in the same statement, so a fixture that
+ * moved `status` alone would be a state the API never produces — and the one
+ * that hid the bug these tests now guard: Share asked only whether the profile
+ * had been published, and offered a link to a profile that had since been made
+ * private, which the public route answers 404 for.
+ */
+const published = (overrides: Partial<OwnProfile> = {}): OwnProfile =>
+  stored({
+    status: 'published',
+    ...overrides,
+    visibility: {
+      ...stored().visibility,
+      profilePublic: true,
+      ...(overrides.visibility ?? {}),
+    },
+  });
+
 /** A profile with a language on it, for the chips beside the person's name. */
 const withLanguage = () =>
   stored({
@@ -372,23 +392,6 @@ describe('ProfileBuilder', () => {
   });
 
   /**
-   * Preview does not wait for publishing; Share does.
-   *
-   * The one moment somebody wants to see what they are about to put in front of
-   * buyers is the moment before they publish, and that was exactly when the
-   * button refused. Share still waits, because until the profile is published
-   * the public route answers 404 and a copied link would lead nowhere.
-   */
-  /**
-   * Share opens before publishing, and says the link is not live yet.
-   *
-   * It used to be refused until the profile was published, because the public
-   * route answers 404 until then — but a button that cannot be pressed, under a
-   * line of grey text, reads as broken rather than as a rule. The address
-   * exists the moment the profile does; what has to be said is that it will not
-   * open for anyone else yet.
-   */
-  /**
    * Nothing to share until there is something at the address.
    *
    * The public route answers 404 until the profile is published, so a link
@@ -427,7 +430,7 @@ describe('ProfileBuilder', () => {
    * meaning, and it left withdrawing a profile with nowhere to be done from.
    */
   it('turns Publish into Unpublish once the profile is live, and takes it back down', async () => {
-    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'published' }) });
+    calls.load.mockResolvedValue({ ok: true, profile: published() });
     calls.unpublish
       .mockReset()
       .mockResolvedValue({ ok: true, profile: stored({ status: 'draft' }) });
@@ -445,12 +448,36 @@ describe('ProfileBuilder', () => {
   });
 
   it('offers Share once the profile is published', async () => {
-    calls.load.mockResolvedValue({ ok: true, profile: stored({ status: 'published' }) });
+    calls.load.mockResolvedValue({ ok: true, profile: published() });
     await open();
 
     const share = await screen.findByRole('button', { name: 'Share' });
     expect(share).toBeEnabled();
     expect(screen.queryByText('Publish to share a link')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Published is not the same as reachable.
+   *
+   * The visibility editor can turn a profile private without unpublishing it,
+   * and the public route answers 404 for a private profile like any other. Share
+   * asked only about the status, so it handed people a link to their own "This
+   * page does not exist" — which is what a buyer saw when they followed it.
+   * Unpublish stays, because the profile is still published and taking it down
+   * is still the thing to offer.
+   */
+  it('takes Share away when a published profile is switched to private', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: published({
+        visibility: { ...stored().visibility, profilePublic: false },
+      }),
+    });
+    await open();
+
+    expect(await screen.findByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Preview' })).toBeInTheDocument();
   });
 
   /**
@@ -462,10 +489,7 @@ describe('ProfileBuilder', () => {
    * refuses the clipboard outright.
    */
   it('opens the profile link in a dialog, with a button that copies it', async () => {
-    calls.load.mockResolvedValue({
-      ok: true,
-      profile: stored({ status: 'published', slug: 's1' }),
-    });
+    calls.load.mockResolvedValue({ ok: true, profile: published({ slug: 's1' }) });
 
     const user = await open();
     // After `userEvent.setup()`, which installs a clipboard of its own: defined
@@ -488,10 +512,7 @@ describe('ProfileBuilder', () => {
   });
 
   it('closes the share dialog on Escape and puts focus back on Share', async () => {
-    calls.load.mockResolvedValue({
-      ok: true,
-      profile: stored({ status: 'published', slug: 's1' }),
-    });
+    calls.load.mockResolvedValue({ ok: true, profile: published({ slug: 's1' }) });
     const user = await open();
 
     await user.click(screen.getByRole('button', { name: 'Share' }));

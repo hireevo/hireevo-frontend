@@ -25,7 +25,7 @@ const COLUMN = 'flex w-full shrink-0 flex-col gap-1.5 sm:w-auto sm:items-end';
  * Share copies the address, and says so where it was pressed — a clipboard that
  * gives no sign of having worked is indistinguishable from one that did not.
  */
-function PublicLinks({ slug, published }: { slug: string | null; published: boolean }) {
+function PublicLinks({ slug, live }: { slug: string | null; live: boolean }) {
   const [sharing, setSharing] = useState(false);
   const shareButton = useRef<HTMLButtonElement>(null);
   const path = slug === null ? null : `/p/${slug}`;
@@ -50,12 +50,18 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
       <div className="flex items-center gap-2">
         {/* Nothing to share until there is something at the address.
             Absent rather than present-and-refused: the public route answers 404
-            until the profile is published, so a copied link would lead nowhere,
-            and a button that cannot be pressed under a line of grey text reads
-            as broken rather than as a rule. Preview is the useful thing to
-            offer before publishing, and Share appears beside it the moment the
-            profile goes live. */}
-        {published && url !== null ? (
+            unless the profile is both published and public, so a copied link
+            would lead nowhere, and a button that cannot be pressed under a line
+            of grey text reads as broken rather than as a rule. Preview is the
+            useful thing to offer before that, and Share appears beside it the
+            moment the profile is actually reachable.
+
+            Both halves, not just the status: publishing turns a profile public
+            in the same statement, but the visibility editor can turn it private
+            again while it stays published, and the public route answers 404 for
+            a private profile like any other. Asking only whether it was
+            published handed people a link to their own 404. */}
+        {live && url !== null ? (
           <Button
             ref={shareButton}
             type="button"
@@ -78,7 +84,7 @@ function PublicLinks({ slug, published }: { slug: string | null; published: bool
         </Link>
       </div>
 
-      {sharing && url !== null ? <ShareDialog url={url} live onClose={close} /> : null}
+      {sharing && url !== null ? <ShareDialog url={url} onClose={close} /> : null}
     </div>
   );
 }
@@ -87,9 +93,13 @@ export type ProfileHeaderCardProps = {
   draft: ProfileDraft;
   /** The account's handle. Shown, never edited — it is set at sign-up. */
   username: string | null;
-  /** The profile's public slug, and whether there is anything published at it. */
+  /** The profile's public slug, and whether anything is served at it. */
   slug: string | null;
-  published: boolean;
+  /**
+   * Published *and* public. A profile that is published but switched to private
+   * is a 404 to everybody else, so it has nothing to share.
+   */
+  live: boolean;
   /**
    * False until "Complete your profile" turns editing on. The sections below
    * already follow that rule; this card has to follow it too, or the page a
@@ -111,7 +121,7 @@ export function ProfileHeaderCard({
   draft,
   username,
   slug,
-  published,
+  live,
   editable,
   onChange,
   children,
@@ -212,7 +222,7 @@ export function ProfileHeaderCard({
           </div>
         </div>
 
-        <PublicLinks slug={slug} published={published} />
+        <PublicLinks slug={slug} live={live} />
       </div>
 
       {children === undefined ? null : <div className="mt-6">{children}</div>}
