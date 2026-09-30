@@ -172,12 +172,11 @@ export function PublicProfileScreen({
   // Only the starred ones sit beside the name. Someone may list six languages
   // and work in two of them; the rest are still in the languages section below,
   // which is where a reader goes to find out.
-  const languageLine = profile.languages
-    .filter((language) => language.starred)
-    .map((language) =>
-      language.proficiency === null ? language.name : `${language.name} (${language.proficiency})`,
-    )
-    .join(', ');
+  // Beside the name, as coloured chips — the same tinted chips the client
+  // profile shows and the same the Languages section below uses, rather than a
+  // plain "English (Native)" line that read as the old, wordy UI. The rest of a
+  // longer list still lives in that section.
+  const starredLanguages = profile.languages.filter((language) => language.starred);
 
   return (
     <main id="main-content" className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
@@ -255,13 +254,27 @@ export function PublicProfileScreen({
                     {profile.location}
                   </span>
                 )}
-                {languageLine === '' ? null : (
-                  <span className="inline-flex min-w-0 items-center gap-1.5">
-                    <LuGlobe aria-hidden="true" className="size-4 shrink-0" />
-                    <span className="min-w-0 truncate">{languageLine}</span>
-                  </span>
-                )}
               </div>
+
+              {starredLanguages.length === 0 ? null : (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <LuGlobe aria-hidden="true" className="size-4 shrink-0 text-content-subtle" />
+                  <ul className="flex flex-wrap items-center gap-2">
+                    {starredLanguages.map((language) => (
+                      <Chip
+                        key={language.name}
+                        className={proficiencyTint(language.proficiency)}
+                        title={proficiencyLabel(language.name, language.proficiency)}
+                      >
+                        <span className="font-medium">{language.name}</span>
+                        {language.proficiency === null ? null : (
+                          <span className="sr-only"> — {language.proficiency}</span>
+                        )}
+                      </Chip>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {profile.availabilityNote === null ? null : (
                 <p className="mt-3 text-sm text-content-muted">{profile.availabilityNote}</p>
