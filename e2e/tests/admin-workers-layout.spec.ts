@@ -70,7 +70,7 @@ test('the account menu holds its layout at every window size', async ({ page }) 
  * every other signed-in screen has. Escape rather than only a click outside: a
  * panel a keyboard is stuck behind is the trap §6.8 is about.
  */
-test('the account menu opens, leads to the account, and closes on Escape', async ({ page }) => {
+test('the account menu opens on Sign out alone, and closes on Escape', async ({ page }) => {
   await open(page);
 
   const button = page.getByRole('button', { name: /Account menu for/ });
@@ -78,12 +78,11 @@ test('the account menu opens, leads to the account, and closes on Escape', async
 
   await button.click();
   await expect(button).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('link', { name: 'Account settings' })).toHaveAttribute(
-    'href',
-    '/account',
-  );
   const signOut = page.getByRole('button', { name: 'Sign out' });
   await expect(signOut).toBeVisible();
+  // Signing out and nothing else: the account page is a freelancer's, and a
+  // link into it from here leads out of the console (§6.7).
+  await expect(page.getByRole('link', { name: 'Account settings' })).toHaveCount(0);
 
   await page.keyboard.press('Escape');
   await expect(signOut).toBeHidden();

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { LuChevronDown } from 'react-icons/lu';
@@ -12,10 +11,16 @@ import { displayNameOf, initialsOf } from '@/features/workspace/snapshot.ts';
  * Who is signed in, across the top of the console, and the way back out.
  *
  * The console is a signed-in screen like any other, so it ends the same way the
- * workspace does: the initials in the corner open a small disclosure holding the
- * account page and Sign out. A disclosure rather than an ARIA `menu`, for the
- * reason `UserMenu` gives — two entries do not need arrow-key roving, and a
- * `menu` that does not implement it is worse than a link and a button.
+ * workspace does: the initials in the corner open a small disclosure with Sign
+ * out in it. A disclosure rather than an ARIA `menu`, for the reason `UserMenu`
+ * gives — one entry does not need arrow-key roving, and a `menu` that does not
+ * implement it is worse than a plain button.
+ *
+ * Sign out and nothing else. The workspace's version of this also leads to the
+ * account page, but that page is a freelancer's — a profile's visibility, a
+ * display name, a deactivation — and none of it is what somebody is in the
+ * console to do. A link into it from here is a link out of the console and into
+ * a screen about a different job (§6.7).
  *
  * Presentational, and given what to draw: `/design-system/admin` renders it with
  * no session, and a component that read one could not be swept.
@@ -28,7 +33,7 @@ export function AdminIdentity({
 }: {
   name: string;
   role: string;
-  /** Shown above the entries, so two accounts on one machine are told apart. */
+  /** Shown above Sign out, so two accounts on one machine are told apart. */
   email: string | null;
   /** Null draws the name alone, for a preview with nobody to sign out. */
   onSignOut: (() => void) | null;
@@ -123,13 +128,6 @@ export function AdminIdentity({
           className="absolute top-full right-0 z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-lg border border-border-subtle bg-surface p-1 shadow-lg"
         >
           <p className="truncate px-3 py-2 text-sm text-content-subtle">{email ?? name}</p>
-          <Link
-            href="/account"
-            onClick={() => setOpen(false)}
-            className="flex min-h-11 items-center rounded-md px-3 text-sm text-content hover:bg-surface-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-          >
-            Account settings
-          </Link>
           <button
             type="button"
             onClick={onSignOut}

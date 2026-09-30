@@ -11,7 +11,7 @@ afterEach(cleanup);
  * The console shipped without one: its header named a person in its source and
  * offered nothing to press, so signing out of it meant clearing the cookie by
  * hand. These are about the disclosure behaving the way the workspace's does —
- * it opens, it leads somewhere, it closes from the keyboard, and it gives the
+ * it opens, it signs you out, it closes from the keyboard, and it gives the
  * focus back (§6.8).
  */
 describe('the console account menu', () => {
@@ -41,10 +41,26 @@ describe('the console account menu', () => {
     // The address, not the name again: two accounts on one machine are told
     // apart by the address, and the name is already above.
     expect(screen.getByText('admin@hireevo.test')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Account settings' })).toHaveAttribute(
-      'href',
-      '/account',
-    );
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  /**
+   * Sign out and nothing else.
+   *
+   * The workspace's menu also leads to the account page, but that page is a
+   * freelancer's — a profile's visibility, a display name, a deactivation —
+   * and a link into it from the console is a link out of the console and into
+   * a screen about a different job.
+   */
+  it('offers nothing but signing out', async () => {
+    const user = draw(() => undefined);
+
+    // Opened first: a panel that is shut holds no link either, so asserting on
+    // the closed menu would pass however many entries it has.
+    await user.click(screen.getByRole('button', { name: 'Account menu for Husnain Raza' }));
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByText('Account settings')).not.toBeInTheDocument();
   });
 
   it('signs out when Sign out is pressed', async () => {
