@@ -6,7 +6,7 @@ import { TextField } from '@hireevo/ui-web';
 import type { DraftFile } from '@/features/media/upload.ts';
 import { AddButton } from './add-button.tsx';
 import { AttachmentsEditor } from '@/features/media/attachments.tsx';
-import { FileDocuments } from '@/features/media/file-gallery.tsx';
+import { FileDocuments, storedDocuments } from '@/features/media/file-gallery.tsx';
 import { MediaThumb } from '@/features/media/media-thumb.tsx';
 import type { ProfileRecord } from './draft.ts';
 import { SectionCard } from './section-card.tsx';
@@ -98,17 +98,7 @@ export function PortfolioSection({
 function PieceTiles({ records }: { records: readonly ProfileRecord[] }) {
   // Only the ones that have been stored: a file chosen a moment ago has no
   // address to open yet, and a row that opens nothing is worse than no row.
-  const documents = records.flatMap((record) =>
-    (record.files ?? [])
-      .filter((file) => file.kind === 'document' && (file.url ?? '') !== '')
-      .map((file) => ({
-        kind: 'document' as const,
-        url: file.url ?? '',
-        thumbUrl: file.thumbUrl ?? null,
-        objectKey: file.objectKey,
-        fileName: file.fileName ?? null,
-      })),
-  );
+  const documents = records.flatMap((record) => storedDocuments(record.files ?? []));
 
   return (
     <div className="flex flex-col gap-3">
