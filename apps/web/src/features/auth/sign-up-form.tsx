@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Button, Checkbox, PasswordField, TextField } from '@hireevo/ui-web';
+import { Button, PasswordField, TextField } from '@hireevo/ui-web';
 import { isUsernameAvailable, signUp } from './api.ts';
 import { FormMessage } from './form-message.tsx';
 import { PasswordStrength } from './password-strength.tsx';
@@ -184,16 +183,6 @@ export function SignUpForm() {
           )}
         </div>
       ) : null}
-
-      <div className="mt-[calc(4px+0.14*var(--fit))] flex items-center justify-between gap-4">
-        <Checkbox name="remember">Remember me</Checkbox>
-        <Link
-          href="/recover"
-          className="text-base font-medium text-content-link underline underline-offset-2"
-        >
-          Forgot Password?
-        </Link>
-      </div>
 
       {formError === null ? null : (
         <div className="mt-6">
