@@ -1261,6 +1261,43 @@ describe('ProfileBuilder', () => {
     expect(await certs.findByText('Certificate.pdf')).toBeInTheDocument();
   });
 
+  it('shows a portfolio piece’s uploaded document in the closed section', async () => {
+    calls.load.mockResolvedValue({
+      ok: true,
+      profile: stored({
+        sections: {
+          ...NO_SECTIONS,
+          portfolio: [
+            {
+              title: 'Checkout redesign',
+              url: null,
+              summary: null,
+              files: [
+                {
+                  kind: 'document',
+                  url: 'https://storage.test/case-study.pdf',
+                  thumbUrl: null,
+                  objectKey: 'obj-doc',
+                  thumbKey: null,
+                  contentType: 'application/pdf',
+                  byteSize: 4096,
+                  width: null,
+                  height: null,
+                  fileName: 'Case study.pdf',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    await open();
+
+    // Certificates and portfolio pieces both carry documents, and both must show
+    // them in the closed view — not only their images.
+    expect(await section(/Portfolio/).findByText('Case study.pdf')).toBeInTheDocument();
+  });
+
   it('keeps editing a piece it has already added, rather than only adding and deleting', async () => {
     const user = await openForEditing();
     const portfolio = () => section(/Portfolio/);
