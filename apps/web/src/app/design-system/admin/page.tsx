@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { AdminIdentity } from '@/features/admin/admin-account.tsx';
 import { AdminShell } from '@/features/admin/admin-shell.tsx';
 import { WorkersPreview } from '@/features/admin/workers-preview.tsx';
 
@@ -24,7 +25,17 @@ export default function AdminPreviewPage() {
         title="Worker accounts"
         description="Search every worker on HireEvo, and open one to see what is recorded about it."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        account={
+          <AdminIdentity
+            name="Husnain Raza"
+            role="Administrator"
+            email="husnain.raza@example.com"
+            // Real behaviour over sample data, as everything else on this page
+            // is: the menu opens and can be swept, and the banner above already
+            // says nothing here reaches an account.
+            onSignOut={() => undefined}
+          />
+        }
       >
         <WorkersPreview />
       </AdminShell>

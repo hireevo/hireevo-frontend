@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { AdminAccount } from '@/features/admin/admin-account.tsx';
 import { AdminShell } from '@/features/admin/admin-shell.tsx';
 import { WorkersPage } from '@/features/admin/workers-page.tsx';
 
@@ -22,7 +23,7 @@ export default function AdminWorkersPage() {
       title="Worker accounts"
       description="Search every worker on HireEvo, and open one to see what is recorded about it."
       current="/admin/workers"
-      admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+      account={<AdminAccount />}
     >
       <WorkersPage />
     </AdminShell>

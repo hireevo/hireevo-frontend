@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AdminIdentity } from './admin-account.tsx';
 import { AdminShell } from './admin-shell.tsx';
 import { WorkersPreview } from './workers-preview.tsx';
 
@@ -129,7 +130,9 @@ describe('the admin sections', () => {
         title="Worker accounts"
         description="Search every worker."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        account={
+          <AdminIdentity name="Husnain Raza" role="Administrator" email={null} onSignOut={null} />
+        }
       >
         <p>Screen</p>
       </AdminShell>,
@@ -163,7 +166,9 @@ describe('the admin sections', () => {
         title="Worker accounts"
         description="Search every worker."
         current="/admin/workers"
-        admin={{ name: 'Husnain Raza', role: 'Administrator' }}
+        account={
+          <AdminIdentity name="Husnain Raza" role="Administrator" email={null} onSignOut={null} />
+        }
       >
         <p>Screen</p>
       </AdminShell>,
