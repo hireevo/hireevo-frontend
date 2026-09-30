@@ -201,6 +201,16 @@ test('says it is the buyer’s view, and offers the way back', async ({ page }) 
     'href',
     '/client-profile',
   );
+
+  // The owner's trail stays where a visitor's was dropped: this one is true —
+  // they came from their own workspace — and it leads somewhere that exists.
+  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' });
+  await expect(crumbs.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+    'href',
+    '/dashboard',
+  );
+  await expect(crumbs.getByText('Profile preview')).toBeVisible();
+  await expect(crumbs.getByText('Makers')).toHaveCount(0);
 });
 
 test('has no accessibility violations', async ({ page }) => {

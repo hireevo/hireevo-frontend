@@ -42,6 +42,23 @@ test('the public profile holds its layout at every window size', async ({ page }
   await sweep(page, 'public profile');
 });
 
+/**
+ * A shared link opens cold, so there is no trail to draw.
+ *
+ * The page used to carry "Home / Makers / <name>". Someone sent a profile did
+ * not walk through either place, and neither place exists: `/` sends a
+ * signed-out visitor to the sign-in form, and there is no makers index at all,
+ * so the crumb was a link into a 404 dressed as navigation (§6.7). The owner's
+ * preview keeps its trail, because that one is true and is the way back.
+ */
+test('carries no breadcrumb for somebody who was sent the link', async ({ page }) => {
+  await open(page);
+
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(0);
+  await expect(page.getByText('Makers')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Home' })).toHaveCount(0);
+});
+
 test('shows every section a freelancer can share', async ({ page }) => {
   await open(page);
 
