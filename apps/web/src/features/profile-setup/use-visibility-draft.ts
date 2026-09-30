@@ -89,6 +89,12 @@ export function useVisibilityDraft(draft: {
     setValues(valuesOf(profile));
   }, [profile]);
 
+  // True while the switches differ from what the server holds. Compared against
+  // the profile directly — a save reads the profile back and hands it to the
+  // draft, so once a save lands this is the saved setting again and the Save
+  // button dims. Nothing to compare before the profile arrives, so not dirty.
+  const dirty = profile !== null && JSON.stringify(values) !== JSON.stringify(valuesOf(profile));
+
   function edited() {
     setError(null);
     setSaved(false);
@@ -99,6 +105,7 @@ export function useVisibilityDraft(draft: {
     error,
     saving,
     saved,
+    dirty,
     setMode(mode: VisibilityMode) {
       setValues((current) => ({ ...current, mode }));
       edited();
@@ -147,7 +154,8 @@ export function useVisibilityDraft(draft: {
           return false;
         }
 
-        // Read back for the version this write moved the profile to.
+        // Read back for the version this write moved the profile to — and so
+        // `dirty` sees the saved setting and the Save button dims.
         const reloaded = await loadOrCreateProfile();
         if (reloaded.ok) draft.adopt(reloaded.profile);
 

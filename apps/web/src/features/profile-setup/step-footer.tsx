@@ -32,6 +32,7 @@ export function StepFooter({
   arrow = true,
   loading = false,
   lockWhenIncomplete = true,
+  disabled = false,
 }: {
   complete: boolean;
   onContinue: () => void;
@@ -39,6 +40,12 @@ export function StepFooter({
   arrow?: boolean;
   loading?: boolean;
   lockWhenIncomplete?: boolean;
+  /**
+   * Dims the button when there is nothing to send — a section that is complete
+   * but unchanged since its last save. Separate from the locked state, which is
+   * about fields still to fill in.
+   */
+  disabled?: boolean;
 }) {
   const reasonId = useId();
   const icon = arrow ? <LuArrowRight aria-hidden="true" className="size-4" /> : null;
@@ -64,6 +71,7 @@ export function StepFooter({
           onClick={onContinue}
           loading={loading}
           loadingLabel="Saving"
+          disabled={disabled}
           className={SHAPE}
         >
           {label}
