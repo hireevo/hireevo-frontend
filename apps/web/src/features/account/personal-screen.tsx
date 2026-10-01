@@ -491,6 +491,9 @@ function EmailDialog({ currentEmail, onClose }: { currentEmail: string; onClose:
    * is signed in.
    */
   async function leave() {
+    // Left whether or not the call lands: the API ended every session when the
+    // address moved, so there is no session here to fail to end, and the
+    // refresh cookie cannot buy a new one.
     await signOut();
     router.replace('/sign-in');
   }
@@ -645,7 +648,7 @@ function DeactivateDialog({ onClose }: { onClose: () => void }) {
     }
 
     // The account is off and every session with it, so there is nowhere signed
-    // in left to return to.
+    // in left to return to — and nothing a failed sign-out could leave running.
     await signOut();
     router.replace('/sign-in');
   }

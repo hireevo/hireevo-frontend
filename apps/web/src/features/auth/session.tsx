@@ -3,7 +3,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthenticatedUser } from '@hireevo/api-client';
-import { getAccessToken, setAccessToken } from '@/lib/access-token.ts';
+import { setAccessToken } from '@/lib/access-token.ts';
 import { api } from '@/lib/api.ts';
 import { onSessionEnded, refreshSession } from '@/lib/session-refresh.ts';
 
@@ -14,7 +14,16 @@ export type Session = {
   user: AuthenticatedUser | null;
   /** Stores the tokens a sign-in or a reset just handed back. */
   adopt: (accessToken: string, user: AuthenticatedUser) => void;
-  signOut: () => Promise<void>;
+  /**
+   * Ends the session on the server and then in this tab.
+   *
+   * Answers whether the server was actually told. It is the server's answer
+   * that matters: what keeps somebody signed in is the refresh cookie, which
+   * this code cannot read and cannot delete.
+   */
+  signOut: () => Promise<boolean>;
+  /** True when the last attempt could not reach the server, so a control can say so. */
+  signOutFailed: boolean;
 };
 
 const SessionContext = createContext<Session | null>(null);
@@ -31,6 +40,7 @@ const SessionContext = createContext<Session | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [status, setStatus] = useState<SessionStatus>('restoring');
+  const [signOutFailed, setSignOutFailed] = useState(false);
 
   const adopt = useCallback((accessToken: string, nextUser: AuthenticatedUser) => {
     setAccessToken(accessToken);
@@ -38,16 +48,48 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
-  const signOut = useCallback(async () => {
-    // Told to the server first: clearing only the client would leave the
-    // session and its refresh family alive on the API.
-    if (getAccessToken() !== null) {
-      await api.POST('/api/v1/auth/logout', {}).catch(() => undefined);
+  /**
+   * One attempt at telling the server. True when the session is gone.
+   *
+   * A 401 counts: it means the session this was asking to end is already ended,
+   * which is the state being asked for.
+   */
+  const tellServer = useCallback(async (): Promise<boolean> => {
+    try {
+      const { response } = await api.POST('/api/v1/auth/logout', {});
+      return response.ok || response.status === 401;
+    } catch {
+      return false;
     }
+  }, []);
+
+  const signOut = useCallback(async (): Promise<boolean> => {
+    setSignOutFailed(false);
+
+    // Asked whether or not a token is in memory. What keeps a session alive is
+    // the refresh cookie, which the browser holds and this code cannot see, and
+    // the endpoint reads it for itself — so skipping the call because the token
+    // happened to be missing left the session running on the server.
+    //
+    // Twice before giving up: a single dropped request is the common case, and
+    // the cost of one retry is far below the cost of the alternative below.
+    const told = (await tellServer()) || (await tellServer());
+
+    if (!told) {
+      // Deliberately not signed out here either. Clearing only this tab would
+      // say "you are signed out" while the refresh cookie — and the session
+      // behind it — stayed alive for thirty days: the next page load signs the
+      // person straight back in, which is what this looked like, and on a
+      // shared computer it is worse than an error message.
+      setSignOutFailed(true);
+      return false;
+    }
+
     setAccessToken(null);
     setUser(null);
     setStatus('anonymous');
-  }, []);
+    return true;
+  }, [tellServer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,8 +121,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [adopt]);
 
   const value = useMemo<Session>(
-    () => ({ status, user, adopt, signOut }),
-    [status, user, adopt, signOut],
+    () => ({ status, user, adopt, signOut, signOutFailed }),
+    [status, user, adopt, signOut, signOutFailed],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;

@@ -76,7 +76,10 @@ export function AccountPanel() {
         loading={signingOut}
         onClick={() => {
           setSigningOut(true);
-          void signOut().then(() => router.replace('/sign-in'));
+          void signOut().then((ended) => {
+            if (ended) router.replace('/sign-in');
+            else setSigningOut(false);
+          });
         }}
       >
         Sign out

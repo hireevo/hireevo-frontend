@@ -27,6 +27,7 @@ export function WorkspaceChrome({
   user,
   seller,
   onSignOut,
+  signOutFailed = false,
   availability,
 }: {
   nav: NavItem[];
@@ -34,12 +35,22 @@ export function WorkspaceChrome({
   user: { name: string; initials: string };
   seller: SellerStatus | null;
   onSignOut: (() => void) | null;
+  /** Said under the bar: a sign-out is offered from three controls up there. */
+  signOutFailed?: boolean;
   /** The profile's own availability. Absent on the design preview, which has no profile. */
   availability?: AvailabilityControl;
 }) {
   return (
     <>
       <WorkspaceHeader nav={nav} utilities={utilities} user={user} onSignOut={onSignOut} />
+      {signOutFailed ? (
+        <p
+          role="alert"
+          className="border-b border-border-subtle bg-surface-warning-subtle px-4 py-2 text-center text-sm text-content-warning sm:px-6"
+        >
+          Could not sign you out — check your connection and try again.
+        </p>
+      ) : null}
       {seller === null ? null : (
         <StatusBar seller={seller} {...(availability === undefined ? {} : { availability })} />
       )}
@@ -55,7 +66,7 @@ export function WorkspaceChrome({
  */
 export function SessionChrome() {
   const router = useRouter();
-  const { user, signOut } = useSession();
+  const { user, signOut, signOutFailed } = useSession();
   const availability = useAvailability();
 
   // The layout renders nothing below the guard until the session is
@@ -81,7 +92,15 @@ export function SessionChrome() {
         available: availability.on,
       }}
       availability={availability}
-      onSignOut={() => void signOut().then(() => router.replace('/sign-in'))}
+      // Only on the server's word. A sign-out that could not be delivered
+      // leaves the person where they are with the line below, rather than on
+      // the sign-in screen with a session still running behind them.
+      onSignOut={() => {
+        void signOut().then((ended) => {
+          if (ended) router.replace('/sign-in');
+        });
+      }}
+      signOutFailed={signOutFailed}
     />
   );
 }
