@@ -7,6 +7,7 @@ import { border } from './entry-fields.ts';
 import { EntryPanel, ListHeader } from './entry-panel.tsx';
 import { SECTION_LIMITS } from './limits.ts';
 import { CONTROL, SetupField } from './setup-field.tsx';
+import { SkillCombobox } from './skill-combobox.tsx';
 import { PROFICIENCIES, languageOptions } from './skill-options.ts';
 import { StaticDatalist } from './static-datalist.tsx';
 import { errorKey, type Entries } from './use-entries.ts';
@@ -133,13 +134,12 @@ export function SkillsList({
                 <div className="grid gap-x-3 gap-y-4 sm:grid-cols-3">
                   <SetupField label="Skill" optional={false} error={error('name')}>
                     {(control) => (
-                      <input
-                        {...control}
-                        name="skill"
+                      <SkillCombobox
+                        control={control}
                         value={item.values.name}
                         maxLength={SECTION_LIMITS.skill}
-                        onChange={(event) => skills.update(item.key, 'name', event.target.value)}
-                        className={cn(CONTROL, 'h-10', border(error('name')))}
+                        onChange={(next) => skills.update(item.key, 'name', next)}
+                        error={error('name')}
                       />
                     )}
                   </SetupField>
