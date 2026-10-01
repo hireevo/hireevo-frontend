@@ -2,7 +2,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@hireevo/ui-web';
+import { Button, cn } from '@hireevo/ui-web';
+import { CONTAINER } from '@/features/workspace/layout.ts';
 import { publishProfile, ratesOf, type OwnProfile, type RateValue } from './api.ts';
 import { DraftStatusCard } from './draft-status-card.tsx';
 import { EducationStep } from './education-step.tsx';
@@ -65,8 +66,12 @@ export function identitySaved(profile: OwnProfile | null): boolean {
   );
 }
 
-/** The design's content is 1100px wide, so the column is that plus its padding. */
-const MAIN = 'mx-auto w-full max-w-[1148px] px-4 py-6 sm:px-6 lg:py-8';
+/**
+ * The same column every other screen uses, so the wizard and the profile it
+ * leads to share one left edge. It had a width of its own, which showed as the
+ * page shifting sideways on the way from setup into the editor.
+ */
+const MAIN = cn(CONTAINER, 'py-6 lg:py-8');
 
 /** Brings a section to the top of the window and, when asked, puts focus on its heading. */
 function revealSection(id: StepId | 'publish', focus: boolean) {
