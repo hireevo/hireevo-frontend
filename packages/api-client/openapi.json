@@ -2024,6 +2024,52 @@
         "summary": "A published public profile",
         "tags": ["profiles"]
       }
+    },
+    "/api/v1/skills": {
+      "get": {
+        "description": "Feeds the skills editor’s typeahead: a person types and picks from the approved list, or keeps their own words. Public because the list is what a profile form offers and what a buyer filters by — nothing here belongs to anyone. A short page of the closest matches; narrow it by typing, not by paging.",
+        "operationId": "TaxonomyController_list_v1",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Up to 25, 15 by default",
+            "schema": {}
+          },
+          {
+            "name": "query",
+            "required": false,
+            "in": "query",
+            "description": "Matches anywhere in the name",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request failed validation; `details.issues` names each field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Approved skills matching what is being typed",
+        "tags": ["skills"]
+      }
     }
   },
   "info": {
@@ -2732,6 +2778,33 @@
           ],
           "additionalProperties": false
         }
+      },
+      "SkillListResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["slug", "name", "category"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["skills"],
+        "additionalProperties": false
       },
       "ProfileConflictDetails": {
         "$schema": "http://json-schema.org/draft-07/schema#",
