@@ -126,8 +126,11 @@ test('shows only starred languages beside the name, and all of them in the secti
 }) => {
   await open(page);
 
+  // Beside the name, the starred language shows as its proficiency-coloured chip
+  // — "Urdu", with the level in the chip's label rather than spelled out — and a
+  // language that is not starred does not appear here at all.
   const header = page.getByRole('banner').or(page.locator('main > div > section').first());
-  await expect(header.getByText('Urdu (native)')).toBeVisible();
+  await expect(header.getByText('Urdu', { exact: false })).toBeVisible();
   await expect(header.getByText('Portuguese', { exact: false })).toBeHidden();
 
   const languages = page.getByRole('region', { name: 'Languages' });
