@@ -2256,7 +2256,9 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 80
+                "minLength": 1,
+                "maxLength": 80,
+                "pattern": "^[\\p{L}\\p{M}][\\p{L}\\p{M} '’\\-.]*$"
               },
               {
                 "type": "null"
@@ -2267,7 +2269,9 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 80
+                "minLength": 1,
+                "maxLength": 80,
+                "pattern": "^[\\p{L}\\p{M}][\\p{L}\\p{M} '’\\-.]*$"
               },
               {
                 "type": "null"
@@ -2615,12 +2619,14 @@
           "firstName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 80
+            "maxLength": 80,
+            "pattern": "^[\\p{L}\\p{M}][\\p{L}\\p{M} '’\\-.]*$"
           },
           "lastName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 80
+            "maxLength": 80,
+            "pattern": "^[\\p{L}\\p{M}][\\p{L}\\p{M} '’\\-.]*$"
           },
           "username": {
             "type": "string",

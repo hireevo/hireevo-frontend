@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PASSWORD_RULES,
   confirmEmailSchema,
+  personName,
   recoverSchema,
   signInSchema,
   signUpSchema,
@@ -58,6 +59,61 @@ describe('client validation matches the API contract', () => {
     expect(accepts('a'.repeat(max))).toBe(true);
     expect(accepts('a'.repeat(max + 1))).toBe(false);
     expect(accepts('a'.repeat(min - 1))).toBe(false);
+  });
+
+  /**
+   * The name rule, against the same spec.
+   *
+   * Both halves of a name used to take any string of eighty characters or
+   * fewer, so `<script>alert(1)</script>` was a valid first name — and the name
+   * is printed on a public profile, in the subject line of an email, and in
+   * front of an administrator reviewing a change to it.
+   *
+   * The pattern carries `\p{L}`, which only means "a letter" with the unicode
+   * flag, so it is built with one here. Without it the escape is read literally
+   * and every name fails.
+   */
+  const firstName = spec.components.schemas.RegisterRequest?.properties.firstName;
+  if (firstName?.pattern === undefined) {
+    throw new Error('openapi.json is missing a pattern for RegisterRequest.firstName');
+  }
+  const nameRe = new RegExp(firstName.pattern, 'u');
+  const nameMax = firstName.maxLength ?? Infinity;
+
+  const takesName = (value: string) =>
+    signUpSchema.safeParse({ ...validSignUp, firstName: value }).success;
+
+  it.each([
+    'Ayesha',
+    'Mary Jane',
+    'O’Neill',
+    "O'Neill",
+    'Mary-Jane',
+    'J. R. Hartley',
+    'Ñoño',
+    '李明',
+    '<script>alert(1)</script>',
+    '<b>Ayesha</b>',
+    'Ayesha99',
+    '-Ayesha',
+    'Ayesha & Co',
+    'ayesha@example.com',
+  ])('agrees with the contract on the name %s', (value) => {
+    expect(takesName(value)).toBe(nameRe.test(value) && value.length <= nameMax);
+  });
+
+  it('enforces the contract length bound on a name', () => {
+    expect(takesName('a'.repeat(nameMax))).toBe(true);
+    expect(takesName('a'.repeat(nameMax + 1))).toBe(false);
+  });
+
+  /**
+   * The same rule reaches the name-change box, which is the other place a name
+   * is typed. It asks for one half at a time, so it uses `personName` directly.
+   */
+  it('applies the same rule to a name change', () => {
+    expect(personName('first name').safeParse('<script>').success).toBe(false);
+    expect(personName('first name').safeParse('Ayesha').success).toBe(true);
   });
 });
 
