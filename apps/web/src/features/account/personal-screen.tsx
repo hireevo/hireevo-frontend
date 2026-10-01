@@ -6,6 +6,7 @@ import { LuClock, LuInfo } from 'react-icons/lu';
 import type { AuthenticatedUser } from '@hireevo/api-client';
 import { Button, Card, Dialog, OtpInput, PasswordField, TextField, cn } from '@hireevo/ui-web';
 import { FormMessage } from '@/features/auth/form-message.tsx';
+import { personName } from '@/features/auth/schemas.ts';
 import { useSession } from '@/features/auth/session.tsx';
 import {
   loadOrCreateProfile,
@@ -301,6 +302,22 @@ function NameDialog({
     event.preventDefault();
     setErrors({});
     setMessage(null);
+
+    // Checked here before it is sent, so somebody is told while they are still
+    // looking at the box rather than after a round trip. The rule is the API's
+    // own, derived from the contract rather than written again (§6.1).
+    const checked = {
+      first: first.trim() === '' ? null : nameProblem(first, 'first name'),
+      last: last.trim() === '' ? null : nameProblem(last, 'last name'),
+    };
+    if (checked.first !== null || checked.last !== null) {
+      setErrors({
+        ...(checked.first === null ? {} : { first: checked.first }),
+        ...(checked.last === null ? {} : { last: checked.last }),
+      });
+      return;
+    }
+
     setSaving(true);
 
     // Trimmed to null rather than to an empty string: null is how the contract
@@ -677,6 +694,18 @@ function DeactivateDialog({ onClose }: { onClose: () => void }) {
       </form>
     </Dialog>
   );
+}
+
+/**
+ * What is wrong with this half of the name, or null when nothing is.
+ *
+ * The same rule the API applies, read from the shared client schema rather than
+ * written a second time here — a second copy is one that gets tightened in one
+ * place and not the other.
+ */
+function nameProblem(value: string, what: string): string | null {
+  const result = personName(what).safeParse(value);
+  return result.success ? null : (result.error.issues[0]?.message ?? 'Enter a name.');
 }
 
 /** "Ayesha" + "Khan" → "Ayesha Khan"; either half alone is still a name. */

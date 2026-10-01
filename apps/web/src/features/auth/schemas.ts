@@ -29,6 +29,29 @@ export const password = z
     message: 'Use 8+ characters, mixed case, a number and a symbol.',
   });
 
+/**
+ * What a person's name is made of, as the API's `PersonNameSchema` says.
+ *
+ * Letters of any script, plus the punctuation names genuinely carry — a space,
+ * an apostrophe, a hyphen, a full stop — and it has to start with a letter. The
+ * field used to take any string of eighty characters or fewer, so `<script>`
+ * was a perfectly good first name, and this name goes on a public profile.
+ *
+ * The pattern is checked against `openapi.json` in schemas.test.ts rather than
+ * trusted to have been copied faithfully (§6.1).
+ */
+const NAME_CHARACTERS = /^[\p{L}\p{M}][\p{L}\p{M} '’\-.]*$/u;
+
+const WRONG_CHARACTERS = 'Use letters, and the spaces, apostrophes, hyphens or full stops in it.';
+
+export const personName = (what: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, { message: `Enter your ${what}.` })
+    .max(80, { message: 'Use 80 characters or fewer.' })
+    .regex(NAME_CHARACTERS, { message: WRONG_CHARACTERS });
+
 const email = z
   .email({ message: 'Enter a valid email address.' })
   .max(254, { message: 'Enter an email of 254 characters or fewer.' });
@@ -44,16 +67,8 @@ export const signInSchema = z.object({
 
 export const signUpSchema = z
   .object({
-    firstName: z
-      .string()
-      .trim()
-      .min(1, { message: 'Enter your first name.' })
-      .max(80, { message: 'Use 80 characters or fewer.' }),
-    lastName: z
-      .string()
-      .trim()
-      .min(1, { message: 'Enter your last name.' })
-      .max(80, { message: 'Use 80 characters or fewer.' }),
+    firstName: personName('first name'),
+    lastName: personName('last name'),
     email,
     username: z
       .string()
