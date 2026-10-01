@@ -30,6 +30,7 @@ export function AdminIdentity({
   role,
   email,
   onSignOut,
+  signOutFailed = false,
 }: {
   name: string;
   role: string;
@@ -37,6 +38,8 @@ export function AdminIdentity({
   email: string | null;
   /** Null draws the name alone, for a preview with nobody to sign out. */
   onSignOut: (() => void) | null;
+  /** The last attempt could not reach the server, so the panel says so. */
+  signOutFailed?: boolean;
 }) {
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -135,6 +138,11 @@ export function AdminIdentity({
           >
             Sign out
           </button>
+          {signOutFailed ? (
+            <p role="alert" className="px-3 pt-1 pb-2 text-xs leading-snug text-content-warning">
+              Could not sign you out — check your connection and try again.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -150,7 +158,7 @@ export function AdminIdentity({
  */
 export function AdminAccount() {
   const router = useRouter();
-  const { user, signOut } = useSession();
+  const { user, signOut, signOutFailed } = useSession();
 
   // The group's guard renders nothing below it until the session is
   // authenticated, so a missing user here is a transition, not a state to draw.
@@ -161,7 +169,12 @@ export function AdminAccount() {
       name={displayNameOf(user)}
       role={roleLabel(user.roles)}
       email={user.email}
-      onSignOut={() => void signOut().then(() => router.replace('/sign-in'))}
+      onSignOut={() => {
+        void signOut().then((ended) => {
+          if (ended) router.replace('/sign-in');
+        });
+      }}
+      signOutFailed={signOutFailed}
     />
   );
 }
