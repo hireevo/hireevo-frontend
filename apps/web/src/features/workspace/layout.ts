@@ -1,6 +1,12 @@
 /**
- * The workspace column: 1294px of content, with the gutter added outside that
- * width rather than taken from it.
+ * The application's column: 1294px of content, with the gutter added outside
+ * that width rather than taken from it.
+ *
+ * Every screen a person reads uses this one — the dashboard, the profile
+ * editor, the account pages, the setup wizard and the public profile — so the
+ * page's left and right edges never move as somebody walks through the app.
+ * The public profile reaches for it from here because this is where the number
+ * was first read from the design; it is a shell, not a workspace detail.
  *
  * Read from the design rather than estimated. The client-profile frame is
  * 1536 wide and its content sits between x=121 and x=1415 — 1294 across — and

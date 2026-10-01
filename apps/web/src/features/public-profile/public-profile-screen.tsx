@@ -18,6 +18,7 @@ import {
   phraseOfProjectLength,
 } from '@/features/profile-setup/preference-options.ts';
 import { cn } from '@hireevo/ui-web';
+import { CONTAINER } from '@/features/workspace/layout.ts';
 import { proficiencyLabel, proficiencyTint } from '@/features/profile/language-proficiency.ts';
 import { videoThumbnail } from '@/features/profile/video-url.ts';
 import { Markdown } from '@/features/rich-text/markdown.tsx';
@@ -180,7 +181,7 @@ export function PublicProfileScreen({
     .join(', ');
 
   return (
-    <main id="main-content" className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6">
+    <main id="main-content" className={cn(CONTAINER, 'py-8')}>
       {/* A trail only where there is one to describe.
 
           The owner reached this page from their own workspace, so "Dashboard /
